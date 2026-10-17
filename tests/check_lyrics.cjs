@@ -5,10 +5,11 @@ const response=value=>({ok:true,text:async()=>typeof value==='string'?value:JSON
 function boot(fetch,storage=new Map()){
   const script=source.replace(/\}\)\(\);\s*$/,`
     globalThis.renders=[];
+    const realUpdateLyricsHighlight=updateLyricsHighlight,realRenderLyrics=renderLyrics;
     renderLyrics=()=>renders.push({uid:state.currentTrack?.uid,lines:state.lyricLines.length});
     updateLyricsHighlight=()=>{};
     renderMiniSearchList=()=>{}; renderPlaylistList=()=>{}; updateMainFavButton=()=>{};
-    globalThis.app={parseLRC,lyricText,sameLyricRecording,ensureTrackLyrics,refreshTrackLyrics,state,dom,playTrack,
+    globalThis.app={parseLRC,lyricText,sameLyricRecording,ensureTrackLyrics,refreshTrackLyrics,state,dom,playTrack,realUpdateLyricsHighlight,realRenderLyrics,
       setRequest:value=>playbackRequest=value,stubDetails:()=>ensureTrackDetails=async()=>{}};
   })();`);
   const node=()=>({style:{},classList:{add(){},remove(){},toggle(){}},appendChild(){},addEventListener(){}});
@@ -29,6 +30,19 @@ function boot(fetch,storage=new Map()){
   assert(!app.sameLyricRecording({title:'雨',artist:'沈以诚'},{title:'雨 (Live)',artist:'沈以诚'}));
   assert(!app.sameLyricRecording({title:'雨',artist:'沈以诚'},{title:'雨',artist:'别的歌手'}));
   assert(app.sameLyricRecording({title:'等你下课(with 杨瑞代)',artist:'周杰伦'},{title:'等你下课 (with 杨瑞代)',artist:'周杰伦/杨瑞代'}));
+
+  const sync=boot(),active=new Set();
+  const box={scrollTop:200,clientHeight:300,clientTop:0,getBoundingClientRect:()=>({top:600}),scrollTo({top}){this.scrollTop=top;}};
+  const elements=[500,550,600].map((top,index)=>({offsetTop:9999,offsetHeight:40,
+    getBoundingClientRect:()=>({top:600+top-box.scrollTop}),classList:{add:()=>active.add(index),remove:()=>active.delete(index)}}));
+  sync.app.dom.lyricsContainer=box;
+  sync.app.dom.lyricsInner={querySelectorAll:()=>[...active].map(i=>elements[i]),querySelector:selector=>elements[Number(selector.match(/index="(\d+)"/)[1])],appendChild(){}};
+  sync.app.state.lyricLines=[{time:5,text:'first'},{time:10,text:'second'},{time:15,text:'third'}];
+  sync.app.realUpdateLyricsHighlight(12);assert.equal(sync.app.state.currentLyricIndex,1);assert.deepEqual([...active],[1]);assert.equal(box.scrollTop,420,'Center using the lyric box coordinates, not the page offset');
+  sync.app.realUpdateLyricsHighlight(2);assert.equal(sync.app.state.currentLyricIndex,-1);assert.equal(active.size,0);assert.equal(box.scrollTop,0,'Seeking back into the intro clears the old lyric');
+  sync.app.realUpdateLyricsHighlight(10);assert.deepEqual([...active],[1]);
+  sync.app.realUpdateLyricsHighlight(15);assert.deepEqual([...active],[2]);
+  box.scrollTop=500;sync.app.state.lyricLines=[];sync.app.realRenderLyrics();assert.equal(box.scrollTop,0,'Changing lyrics resets the previous scroll');
 
   const own=boot(async url=>{assert(url.endsWith('musicId=1010956'));return response({data:{songinfo:{songName:'想自由',artist:'林宥嘉'},lrclist:[{time:'1.5',lineLyric:'own lyric'}]}});});
   const original={uid:'kuwo-1010956',source:'kuwo',songid:'MUSIC_1010956',title:'想自由',artist:'林宥嘉',audioUrl:'unchanged-audio'};
@@ -53,6 +67,18 @@ function boot(fetch,storage=new Map()){
   const qqBorrow={uid:'borrow',source:'netease',title:'雨',artist:'沈以诚',audioUrl:'keep-original'};
   assert(await qq.app.ensureTrackLyrics(qqBorrow));assert.equal(qqBorrow.lyricSource,'QQ音乐');assert.equal(qqBorrow.audioUrl,'keep-original');assert.equal(qq.app.parseLRC(qqBorrow.lrc)[0].time,null);
 
+  let slowCancelled=false,deadline;
+  const parallel=boot(async(url,{signal})=>{
+    if(url.includes('songinfoandlrc'))return response({data:null});
+    if(url.includes('type=search'))return new Promise((resolve,reject)=>signal.addEventListener('abort',()=>{slowCancelled=true;reject(signal.reason);},{once:true}));
+    return url.includes('mid=right') ? response({song_title:'雨',singer_name:'沈以诚',lyric:'[00:01]fast lyrics'}) : response([{song_mid:'right',song_title:'雨',singer_name:'沈以诚'}]);
+  });
+  const slowTrack={uid:'slow',source:'kuwo',songid:'123',title:'雨',artist:'沈以诚',audioUrl:'keep-audio'};
+  try{
+    assert(await Promise.race([parallel.app.ensureTrackLyrics(slowTrack),new Promise((resolve,reject)=>{deadline=setTimeout(()=>reject(Error('Slow provider blocked the fallback')),1000);})]));
+  }finally{clearTimeout(deadline);}
+  assert(slowCancelled,'Cancel the remaining provider after finding lyrics');assert.equal(slowTrack.lyricSource,'QQ音乐');assert.equal(slowTrack.audioUrl,'keep-audio');
+
   let release;
   const stale=boot(()=>new Promise(resolve=>release=()=>resolve(response({lrc:'[00:01]old lyric'}))));
   const old={uid:'old',source:'netease',title:'old',artist:'artist',lrcUrl:'https://example.com/old'};
@@ -67,5 +93,5 @@ function boot(fetch,storage=new Map()){
   nonblocking.app.dom.audio={currentTime:0,volume:0.8,pause(){},play:async()=>{played=true;}};
   await nonblocking.app.playTrack({uid:'audio-first',source:'netease',title:'track',artist:'artist',audioUrl:'original'},null);
   assert(played,'Audio must start while lyric lookup is still pending');
-  console.log('通过：纯文本/嵌套JSON/酷我时间轴、多时间标签、版本歌手匹配、歌词缓存、换歌竞态、歌词查询不阻塞播放。');
+  console.log('通过：纯文本/嵌套JSON/酷我时间轴、多时间标签、版本歌手匹配、歌词缓存、换歌竞态、并行查询及取消慢接口、歌词查询不阻塞播放、歌词居中及前奏/拖动高亮。');
 })().catch(error=>{console.error(error);process.exitCode=1;});
