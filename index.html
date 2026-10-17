@@ -1593,24 +1593,35 @@
       // Match singer and version before borrowing lyrics; never change the playing audio.
       const queries=[...new Set([track.title,`${track.title} ${track.artist}`])];
       const tried=new Set(track.lrcUrl ? [track.lrcUrl] : []);
-      for(const query of queries){
-        const data=await read('https://api.qijieya.cn/meting/?'+new URLSearchParams({server:'netease',type:'search',id:query,limit:20}));
-        const matches=Array.isArray(data) ? data.filter(song=>sameLyricRecording(track,{title:song.name,artist:song.artist})).slice(0,2) : [];
-        for(const song of matches){
-          if(!song.lrc || tried.has(song.lrc) || !/^https:\/\/api\.qijieya\.cn\/meting\//.test(song.lrc))continue;
-          tried.add(song.lrc);
-          if(use(await read(song.lrc),'网易云'))return true;
+      const fallbackController=new AbortController();
+      signal=signal ? AbortSignal.any([signal,fallbackController.signal]) : fallbackController.signal;
+      const findNetease=async()=>{
+        for(const query of queries){
+          const data=await read('https://api.qijieya.cn/meting/?'+new URLSearchParams({server:'netease',type:'search',id:query,limit:20}));
+          const matches=Array.isArray(data) ? data.filter(song=>sameLyricRecording(track,{title:song.name,artist:song.artist})).slice(0,2) : [];
+          for(const song of matches){
+            if(!song.lrc || tried.has(song.lrc) || !/^https:\/\/api\.qijieya\.cn\/meting\//.test(song.lrc))continue;
+            tried.add(song.lrc);
+            const value=await read(song.lrc);
+            if(parseLRC(value).length)return {value,source:'网易云'};
+          }
         }
-      }
-      if(track.source!=='qq'){
+        throw new Error('No matching NetEase lyrics');
+      };
+      const findQQ=async()=>{
         const data=await read(musicApiUrl('/api/qq',{msg:track.title}));
         const songs=Array.isArray(data) ? data : (Array.isArray(data?.data) ? data.data : []);
         for(const song of songs.filter(song=>song.song_mid && sameLyricRecording(track,{title:song.song_title,artist:song.singer_name})).slice(0,2)){
           const detail=await read(musicApiUrl('/api/qq',{msg:track.title,mid:song.song_mid}));
-          if(detail && sameLyricRecording(track,{title:detail.song_title,artist:detail.singer_name}) && use(detail,'QQ音乐'))return true;
+          if(detail && sameLyricRecording(track,{title:detail.song_title,artist:detail.singer_name}) && parseLRC(detail).length)return {value:detail,source:'QQ音乐'};
         }
-      }
-      return false;
+        throw new Error('No matching QQ lyrics');
+      };
+      try{
+        const result=await Promise.any(track.source==='qq' ? [findNetease()] : [findNetease(),findQQ()]);
+        return use(result.value,result.source);
+      }catch{return false;}
+      finally{fallbackController.abort();}
     }
 
     async function refreshTrackLyrics(track,request,signal){
@@ -1632,6 +1643,7 @@
       const wrap=dom.lyricsInner;
       wrap.innerHTML='';
       state.currentLyricIndex=-1;
+      dom.lyricsContainer.scrollTop=0;
       const track=state.currentTrack;
       const titleLine=document.createElement('div');
       titleLine.className='lyrics-title-line';
@@ -1668,23 +1680,18 @@
 
     function updateLyricsHighlight(time){
       const lines=state.lyricLines; if(!lines.length || lines[0].time===null)return;
-      let idx=state.currentLyricIndex;
-      if(idx<0||idx>=lines.length||time<lines[idx].time|| (idx+1<lines.length && time>=lines[idx+1].time)){
-        idx=lines.findIndex((l,i)=>{
-          const nxt=lines[i+1];
-          if(!nxt)return time>=l.time-0.05;
-          return time>=l.time-0.05 && time<nxt.time-0.05;
-        });
-      }
-      if(idx<0||idx===state.currentLyricIndex)return;
+      const idx=lines.findIndex((line,i)=>time>=line.time && (!lines[i+1] || time<lines[i+1].time));
+      if(idx===state.currentLyricIndex)return;
       state.currentLyricIndex=idx;
       const wrap=dom.lyricsInner;
       wrap.querySelectorAll('.lyrics-line.active').forEach(el=>el.classList.remove('active'));
+      const box=dom.lyricsContainer;
+      if(idx<0){box.scrollTo({top:0,behavior:'instant'});return;}
       const act=wrap.querySelector(`.lyrics-line[data-index="${idx}"]`);
       if(act){
         act.classList.add('active');
-        const box=dom.lyricsContainer;
-        box.scrollTo({top:act.offsetTop-box.clientHeight*0.45,behavior:'smooth'});
+        const top=box.scrollTop+act.getBoundingClientRect().top-box.getBoundingClientRect().top-box.clientTop-(box.clientHeight-act.offsetHeight)/2;
+        box.scrollTo({top:Math.max(0,top),behavior:'smooth'});
       }
     }
 
@@ -2532,7 +2539,7 @@
         audioLevel = 0;
         savePlaybackState();
       });
-      dom.audio.addEventListener('seeked',savePlaybackState);
+      dom.audio.addEventListener('seeked',()=>{updateLyricsHighlight(dom.audio.currentTime||0);savePlaybackState();});
       window.addEventListener('pagehide',savePlaybackState);
       dom.audio.addEventListener('ended',()=>{
         audioLevel = 0;
