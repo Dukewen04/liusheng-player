@@ -6,6 +6,7 @@
 
 - 网易云、QQ、酷我和 JOOX 音源搜索与播放。
 - 收藏搜索、歌名/歌手排序、收藏 JSON 导出。
+- 播放时自动补全歌词：优先原平台，再匹配同歌名、歌手和版本的备用歌词；支持纯文本和滚动歌词，后台查询不阻塞播放。
 - JSON 歌单导入导出、自建歌单、一键同步收藏。
 - 默认随机播放，记住模式、音量、歌曲及播放位置；浏览器限制自动播放时需点击播放。
 - 桌面、平板和手机布局；去除粒子、水波纹和闪动背景。
@@ -24,6 +25,8 @@
 沿用原项目的公开接口：网易云使用 qijieya Meting，QQ 使用 tang music API，酷我使用 OIAPI。GitHub Pages 上的 QQ 搜索和详情请求默认直接访问同一个允许跨域的 QQ 接口；本地运行时使用 `server.py` 的同源代理。
 
 代理不会提供平台未返回的播放地址，歌曲是否可播放仍取决于音源。QQ 导入条目缺少标识时，按歌名和歌手匹配，避免直接播放错误版本。
+
+酷我歌词使用官方歌曲 ID 接口，缺失时尝试网易云和 QQ 的匹配歌词。补全歌词不会替换播放音源；纯文本歌词会明确标注没有时间轴。最近 80 首歌词保存在当前浏览器的独立缓存中，大小限制为约 18 万字符；纯音乐或接口没有返回的歌词仍可能无法补齐。
 
 公开歌单**链接**导入需要兼容 `/api/playlist?url=...` 的服务。本地启动器已包含该能力。线上可在“音源设置”填写自己的 HTTPS 代理地址，接口约定与本仓库的 `server.py` 一致：
 
@@ -52,6 +55,7 @@ node tests/check_export_favorites.js
 node tests/check_playback_resume.js
 node tests/check_favorites_rebuild.js
 node tests/check_api_routes.cjs
+node tests/check_lyrics.cjs
 ```
 
 ## 许可与来源
