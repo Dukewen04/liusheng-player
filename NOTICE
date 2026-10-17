@@ -1,0 +1,9 @@
+Liusheng Player
+
+Derived from MusicSquare by Zhenchao Jin (CharlesPikachu).
+Original project: https://github.com/CharlesPikachu/musicsquare
+Licensed under the Apache License, Version 2.0.
+
+Modified in October 2026: redesigned the interface, added library search,
+sorting, favorites export, playback persistence, validation tools and
+configurable API routing for static hosting.
