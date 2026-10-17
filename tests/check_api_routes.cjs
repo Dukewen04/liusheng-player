@@ -1,0 +1,17 @@
+const fs=require('fs'),vm=require('vm'),assert=require('assert/strict'),path=require('path');
+const html=fs.readFileSync(path.join(__dirname,'../index.html'),'utf8');
+let script=[...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].at(-1)[1];
+script=script.replace(/\}\)\(\);\s*$/, 'globalThis.app={musicApiUrl};})();');
+const storage=new Map();
+const context=vm.createContext({URLSearchParams,location:{hostname:'127.0.0.1',port:'8766'},document:{addEventListener(){}},localStorage:{getItem:k=>storage.get(k)}});
+vm.runInContext(script,context);
+assert.equal(context.app.musicApiUrl('/api/qq',{msg:'晴天'}),'/api/qq?msg=%E6%99%B4%E5%A4%A9');
+context.location.hostname='dukewen04.github.io';
+const remote=new URL(context.app.musicApiUrl('/api/qq',{msg:'hello',mid:'abc'}));
+assert.equal(remote.origin,'https://tang.api.s01s.cn');assert.equal(remote.searchParams.get('mid'),'abc');
+assert.throws(()=>context.app.musicApiUrl('/api/playlist',{url:'test'}),/代理服务/);
+storage.set('liusheng-api-base','https://music-api.example.com');
+assert.equal(context.app.musicApiUrl('/api/playlist',{url:'test'}),'https://music-api.example.com/api/playlist?url=test');
+assert(!html.includes('setupParticles();'));assert(!html.includes('setupRipple();'));
+assert(!html.includes('dukewen04@gmail.com'));assert(!html.includes('merged-qq-fixed-20261006'));
+console.log('通过：本地代理、GitHub Pages 直连、可配置代理、链接导入提示、无个人歌单及账号数据。');
