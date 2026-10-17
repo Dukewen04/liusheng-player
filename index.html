@@ -1494,9 +1494,9 @@
     }
 
     async function ensureTrackDetails(track){
-      if(track.detailsLoaded && track.audioUrl && (track.lrc || !track.lrcUrl)) return;
+      if(track.detailsLoaded && track.audioUrl) return;
       dom.playerStatus.textContent=t('playerStatusLoading');
-      if(track.source==='netease') await fetchNeteaseDetails(track);
+      if(track.source==='netease') await fetchNeteaseDetails(track,false);
       else if(track.source==='kuwo') await fetchKuwoDetails(track);
       else if(track.source==='joox') await fetchJooxDetails(track);
       else await fetchQQDetails(track);
@@ -1504,22 +1504,128 @@
 
     // ===================== 歌词处理 =====================
 
-    function parseLRC(txt){
-      if(!txt)return[];
-      const lines=txt.split(/\r?\n/);
-      const reg=/\[(\d{1,2}):(\d{1,2})(?:\.(\d{1,3}))?\]/;
-      const out=[];
-      for(const line of lines){
-        const m=reg.exec(line); if(!m)continue;
-        const min=parseInt(m[1],10)||0;
-        const sec=parseInt(m[2],10)||0;
-        const ms=m[3]?parseInt(m[3].padEnd(3,'0'),10):0;
-        const time=min*60+sec+ms/1000;
-        const text=line.replace(reg,'').trim();
-        if(text)out.push({time,text});
+    function lyricText(value){
+      if(Array.isArray(value))return value.map(line=>{
+        const time=Number(line?.time);
+        return line?.lineLyric && Number.isFinite(time)
+          ? `[${Math.floor(time/60)}:${(time%60).toFixed(3).padStart(6,'0')}]${line.lineLyric}` : '';
+      }).filter(Boolean).join('\n');
+      if(value && typeof value==='object'){
+        for(const key of ['song_lyric','lrc','lyric','lyrics','lrclist','data']){
+          const text=lyricText(value[key]); if(text)return text;
+        }
+        return '';
       }
-      out.sort((a,b)=>a.time-b.time);
-      return out;
+      if(typeof value!=='string')return '';
+      const text=value.replace(/^\uFEFF/,'').trim();
+      if(text.length>100000 || /^(?:<!doctype|<html|<head|<body|https?:\/\/)/i.test(text))return '';
+      if(/^[{\[]/.test(text)){
+        try{return lyricText(JSON.parse(text));}catch{}
+      }
+      return text.replace(/\r\n?/g,'\n');
+    }
+
+    function parseLRC(value){
+      const txt=lyricText(value); if(!txt)return[];
+      const out=[], plain=[];
+      for(const line of txt.split('\n')){
+        const tags=[...line.matchAll(/\[(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?\]/g)];
+        const text=line.replace(/\[(?:\d{1,3}:\d{2}(?:[.:]\d{1,3})?|(?:ti|ar|al|by|offset|re|ve):[^\]]*)\]/gi,'').trim();
+        if(!text || /^(?:暂无歌词|暂无滚动歌词|纯音乐|这似乎是一首纯音乐|no lyrics|instrumental|error\b|not found\b|access denied\b|\d{3}\s+(?:error|not found|bad gateway))/i.test(text))continue;
+        if(tags.length)for(const tag of tags)out.push({time:Number(tag[1])*60+Number(tag[2])+Number((tag[3]||'').padEnd(3,'0'))/1000,text});
+        else plain.push({time:null,text});
+      }
+      return out.length ? out.sort((a,b)=>a.time-b.time) : plain;
+    }
+
+    let lyricCache;
+    const lyricCacheKey=track=>`${track.uid}|${track.title}|${track.artist}`;
+    function cachedLyrics(track){
+      if(!lyricCache){
+        try{
+          const raw=localStorage.getItem('liusheng-lyrics-v1')||'[]';
+          const entries=raw.length<=180000 ? JSON.parse(raw) : [];
+          lyricCache=new Map(Array.isArray(entries) ? entries.filter(e=>Array.isArray(e)&&typeof e[0]==='string'&&typeof e[1]?.text==='string').slice(-80) : []);
+        }catch{lyricCache=new Map();}
+      }
+      return lyricCache.get(lyricCacheKey(track));
+    }
+    function rememberLyrics(track){
+      cachedLyrics(track);
+      const key=lyricCacheKey(track);
+      lyricCache.delete(key);
+      lyricCache.set(key,{text:lyricText(track.lrc),source:track.lyricSource||''});
+      while(lyricCache.size>80 || JSON.stringify([...lyricCache]).length>180000)lyricCache.delete(lyricCache.keys().next().value);
+      try{localStorage.setItem('liusheng-lyrics-v1',JSON.stringify([...lyricCache]));}catch{}
+    }
+
+    function sameLyricRecording(track,candidate){
+      if(sameRecording(track,candidate))return true;
+      const featured=String(track.title||'').normalize('NFKC').match(/\b(?:with|feat\.?|ft\.?)\s+([^)]*)/i)?.[1];
+      return Boolean(featured && sameRecording({...track,artist:track.artist+'/'+featured},candidate));
+    }
+
+    async function ensureTrackLyrics(track,signal){
+      const use=(value,source)=>{
+        const text=lyricText(value); if(!parseLRC(text).length)return false;
+        track.lrc=text; track.lyricSource=source; rememberLyrics(track); return true;
+      };
+      if(parseLRC(track.lrc).length)return use(track.lrc,track.lyricSource||'');
+      const cached=cachedLyrics(track);
+      if(cached && use(cached.text,cached.source))return true;
+      const read=async url=>{
+        try{
+          const res=await fetch(url,{signal:signal ? AbortSignal.any([signal,AbortSignal.timeout(8000)]) : AbortSignal.timeout(8000)});
+          if(!res.ok)return null;
+          const text=await res.text();
+          try{return JSON.parse(text);}catch{return text;}
+        }catch(error){if(signal?.aborted)throw error;return null;}
+      };
+      if(track.source==='netease' && track.lrcUrl && use(await read(track.lrcUrl),''))return true;
+      if(track.source==='kuwo'){
+        const rid=String(track.songid||'').replace(/^MUSIC_/,'');
+        if(/^\d+$/.test(rid)){
+          const data=(await read('https://m.kuwo.cn/newh5/singles/songinfoandlrc?musicId='+rid))?.data;
+          const info=data?.songinfo;
+          if(info && sameLyricRecording(track,{title:info.songName,artist:info.artist}) && use(data.lrclist,''))return true;
+        }
+      }
+      // Match singer and version before borrowing lyrics; never change the playing audio.
+      const queries=[...new Set([track.title,`${track.title} ${track.artist}`])];
+      const tried=new Set(track.lrcUrl ? [track.lrcUrl] : []);
+      for(const query of queries){
+        const data=await read('https://api.qijieya.cn/meting/?'+new URLSearchParams({server:'netease',type:'search',id:query,limit:20}));
+        const matches=Array.isArray(data) ? data.filter(song=>sameLyricRecording(track,{title:song.name,artist:song.artist})).slice(0,2) : [];
+        for(const song of matches){
+          if(!song.lrc || tried.has(song.lrc) || !/^https:\/\/api\.qijieya\.cn\/meting\//.test(song.lrc))continue;
+          tried.add(song.lrc);
+          if(use(await read(song.lrc),'网易云'))return true;
+        }
+      }
+      if(track.source!=='qq'){
+        const data=await read(musicApiUrl('/api/qq',{msg:track.title}));
+        const songs=Array.isArray(data) ? data : (Array.isArray(data?.data) ? data.data : []);
+        for(const song of songs.filter(song=>song.song_mid && sameLyricRecording(track,{title:song.song_title,artist:song.singer_name})).slice(0,2)){
+          const detail=await read(musicApiUrl('/api/qq',{msg:track.title,mid:song.song_mid}));
+          if(detail && sameLyricRecording(track,{title:detail.song_title,artist:detail.singer_name}) && use(detail,'QQ音乐'))return true;
+        }
+      }
+      return false;
+    }
+
+    async function refreshTrackLyrics(track,request,signal){
+      const lookupSignal=AbortSignal.any([signal,AbortSignal.timeout(20000)]);
+      track.lyricsLoading=!parseLRC(track.lrc).length;
+      renderLyrics();
+      try{await ensureTrackLyrics(track,lookupSignal);}
+      catch(error){if(!lookupSignal.aborted)console.warn('lyric lookup failed',error);}
+      finally{
+        if(request===playbackRequest && state.currentTrack===track){
+          track.lyricsLoading=false;
+          state.lyricLines=parseLRC(track.lrc);
+          renderLyrics(); updateLyricsHighlight(dom.audio.currentTime);
+        }
+      }
     }
 
     function renderLyrics(){
@@ -1539,9 +1645,17 @@
         const empty=document.createElement('div');
         empty.id='lyrics-empty';
         empty.className='lyrics-empty';
-        empty.textContent=t('lyricsEmpty');
+        empty.textContent=track?.lyricsLoading
+          ? (state.language==='zh' ? '正在查找歌词，歌曲播放不受影响…' : 'Looking for lyrics…')
+          : t('lyricsEmpty');
         wrap.appendChild(empty);
         return;
+      }
+      if(track?.lyricSource || arr[0].time===null){
+        const note=document.createElement('div');
+        note.className='lyrics-empty';
+        note.textContent=[track?.lyricSource ? (state.language==='zh' ? '歌词来自 ' : 'Lyrics from ')+track.lyricSource : '',arr[0].time===null ? (state.language==='zh' ? '纯文本歌词，暂无时间轴' : 'Plain lyrics · no timing') : ''].filter(Boolean).join(' · ');
+        wrap.appendChild(note);
       }
       arr.forEach((ln,i)=>{
         const div=document.createElement('div');
@@ -1553,7 +1667,7 @@
     }
 
     function updateLyricsHighlight(time){
-      const lines=state.lyricLines; if(!lines.length)return;
+      const lines=state.lyricLines; if(!lines.length || lines[0].time===null)return;
       let idx=state.currentLyricIndex;
       if(idx<0||idx>=lines.length||time<lines[idx].time|| (idx+1<lines.length && time>=lines[idx+1].time)){
         idx=lines.findIndex((l,i)=>{
@@ -1586,10 +1700,13 @@
       dom.favBtn.classList.toggle('btn-fav-active',active);
     }
 
-    let playbackRequest = 0;
+    let playbackRequest = 0, lyricsController;
     async function playTrack(track,context,startTime=0){
       if(!track)return;
       const request = ++playbackRequest;
+      lyricsController?.abort();
+      lyricsController=new AbortController();
+      const lyricsSignal=lyricsController.signal;
       dom.audio.pause();
       state.currentTrack=track;
       state.playContext=context||state.playContext;
@@ -1643,6 +1760,7 @@
         applyUI();
         state.lyricLines = track.lrc ? parseLRC(track.lrc) : [];
         renderLyrics();
+        void refreshTrackLyrics(track,request,lyricsSignal);
         if(!track.audioUrl){showToast(t('toastPlayError'));dom.playerStatus.textContent=t('playerStatusIdle');return;}
         loadedTrackUid=track.uid;
         pendingSeek=startTime;
