@@ -20,6 +20,8 @@
 @media(max-width:1000px){.app{height:auto;min-height:100dvh}.layout{grid-template-columns:260px 1fr;min-height:850px}.search-panel{grid-column:1;grid-row:1/3}.player-panel{grid-column:2;grid-row:1;min-height:700px}.playlist-panel{grid-column:2;grid-row:2;min-height:550px;max-height:800px}.cover-wrapper{width:270px}.lyrics-container{min-height:150px}.header-controls{gap:7px}.header-controls .btn{font-size:12px}.search-results-mini{max-height:900px}}
 @media(max-width:650px){.app{padding:17px 14px 14px;gap:20px}.app>header{gap:10px}.brand-mark{width:43px;height:43px;border-radius:14px}.logo-area{gap:10px}.title-text h1{font-size:23px}.title-text p{font-size:9px;letter-spacing:.08em}.header-controls{gap:6px}.header-controls .btn{padding:7px 9px;min-height:34px;font-size:11px}.shortcut-toggle-btn{display:none}.layout{display:flex;flex-direction:column;gap:18px}.search-panel{order:2;max-height:580px;min-height:240px}.player-panel{order:1;min-height:640px;padding-left:22px;padding-right:22px}.playlist-panel{order:3;min-height:600px;max-height:850px}.cover-wrapper{width:250px}.player-top{gap:20px}.track-title{font-size:25px}.player-panel>.panel-header{padding-top:18px}.panel-header{padding:18px 20px}.search-panel>.panel-header{flex-direction:row;align-items:center;flex-wrap:wrap}.search-results-mini{min-height:120px;max-height:350px}.search-source-row{display:flex;gap:10px}.playlist-main{padding:0 20px 15px}.track-meta-title{font-size:16px}.track-meta-sub{font-size:12px}.track-actions .btn{min-width:25px}.lyrics-container{max-height:190px}.control-main{gap:22px}.volume-slider{width:70px}footer{justify-content:center;text-align:center;font-size:10px}.playlist-panel .panel-title{font-size:23px}.header-controls .import-label{display:none}}
 
+.player-view-actions{display:flex;align-items:center;gap:10px}.lyrics-mode-btn{font-size:12px;min-height:32px;padding:5px 10px}
+body.lyrics-mode{overflow:hidden}.lyrics-mode .app{height:100dvh;min-height:0;max-width:1200px;padding:20px clamp(16px,5vw,64px);gap:0}.lyrics-mode .app>header,.lyrics-mode footer,.lyrics-mode .search-panel,.lyrics-mode .playlist-panel{display:none}.lyrics-mode .layout{display:flex;min-height:0;gap:0}.lyrics-mode .player-panel{flex:1;min-height:0;max-height:none;padding:0;border:0;border-radius:0;background:transparent}.lyrics-mode .player-panel>.panel-header{order:0;padding:0 0 12px}.lyrics-mode .player-view-actions>.chip,.lyrics-mode .cover-wrapper,.lyrics-mode .track-tags,.lyrics-mode .player-actions{display:none}.lyrics-mode .player-top,.lyrics-mode .player-main{display:contents}.lyrics-mode .track-title-row{order:1;justify-content:center;flex-shrink:0;text-align:center}.lyrics-mode .track-title{font-size:clamp(20px,2.3vw,30px)}.lyrics-mode .track-artist{font-size:14px;margin-top:2px}.lyrics-mode .lyrics-container{order:2;flex:1;min-height:0;max-height:none;margin:12px 0;border:0;padding:0;overscroll-behavior:contain}.lyrics-mode .lyrics-inner{max-width:900px;margin:auto;padding:25dvh 12px}.lyrics-mode .lyrics-line{font-size:clamp(24px,3vw,40px);line-height:2.1;color:#a1ad9a}.lyrics-mode .lyrics-line.active{font-size:clamp(26px,3.2vw,44px);color:var(--accent)}.lyrics-mode .player-controls{order:3;flex-shrink:0;width:min(680px,100%);align-self:center;margin:0;padding:10px 0 max(0px,env(safe-area-inset-bottom))}.lyrics-mode .control-row{margin-top:10px}.lyrics-mode .control-main{gap:22px}.lyrics-mode .volume-slider{width:70px}
 </style>
 </head>
 <body>
@@ -118,7 +120,10 @@
             <span class="icon">🎧</span>
             <span data-i18n="playerTitle">正在播放</span>
           </div>
-          <span class="chip" data-i18n="playerSubtitle">一首歌，一段好时光</span>
+          <div class="player-view-actions">
+            <span class="chip" data-i18n="playerSubtitle">一首歌，一段好时光</span>
+            <button id="lyrics-mode-btn" class="btn btn-ghost lyrics-mode-btn" type="button" aria-pressed="false">纯歌词</button>
+          </div>
         </div>
 
         <div class="player-top">
@@ -380,6 +385,8 @@
         playerStatusPlaying:"播放中",
         playerStatusPaused:"已暂停",
         lyricsEmpty:"暂无歌词，试着播放一首支持歌词的歌曲。",
+        lyricsMode:"纯歌词",
+        exitLyricsMode:"退出纯歌词 · Esc",
         playlistTitle:"我的音乐",
         tabResults:"搜索结果",
         tabFavorites:"我的收藏",
@@ -464,6 +471,8 @@
         playerStatusPlaying:"Playing",
         playerStatusPaused:"Paused",
         lyricsEmpty:"No lyrics yet. Try a song with LRC lyrics.",
+        lyricsMode:"Lyrics only",
+        exitLyricsMode:"Exit lyrics · Esc",
         playlistTitle:"Playlists",
         tabResults:"Default",
         tabFavorites:"Favorites",
@@ -537,6 +546,7 @@
       isPlaying:false,
       lyricLines:[],
       currentLyricIndex:-1,
+      lyricsMode:false,
       searchInProgress:false,
       noMoreResults:false,
       lyricsAlt:false,
@@ -651,6 +661,7 @@
         : 'e.g. Commute mix / Pokemon list';
       if(dom.playlistSelect) renderPlaylistOptions();
       updatePlaylistInfoLabel();
+      dom.lyricsModeBtn.textContent=t(state.lyricsMode?'exitLyricsMode':'lyricsMode');
     }
 
     // ========== 旧的质量映射函数，暂时保留（不再使用 API 的 quality 字段） ==========
@@ -1695,6 +1706,17 @@
       }
     }
 
+    function setLyricsMode(enabled){
+      state.lyricsMode=Boolean(enabled);
+      document.body.classList.toggle('lyrics-mode',state.lyricsMode);
+      dom.lyricsModeBtn.textContent=t(state.lyricsMode?'exitLyricsMode':'lyricsMode');
+      dom.lyricsModeBtn.setAttribute('aria-pressed',String(state.lyricsMode));
+      try{localStorage.setItem('liusheng-lyrics-mode',state.lyricsMode?'1':'0');}catch{}
+      dom.lyricsContainer.scrollTop=0;
+      state.currentLyricIndex=-1;
+      updateLyricsHighlight(dom.audio.currentTime||0);
+    }
+
     // ===================== 收藏 / 播放 =====================
 
     function isFavorite(track){
@@ -2219,6 +2241,7 @@
       dom.volumeSlider=$('volume-slider');
       dom.lyricsInner=$('lyrics-inner');
       dom.lyricsContainer=document.querySelector('.lyrics-container');
+      dom.lyricsModeBtn=$('lyrics-mode-btn');
 
       dom.playlistMain=document.querySelector('.playlist-main');
       dom.playlistList=$('playlist-list');
@@ -2401,6 +2424,7 @@
     }
 
     function setupEvents(){
+      dom.lyricsModeBtn.addEventListener('click',()=>setLyricsMode(!state.lyricsMode));
       $('library-import-btn').addEventListener('click',()=>dom.importPlaylistInput.click());
       $('audio-settings-btn').addEventListener('click',()=>{
         $('audio-api-base').value=localStorage.getItem('liusheng-api-base')||'';
@@ -2613,6 +2637,7 @@
         if(e.key==='Escape'){
           if(playlistOpen)closePlaylistModal();
           if(shortcutOpen)dom.shortcutModal.classList.remove('show');
+          if(!playlistOpen && !shortcutOpen && state.lyricsMode)setLyricsMode(false);
           return;
         }
 
@@ -2632,7 +2657,7 @@
           state.muted=!state.muted;
           dom.audio.muted=state.muted;
         }
-        if(e.key==='/'&&!typing){e.preventDefault();dom.searchInput.focus();dom.searchInput.select();}
+        if(e.key==='/'&&!typing){e.preventDefault();if(state.lyricsMode)setLyricsMode(false);dom.searchInput.focus();dom.searchInput.select();}
       });
     }
 
@@ -2648,6 +2673,9 @@
       renderPlaylistList();
       setPlaymodeUI();
       dom.audio.volume=parseFloat(dom.volumeSlider.value);
+      let lyricsMode=false;
+      try{lyricsMode=localStorage.getItem('liusheng-lyrics-mode')==='1';}catch{}
+      setLyricsMode(lyricsMode);
       restorePlaybackState();
     }
 
