@@ -376,6 +376,14 @@ body.lyrics-mode{overflow:hidden}.lyrics-mode .app{height:100dvh;min-height:0;ma
         searchStatusIdle:"尚未搜索，试试输入“林俊杰”？",
         searchStatusSearching:"正在搜索中…",
         searchStatusDone:"搜索完成。",
+        searchStatusEmpty:"未找到匹配歌曲。",
+        musicNetworkError:"音源连接失败，请检查系统代理或网络后重试。",
+        musicServiceError:"音源服务返回异常，请稍后重试。",
+        musicNoAudio:"音源未返回播放地址，可能需要授权或暂不可用。",
+        musicAudioError:"音频加载或解码失败，点击播放将刷新地址重试。",
+        musicMismatch:"返回的歌曲与所选版本不一致，已停止播放。",
+        musicNoMatch:"未找到歌名、歌手和版本一致的歌曲。",
+        playerStatusError:"播放失败，点击播放重试",
         searchStatusNoSource:"请至少选择一个音乐源。",
         playerTitle:"正在播放",
         playerSubtitle:"一首歌，一段好时光",
@@ -462,6 +470,14 @@ body.lyrics-mode{overflow:hidden}.lyrics-mode .app{height:100dvh;min-height:0;ma
         searchStatusIdle:"No search yet. Try typing \"JJ Lin\"?",
         searchStatusSearching:"Searching…",
         searchStatusDone:"Search completed.",
+        searchStatusEmpty:"No matching songs found.",
+        musicNetworkError:"Music connection failed. Check the system proxy or network and retry.",
+        musicServiceError:"The music service returned an invalid response. Please retry later.",
+        musicNoAudio:"No playback URL was returned. Authorization may be required or the track is unavailable.",
+        musicAudioError:"Audio could not be loaded or decoded. Click play to refresh its URL and retry.",
+        musicMismatch:"The returned recording does not match the selected track. Playback stopped.",
+        musicNoMatch:"No matching title, artist and version was found.",
+        playerStatusError:"Playback failed. Click play to retry",
         searchStatusNoSource:"Please select at least one music source.",
         playerTitle:"Now Playing",
         playerSubtitle:"A little space for your soundtrack",
@@ -965,9 +981,8 @@ body.lyrics-mode{overflow:hidden}.lyrics-mode .app{height:100dvh;min-height:0;ma
       }
 
       try{
-        const res=await fetch(url,{signal:AbortSignal.timeout(12000)});
-        const json=await res.json();
-        if(!Array.isArray(json))return 0;
+        const json=await readMusicJSON(url);
+        if(!Array.isArray(json))throw musicError('musicServiceError');
 
         json.forEach((it, idx)=>{
           const songId = pickQueryParam(it.url, 'id') || `${kw}-${idx+1}`;
@@ -999,8 +1014,37 @@ body.lyrics-mode{overflow:hidden}.lyrics-mode .app{height:100dvh;min-height:0;ma
           added++;
         });
 
-      }catch(e){console.error('netease(qijieya meting)',e);}
+      }catch(e){recordSearchError(resultState,'netease',e);console.error('netease(qijieya meting)',e);}
       return added;
+    }
+
+    function musicError(key){
+      const error=new Error(key); error.userMessage=t(key); return error;
+    }
+
+    async function readMusicJSON(url){
+      for(let attempt=0;attempt<2;attempt++){
+        let response;
+        try{response=await fetch(url,{signal:AbortSignal.timeout(8000)});}
+        catch(error){if(attempt===0)continue;throw musicError('musicNetworkError');}
+        if(!response.ok){
+          if(response.status>=500 && attempt===0)continue;
+          throw musicError('musicServiceError');
+        }
+        try{return await response.json();}catch{throw musicError('musicServiceError');}
+      }
+    }
+
+    function mediaUrl(value){
+      const raw=String(value||'').trim();
+      try{
+        const url=new URL(raw);
+        return ['http:','https:'].includes(url.protocol) && !url.username && !url.password ? raw.replace(/^http:/i,'https:') : null;
+      }catch{return null;}
+    }
+
+    function recordSearchError(resultState,source,error){
+      (resultState.sourceErrors||={})[source]=error.userMessage||t('musicServiceError');
     }
 
     // QQ 搜索：使用 tang 的 QQ 音乐搜索 API（只拿列表，不拿 url）
@@ -1012,12 +1056,12 @@ body.lyrics-mode{overflow:hidden}.lyrics-mode .app{height:100dvh;min-height:0;ma
     let added = 0;
 
     try {
-        const res = await fetch(url,{signal:AbortSignal.timeout(12000)});
-        const json = await res.json();
+        const json = await readMusicJSON(url);
 
         // 兼容：既支持直接数组，也支持 { data: [...] } 这种包装
-        const data = Array.isArray(json) ? json : (Array.isArray(json?.data) ? json.data : []);
-        if (!Array.isArray(data) || data.length === 0) return 0;
+        const data = Array.isArray(json) ? json : (Array.isArray(json?.data) ? json.data : null);
+        if(!data)throw musicError('musicServiceError');
+        if(data.length===0)return 0;
 
         // 按 limit 截断
         const list = data.slice(0, limit || data.length);
@@ -1077,6 +1121,7 @@ body.lyrics-mode{overflow:hidden}.lyrics-mode .app{height:100dvh;min-height:0;ma
         added++;
         });
     } catch (e) {
+        recordSearchError(resultState,'qq',e);
         console.error('qq search (tang)', e);
     }
 
@@ -1088,9 +1133,9 @@ body.lyrics-mode{overflow:hidden}.lyrics-mode .app{height:100dvh;min-height:0;ma
       const url=`https://oiapi.net/api/Kuwo?msg=${encodeURIComponent(kw)}&page=1&limit=${encodeURIComponent(limit)}`;
       let added=0;
       try{
-        const res=await fetch(url,{signal:AbortSignal.timeout(12000)});
-        const json=await res.json();
-        const data=Array.isArray(json?.data) ? json.data : [];
+        const json=await readMusicJSON(url);
+        const data=Array.isArray(json?.data) ? json.data : null;
+        if(!data)throw musicError('musicServiceError');
         if(!data.length) return 0;
 
         data.forEach((it, idx)=>{
@@ -1125,6 +1170,7 @@ body.lyrics-mode{overflow:hidden}.lyrics-mode .app{height:100dvh;min-height:0;ma
           added++;
         });
       }catch(e){
+        recordSearchError(resultState,'kuwo',e);
         console.error('kuwo search (OIAPI)',e);
       }
       return added;
@@ -1138,9 +1184,9 @@ body.lyrics-mode{overflow:hidden}.lyrics-mode .app{height:100dvh;min-height:0;ma
       const url=`https://apicx.asia/api/joox_music?msg=${encodeURIComponent(kw)}&token=${encodeURIComponent(JOOX_TOKEN)}&br=${encodeURIComponent(JOOX_BR)}`;
       let added=0;
       try{
-        const res=await fetch(url,{signal:AbortSignal.timeout(12000)});
-        const json=await res.json();
-        const songs=json && json.code===200 && json.data && Array.isArray(json.data.songs) ? json.data.songs : [];
+        const json=await readMusicJSON(url);
+        const songs=json && json.code===200 && json.data && Array.isArray(json.data.songs) ? json.data.songs : null;
+        if(!songs)throw musicError('musicServiceError');
         songs.slice(0, limit || songs.length).forEach((it, idx)=>{
           const songMid=it.songmid || '';
           const songId=it['歌曲ID'] || songMid || (idx+1);
@@ -1174,6 +1220,7 @@ body.lyrics-mode{overflow:hidden}.lyrics-mode .app{height:100dvh;min-height:0;ma
           added++;
         });
       }catch(e){
+        recordSearchError(state,'joox',e);
         console.error('joox search',e);
       }
       return added;
@@ -1186,6 +1233,7 @@ body.lyrics-mode{overflow:hidden}.lyrics-mode .app{height:100dvh;min-height:0;ma
       const enabled=Object.keys(state.enabledSources).filter(k=>state.enabledSources[k]);
       if(!enabled.length){showToast(t('searchStatusNoSource'));return;}
       state.searchInProgress=true;
+      state.sourceErrors={};
       dom.searchStatus.textContent=t('searchStatusSearching');
 
       if(reset){
@@ -1217,7 +1265,11 @@ body.lyrics-mode{overflow:hidden}.lyrics-mode .app{height:100dvh;min-height:0;ma
       }
 
       state.searchInProgress=false;
-      dom.searchStatus.textContent=t('searchStatusDone');
+      const failedSources=Object.keys(state.sourceErrors);
+      const sourceLabels={netease:'sourceNetease',qq:'sourceQQ',kuwo:'sourceKuwo',joox:'sourceJoox'};
+      dom.searchStatus.textContent=failedSources.length
+        ? failedSources.map(source=>`${t(sourceLabels[source])}：${state.sourceErrors[source]}`).join(' ')
+        : t(state.searchResults.length ? 'searchStatusDone' : 'searchStatusEmpty');
       dom.searchCount.textContent=state.searchResults.length.toString();
       renderMiniSearchList();
       renderPlaylistList();
@@ -1276,150 +1328,70 @@ body.lyrics-mode{overflow:hidden}.lyrics-mode .app{height:100dvh;min-height:0;ma
     }
 
     // QQ 详情：根据搜索时的关键词 + song_mid(mid) 拿 url + lrc（tang API）
-    async function fetchQQDetails(track) {
-    // 优先用搜索时用过的关键词，保证和原始排序一致
-    let msg =
-        (track.qqSearchKey || track.keyword || '').trim() ||
-        ((track.title || '') + ' ' + (track.artist || '')).trim();
-
-    // 新接口用 mid：优先 qqId/songMid/songid
-    let mid =
-        (track.qqId || track.songMid || track.songid || '').toString().trim();
-
-    if (!mid) {
-        const normalize = value => (value || '').normalize('NFKC').toLowerCase().replace(/\s+/g, '');
-        const artists = value => (value || '').split(/\s*[/,、]\s*/).map(normalize).sort().join('/');
-        let mids = [];
-        for (const query of [...new Set([msg, track.title])]) {
-            const response = await fetch(musicApiUrl('/api/qq',{msg:query}),{signal:AbortSignal.timeout(12000)});
-            const json = await response.json();
-            if (!response.ok) {
-                const error = new Error('QQ search request failed');
-                error.userMessage = json.error || 'QQ 查询暂时失败，请稍后重试。';
-                throw error;
-            }
-            const songs = Array.isArray(json) ? json : (Array.isArray(json?.data) ? json.data : []);
-            const matches = songs.filter(song => song.song_mid &&
-                normalize(song.song_title) === normalize(track.title) &&
-                artists(song.singer_name) === artists(track.artist));
-            mids = [...new Set(matches.map(song => song.song_mid))];
-            if (mids.length) { msg = query; break; }
+    async function fetchQQDetails(track){
+      let msg=(track.qqSearchKey||track.keyword||'').trim() || `${track.title} ${track.artist}`.trim();
+      let mid=String(track.qqId||track.songMid||track.songid||'').trim();
+      const previousMid=mid;
+      if(!/^[A-Za-z0-9]{1,32}$/.test(mid) || /^\d+$/.test(mid))mid='';
+      if(!mid){
+        for(const query of [...new Set([msg,track.title])]){
+          const data=await readMusicJSON(musicApiUrl('/api/qq',{msg:query}));
+          const songs=Array.isArray(data) ? data : (Array.isArray(data?.data) ? data.data : null);
+          if(!songs)throw musicError('musicServiceError');
+          const matches=songs.filter(song=>song.song_mid && sameRecording(track,{title:song.song_title,artist:song.singer_name}));
+          const mids=[...new Set(matches.map(song=>String(song.song_mid)))];
+          if(mids.length===1){mid=mids[0];msg=query;break;}
+          if(mids.length>1)throw musicError('musicNoMatch');
         }
-        if (mids.length !== 1) {
-            const error = new Error('QQ imported song could not be uniquely matched');
-            error.userMessage = mids.length ? 'QQ 找到多个同名版本，请搜索歌曲后选择正确版本。' : 'QQ 未找到歌名和歌手一致的歌曲，请尝试手动搜索。';
-            throw error;
-        }
-        mid = mids[0];
-        Object.assign(track, {qqId: mid, songMid: mid, songid: mid, qqSearchKey: msg});
-        saveLibraryToStorage();
-    }
-
-    const url =
-        musicApiUrl('/api/qq',{msg,mid});
-
-    // 选择一个“最好”的播放链接（你也可以按需改优先级）
-    function pickBestPlayUrl(d) {
-        // Prefer browser-compatible AAC before lossless streams with inconsistent MIME types.
-        if (d.song_play_url_hq) return { url: d.song_play_url_hq, tag: 'hq', label: 'HQ', text: `HQ ${d.kbps_hq || ''}`.trim() };
-        if (d.song_play_url_standard) return { url: d.song_play_url_standard, tag: 'standard', label: 'STD', text: `STD ${d.kbps_standard || ''}`.trim() };
-        if (d.song_play_url) return { url: d.song_play_url, tag: null, label: null, text: null };
-        // lossless
-        if (d.song_play_url_sq) return { url: d.song_play_url_sq, tag: 'lossless', label: 'LOSSLESS', text: `SQ ${d.kbps_sq || ''}`.trim() };
-        if (d.song_play_url_pq) return { url: d.song_play_url_pq, tag: 'lossless', label: 'LOSSLESS', text: `PQ ${d.kbps_pq || ''}`.trim() };
-
-        // other variants
-        if (d.song_play_url_hq) return { url: d.song_play_url_hq, tag: 'hq', label: 'HQ', text: `HQ ${d.kbps_hq || ''}`.trim() };
-
-        if (d.song_play_url_standard) return { url: d.song_play_url_standard, tag: 'standard', label: 'STD', text: `STD ${d.kbps_standard || ''}`.trim() };
-        if (d.song_play_url_fq) return { url: d.song_play_url_fq, tag: 'low', label: 'LOW', text: `FQ ${d.kbps_fq || ''}`.trim() };
-
-        // fallback
-        if (d.song_play_url) return { url: d.song_play_url, tag: null, label: null, text: null };
-
-        return { url: null, tag: null, label: null, text: null };
-    }
-
-    try {
-        const res = await fetch(url,{signal:AbortSignal.timeout(12000)});
-        const d = await res.json();
-
-        // 基本校验：必须是对象且有 song_mid
-        if (!d || typeof d !== 'object' || !d.song_mid) {
-        throw new Error('qq detail error (invalid response)');
-        }
-
-        // 更新基础信息
-        track.title   = d.song_title || d.song_name || track.title;
-        track.artist  = d.singer_name || track.artist;
-        track.album   = d.album_name || d.album_title || track.album || '';
-        track.cover   = d.album_pic || d.singer_pic || track.cover;
-        track.pageUrl = d.song_h5_url || track.pageUrl;
-
-        // 播放链接（按优先级挑一个）
-        const best = pickBestPlayUrl(d);
-        track.audioUrl = (best.url || track.audioUrl || '').replace(/^http:/, 'https:') || null;
-
-        // 歌词
-        track.lrc = d.song_lyric || d.lyric || track.lrc;
-
-        // 文本信息（你原来用 qqQualityText，这里塞 vip + kbps/size 等）
-        track.qqQualityText =
-        best.text ||
-        (d.vip ? `VIP:${d.vip}` : null) ||
-        track.qqQualityText;
-
-        // quality / label：先用我们自己的选择，再用你已有 inferQualityFromUrl 兜底
-        if (best.tag && best.label) {
-        track.quality = best.tag;
-        track.qualityLabel = best.label;
-        }
-
-        if (track.audioUrl) {
-        const q = inferQualityFromUrl(track.audioUrl);
-        if (q && q.label) {
-            track.quality = q.tag;
-            track.qualityLabel = q.label;
-        }
-        }
-
-        track.detailsLoaded = true;
-    } catch (e) {
-        console.error('qq detail (tang)', e);
-        // 失败的话不要把 detailsLoaded 置 true，下次还有机会重试
-    }
+        if(!mid)throw musicError('musicNoMatch');
+      }
+      const data=await readMusicJSON(musicApiUrl('/api/qq',{msg,mid}));
+      if(!data || typeof data!=='object' || !data.song_mid)throw musicError('musicServiceError');
+      if(String(data.song_mid)!==mid || !sameRecording(track,{title:data.song_title||data.song_name,artist:data.singer_name}))throw musicError('musicMismatch');
+      const choices=track.preferCompatible
+        ? [['song_play_url_standard','STD'],['song_play_url_hq','HQ'],['song_play_url','320K'],['song_play_url_fq','LOW']]
+        : [['song_play_url_hq','HQ'],['song_play_url_standard','STD'],['song_play_url','320K'],['song_play_url_sq','LOSSLESS'],['song_play_url_pq','LOSSLESS'],['song_play_url_fq','LOW']];
+      const best=choices.find(([key])=>mediaUrl(data[key]));
+      if(!best)throw musicError('musicNoAudio');
+      Object.assign(track,{
+        qqId:mid,songMid:mid,songid:mid,qqSearchKey:msg,
+        album:data.album_name||data.album_title||track.album||'',
+        cover:data.album_pic||data.singer_pic||track.cover,
+        pageUrl:data.song_h5_url||track.pageUrl,
+        audioUrl:mediaUrl(data[best[0]]),lrc:data.song_lyric||data.lyric||track.lrc,
+        quality:best[1]==='LOSSLESS'?'lossless':'normal',qualityLabel:best[1],detailsLoaded:true
+      });
+      if(mid!==previousMid)saveLibraryToStorage();
     }
 
     async function fetchKuwoDetails(track){
-      const n=track.displayIndex || 1;
-      const api=`https://oiapi.net/api/Kuwo?msg=${encodeURIComponent(track.keyword)}&n=${encodeURIComponent(n)}&br=1`;
-      const res=await fetch(api,{signal:AbortSignal.timeout(12000)});
-      const j=await res.json();
-      if(!j || !j.data || Array.isArray(j.data)) throw new Error('kuwo OIAPI detail failed');
-
-      const d=j.data;
-      Object.assign(track,{
-        title:d.song || track.title,
-        artist:d.singer || track.artist,
-        album:d.album || track.album,
-        cover:d.picture || track.cover,
-        songid:(d.rid ?? track.songid),
-        audioUrl:d.url || track.audioUrl,
-        lrc:d.lyric || d.lrc || d.lyrics || track.lrc || null,
-        lrcUrl:null,
-        detailsLoaded:true
-      });
-
-      // OIAPI br=1 请求无损；优先根据接口返回的 level / format 判断，URL 后缀作为兜底
-      const qualityText=`${d.level||''} ${d.format||''}`.toLowerCase();
-      if(/lossless|无损|flac|wav|ape|alac|aiff|zp|sq/.test(qualityText)){
-        track.quality='lossless';
-        track.qualityLabel='LOSSLESS';
-      }else if(track.audioUrl){
-        const q=inferQualityFromUrl(track.audioUrl);
-        track.quality=q.tag;
-        track.qualityLabel=q.label;
+      const rid=value=>String(value||'').replace(/^MUSIC_/i,'');
+      const originalRid=rid(track.songid);
+      for(const query of [...new Set([`${track.title} ${track.artist}`.trim(),track.title])]){
+        const list=await readMusicJSON('https://oiapi.net/api/Kuwo?'+new URLSearchParams({msg:query,page:1,limit:30}));
+        if(!Array.isArray(list?.data))throw musicError('musicServiceError');
+        const matches=list.data.filter(song=>sameRecording(track,{title:song.song,artist:song.singer}));
+        const selected=matches.find(song=>originalRid && rid(song.rid)===originalRid) || (matches.length===1 ? matches[0] : null);
+        if(!selected)continue;
+        // Search order can change; resolve the stable song ID before requesting its current index.
+        const n=list.data.indexOf(selected)+1;
+        const result=await readMusicJSON('https://oiapi.net/api/Kuwo?'+new URLSearchParams({msg:query,n,br:track.preferCompatible?2:1}));
+        const data=result?.data;
+        if(!data || Array.isArray(data))throw musicError('musicServiceError');
+        if(!sameRecording(track,{title:data.song,artist:data.singer}) || (data.rid && rid(data.rid)!==rid(selected.rid)))throw musicError('musicMismatch');
+        const audioUrl=mediaUrl(data.url);
+        if(!audioUrl)throw musicError('musicNoAudio');
+        Object.assign(track,{
+          album:data.album||track.album,cover:data.picture||track.cover,
+          songid:data.rid||selected.rid,audioUrl,
+          lrc:data.lyric||data.lrc||data.lyrics||track.lrc||null,lrcUrl:null,detailsLoaded:true
+        });
+        const lossless=/lossless|无损|flac|wav|ape|alac|aiff|zp|sq/.test(`${data.level||''} ${data.format||''}`.toLowerCase());
+        const quality=lossless ? {tag:'lossless',label:'LOSSLESS'} : inferQualityFromUrl(audioUrl);
+        track.quality=quality.tag;track.qualityLabel=quality.label;
+        return;
       }
+      throw musicError('musicNoMatch');
     }
 
     async function fetchJooxDetails(track){
@@ -1505,12 +1477,19 @@ body.lyrics-mode{overflow:hidden}.lyrics-mode .app{height:100dvh;min-height:0;ma
     }
 
     async function ensureTrackDetails(track){
-      if(track.detailsLoaded && track.audioUrl) return;
+      if(track.detailsLoaded && track.audioUrl && track.detailsExpiresAt>Date.now())return;
+      track.detailsLoaded=false;
+      track.audioUrl=null;
       dom.playerStatus.textContent=t('playerStatusLoading');
       if(track.source==='netease') await fetchNeteaseDetails(track,false);
       else if(track.source==='kuwo') await fetchKuwoDetails(track);
       else if(track.source==='joox') await fetchJooxDetails(track);
       else await fetchQQDetails(track);
+      track.audioUrl=mediaUrl(track.audioUrl);
+      if(!track.audioUrl)throw musicError('musicNoAudio');
+      if(track.cover)track.cover=mediaUrl(track.cover);
+      track.detailsLoaded=true;
+      track.detailsExpiresAt=Date.now()+10*60*1000;
     }
 
     // ===================== 歌词处理 =====================
@@ -1584,6 +1563,7 @@ body.lyrics-mode{overflow:hidden}.lyrics-mode .app{height:100dvh;min-height:0;ma
       if(parseLRC(track.lrc).length)return use(track.lrc,track.lyricSource||'');
       const cached=cachedLyrics(track);
       if(cached && use(cached.text,cached.source))return true;
+      if(track.source==='netease' && !track.lrcUrl && track.songid)track.lrcUrl='https://api.qijieya.cn/meting/?'+new URLSearchParams({server:'netease',type:'lrc',id:track.songid});
       const read=async url=>{
         try{
           const res=await fetch(url,{signal:signal ? AbortSignal.any([signal,AbortSignal.timeout(8000)]) : AbortSignal.timeout(8000)});
@@ -1739,6 +1719,16 @@ body.lyrics-mode{overflow:hidden}.lyrics-mode .app{height:100dvh;min-height:0;ma
       dom.audio.pause();
       state.currentTrack=track;
       state.playContext=context||state.playContext;
+      loadedTrackUid=null;
+      pendingSeek=startTime;
+      dom.audio.removeAttribute('src');
+      dom.audio.load();
+      state.isPlaying=false;
+      dom.playBtn.textContent='▶';
+      dom.currentTime.textContent=formatTime(startTime);
+      dom.totalTime.textContent='00:00';
+      dom.progressBar.style.transform='scaleX(0)';
+      dom.progressHandle.style.left='0px';
 
       const applyUI=()=>{
         dom.trackTitle.textContent=track.title||'';
@@ -1782,6 +1772,7 @@ body.lyrics-mode{overflow:hidden}.lyrics-mode .app{height:100dvh;min-height:0;ma
       state.lyricLines = track.lrc ? parseLRC(track.lrc) : [];
       renderLyrics();
       updateMainFavButton();
+      void refreshTrackLyrics(track,request,lyricsSignal);
 
       try{
         await ensureTrackDetails(track);
@@ -1789,8 +1780,7 @@ body.lyrics-mode{overflow:hidden}.lyrics-mode .app{height:100dvh;min-height:0;ma
         applyUI();
         state.lyricLines = track.lrc ? parseLRC(track.lrc) : [];
         renderLyrics();
-        void refreshTrackLyrics(track,request,lyricsSignal);
-        if(!track.audioUrl){showToast(t('toastPlayError'));dom.playerStatus.textContent=t('playerStatusIdle');return;}
+        if(!track.audioUrl)throw musicError('musicNoAudio');
         loadedTrackUid=track.uid;
         pendingSeek=startTime;
         if(startTime>0){
@@ -1817,8 +1807,8 @@ body.lyrics-mode{overflow:hidden}.lyrics-mode .app{height:100dvh;min-height:0;ma
           showToast(state.language==='zh' ? '已恢复上次位置，点击播放继续。' : 'Position restored. Click play to continue.');
           return;
         }
-        showToast(e.userMessage || t('toastPlayError'));
-        dom.playerStatus.textContent=t('playerStatusIdle');
+        if(e.name==='AbortError')return;
+        handlePlaybackFailure(e,request);
       }
 
       renderMiniSearchList();
@@ -1885,10 +1875,30 @@ body.lyrics-mode{overflow:hidden}.lyrics-mode .app{height:100dvh;min-height:0;ma
       playFromList(state.playContext.type,idx,state.playContext.playlistId);
     }
 
+    function handlePlaybackFailure(error,request=playbackRequest){
+      const track=state.currentTrack;
+      if(request!==playbackRequest || !track)return;
+      if(dom.playerStatus.textContent===t('playerStatusError') && !track.detailsLoaded)return;
+      const position=loadedTrackUid===track.uid ? dom.audio.currentTime : pendingSeek;
+      if([3,4].includes(dom.audio.error?.code))track.preferCompatible=true;
+      track.detailsLoaded=false;track.audioUrl=null;
+      pendingSeek=Number.isFinite(position) ? position : 0;
+      loadedTrackUid=null;
+      dom.audio.pause();state.isPlaying=false;dom.playBtn.textContent='▶';
+      dom.playerStatus.textContent=t('playerStatusError');
+      showToast(error.userMessage||t('musicAudioError'));
+      savePlaybackState();
+    }
+
     function togglePlayPause(){
-      if(!dom.audio.src)return;
-      if(state.isPlaying)dom.audio.pause();
-      else dom.audio.play().catch(e=>console.error(e));
+      const track=state.currentTrack;
+      if(!track)return;
+      if(state.isPlaying){dom.audio.pause();return;}
+      if(!dom.audio.src || loadedTrackUid!==track.uid || !track.detailsLoaded || dom.audio.error){
+        void playTrack(track,state.playContext,pendingSeek??0);return;
+      }
+      const request=playbackRequest;
+      dom.audio.play().catch(error=>{if(error.name!=='AbortError')handlePlaybackFailure(error,request);});
     }
 
     function toggleFavoriteCurrent(){
@@ -2564,6 +2574,9 @@ body.lyrics-mode{overflow:hidden}.lyrics-mode .app{height:100dvh;min-height:0;ma
         savePlaybackState();
       });
       dom.audio.addEventListener('seeked',()=>{updateLyricsHighlight(dom.audio.currentTime||0);savePlaybackState();});
+      dom.audio.addEventListener('error',()=>{
+        if(loadedTrackUid && loadedTrackUid===state.currentTrack?.uid)handlePlaybackFailure(musicError('musicAudioError'));
+      });
       window.addEventListener('pagehide',savePlaybackState);
       dom.audio.addEventListener('ended',()=>{
         audioLevel = 0;
