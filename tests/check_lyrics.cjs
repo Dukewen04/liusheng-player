@@ -97,9 +97,9 @@ function boot(fetch,storage=new Map()){
   release();await pending;assert.equal(stale.context.renders.length,1);assert.equal(stale.app.state.lyricLines[0].text,'new lyric');
 
   const nonblocking=boot(()=>new Promise(()=>{}));nonblocking.app.stubDetails();
-  for(const key of ['trackTitle','trackArtist','trackSourcePill','trackQualityPill','coverImg','coverPlaceholder','playerStatus','playBtn','playlistSelect'])nonblocking.app.dom[key]=nonblocking.node();
+  for(const key of ['trackTitle','trackArtist','trackSourcePill','trackQualityPill','coverImg','coverPlaceholder','playerStatus','playBtn','playlistSelect','currentTime','totalTime','progressBar','progressHandle'])nonblocking.app.dom[key]=nonblocking.node();
   let played=false;
-  nonblocking.app.dom.audio={currentTime:0,volume:0.8,pause(){},play:async()=>{played=true;}};
+  nonblocking.app.dom.audio={currentTime:0,volume:0.8,pause(){},removeAttribute(){},load(){},play:async()=>{played=true;}};
   await nonblocking.app.playTrack({uid:'audio-first',source:'netease',title:'track',artist:'artist',audioUrl:'original'},null);
   assert(played,'Audio must start while lyric lookup is still pending');
   console.log('通过：纯文本/嵌套JSON/酷我时间轴、多时间标签、版本歌手匹配、歌词缓存、换歌竞态、并行查询及取消慢接口、歌词查询不阻塞播放、歌词居中及前奏/拖动高亮、纯歌词模式及不打断播放。');

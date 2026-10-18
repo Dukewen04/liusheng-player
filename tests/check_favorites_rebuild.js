@@ -40,7 +40,7 @@ assert.equal((await app.probeRecording(track)).uid,'test');
 context.Audio=class {constructor(){this.duration=30;}play(){this.onloadedmetadata();return Promise.resolve();}pause(){}removeAttribute(){}load(){}};
 await assert.rejects(app.probeRecording(track),/试听/);
 context.AbortSignal=AbortSignal; context.location={hostname:"127.0.0.1",port:"8766"};
-context.fetch=async url=>({json:async()=>url.includes('meting') ? [{name:'晴天',artist:'周杰伦',url:'https://test/?id=123'}] : url.includes('/api/qq') ? [{song_mid:'abc',song_title:'晴天',singer_name:'周杰伦'}] : {data:[{rid:'456',song:'晴天',singer:'周杰伦'}]}});
+context.fetch=async url=>({ok:true,json:async()=>url.includes('meting') ? [{name:'晴天',artist:'周杰伦',url:'https://test/?id=123'}] : url.includes('/api/qq') ? [{song_mid:'abc',song_title:'晴天',singer_name:'周杰伦'}] : {data:[{rid:'456',song:'晴天',singer:'周杰伦'}]}});
 const pools=[{searchResults:[],trackMap:new Map()},{searchResults:[],trackMap:new Map()}];
 await Promise.all(pools.map(async pool=>{await Promise.all([app.searchNetease('晴天',1,30,pool),app.searchQQ('晴天',30,pool),app.searchKuwo('晴天',30,pool)]);}));
 assert.equal(pools[0].searchResults.length,3);assert.equal(pools[1].searchResults.length,3);assert.equal(app.state.searchResults.length,0);
