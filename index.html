@@ -1894,8 +1894,9 @@ body.lyrics-mode{overflow:hidden}.lyrics-mode .app{height:100dvh;min-height:0;ma
       const track=state.currentTrack;
       if(!track)return;
       if(state.isPlaying){dom.audio.pause();return;}
-      if(!dom.audio.src || loadedTrackUid!==track.uid || !track.detailsLoaded || dom.audio.error){
-        void playTrack(track,state.playContext,pendingSeek??0);return;
+      if(!dom.audio.src || loadedTrackUid!==track.uid || !track.detailsLoaded || track.detailsExpiresAt<=Date.now() || dom.audio.error){
+        const position=pendingSeek??(loadedTrackUid===track.uid ? dom.audio.currentTime : 0);
+        void playTrack(track,state.playContext,position);return;
       }
       const request=playbackRequest;
       dom.audio.play().catch(error=>{if(error.name!=='AbortError')handlePlaybackFailure(error,request);});
