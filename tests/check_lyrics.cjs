@@ -9,7 +9,7 @@ function boot(fetch,storage=new Map()){
     renderLyrics=()=>renders.push({uid:state.currentTrack?.uid,lines:state.lyricLines.length});
     updateLyricsHighlight=()=>{};
     renderMiniSearchList=()=>{}; renderPlaylistList=()=>{}; updateMainFavButton=()=>{};
-    globalThis.app={parseLRC,lyricText,sameLyricRecording,ensureTrackLyrics,refreshTrackLyrics,state,dom,playTrack,realUpdateLyricsHighlight,realRenderLyrics,
+    globalThis.app={parseLRC,lyricText,sameLyricRecording,ensureTrackLyrics,refreshTrackLyrics,state,dom,playTrack,realUpdateLyricsHighlight,realRenderLyrics,setLyricsMode,
       setRequest:value=>playbackRequest=value,stubDetails:()=>ensureTrackDetails=async()=>{}};
   })();`);
   const node=()=>({style:{},classList:{add(){},remove(){},toggle(){}},appendChild(){},addEventListener(){}});
@@ -43,6 +43,15 @@ function boot(fetch,storage=new Map()){
   sync.app.realUpdateLyricsHighlight(10);assert.deepEqual([...active],[1]);
   sync.app.realUpdateLyricsHighlight(15);assert.deepEqual([...active],[2]);
   box.scrollTop=500;sync.app.state.lyricLines=[];sync.app.realRenderLyrics();assert.equal(box.scrollTop,0,'Changing lyrics resets the previous scroll');
+
+  const classes=new Set(),attrs={};
+  sync.context.document.body={classList:{toggle:(name,on)=>on ? classes.add(name) : classes.delete(name)}};
+  sync.app.dom.lyricsModeBtn={textContent:'',setAttribute:(name,value)=>attrs[name]=value};
+  sync.app.dom.audio={currentTime:37.5,src:'original-audio',paused:false};
+  const audioBefore=JSON.stringify(sync.app.dom.audio);
+  sync.app.setLyricsMode(true);assert(classes.has('lyrics-mode'));assert.equal(attrs['aria-pressed'],'true');assert.equal(sync.app.dom.lyricsModeBtn.textContent,'退出纯歌词 · Esc');assert.equal(sync.storage.get('liusheng-lyrics-mode'),'1');
+  sync.app.state.language='en';sync.app.setLyricsMode(true);assert.equal(sync.app.dom.lyricsModeBtn.textContent,'Exit lyrics · Esc');
+  sync.app.setLyricsMode(false);assert(!classes.has('lyrics-mode'));assert.equal(attrs['aria-pressed'],'false');assert.equal(sync.storage.get('liusheng-lyrics-mode'),'0');assert.equal(sync.app.dom.lyricsModeBtn.textContent,'Lyrics only');assert.equal(JSON.stringify(sync.app.dom.audio),audioBefore,'Changing view must preserve the audio source, playing state and position');
 
   const own=boot(async url=>{assert(url.endsWith('musicId=1010956'));return response({data:{songinfo:{songName:'想自由',artist:'林宥嘉'},lrclist:[{time:'1.5',lineLyric:'own lyric'}]}});});
   const original={uid:'kuwo-1010956',source:'kuwo',songid:'MUSIC_1010956',title:'想自由',artist:'林宥嘉',audioUrl:'unchanged-audio'};
@@ -93,5 +102,5 @@ function boot(fetch,storage=new Map()){
   nonblocking.app.dom.audio={currentTime:0,volume:0.8,pause(){},play:async()=>{played=true;}};
   await nonblocking.app.playTrack({uid:'audio-first',source:'netease',title:'track',artist:'artist',audioUrl:'original'},null);
   assert(played,'Audio must start while lyric lookup is still pending');
-  console.log('通过：纯文本/嵌套JSON/酷我时间轴、多时间标签、版本歌手匹配、歌词缓存、换歌竞态、并行查询及取消慢接口、歌词查询不阻塞播放、歌词居中及前奏/拖动高亮。');
+  console.log('通过：纯文本/嵌套JSON/酷我时间轴、多时间标签、版本歌手匹配、歌词缓存、换歌竞态、并行查询及取消慢接口、歌词查询不阻塞播放、歌词居中及前奏/拖动高亮、纯歌词模式及不打断播放。');
 })().catch(error=>{console.error(error);process.exitCode=1;});
