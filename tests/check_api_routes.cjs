@@ -9,7 +9,7 @@ assert.equal(context.app.musicApiUrl('/api/qq',{msg:'晴天'}),'/api/qq?msg=%E6%
 context.location.hostname='dukewen04.github.io';
 const remote=new URL(context.app.musicApiUrl('/api/qq',{msg:'hello',mid:'abc'}));
 assert.equal(remote.origin,'https://tang.api.s01s.cn');assert.equal(remote.searchParams.get('mid'),'abc');
-assert.throws(()=>context.app.musicApiUrl('/api/playlist',{url:'test'}),/代理服务/);
+assert.throws(()=>context.app.musicApiUrl('/api/playlist',{url:'test'}),/链接导入服务未连接/);
 storage.set('liusheng-api-base','https://music-api.example.com');
 assert.equal(context.app.musicApiUrl('/api/playlist',{url:'test'}),'https://music-api.example.com/api/playlist?url=test');
 assert(!html.includes('setupParticles();'));assert(!html.includes('setupRipple();'));
