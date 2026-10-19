@@ -2,7 +2,7 @@ const fs=require('fs'),vm=require('vm'),assert=require('assert/strict'),path=req
 const html=fs.readFileSync(path.join(__dirname,'../index.html'),'utf8');
 const source=[...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].at(-1)[1];
 const nodes=new Map(),storage=new Map();
-function node(id){if(!nodes.has(id))nodes.set(id,{value:'',textContent:'',disabled:false,style:{},children:[],appendChild(child){this.children.push(child);},removeAttribute(key){delete this[key];},setAttribute(key,value){this[key]=value;}});return nodes.get(id);}
+function node(id){if(!nodes.has(id))nodes.set(id,{showModal(){this.open=true;},close(){this.open=false;},value:'',textContent:'',disabled:false,style:{},children:[],appendChild(child){this.children.push(child);},removeAttribute(key){delete this[key];},setAttribute(key,value){this[key]=value;}});return nodes.get(id);}
 const c=vm.createContext({console,URL,URLSearchParams,AbortSignal,AbortController,setTimeout,clearTimeout,setImmediate,
   document:{getElementById:node,createElement:()=>({}),addEventListener(){},querySelectorAll:()=>[]},localStorage:{getItem:key=>storage.get(key),setItem:(key,value)=>storage.set(key,value)}});
 vm.runInContext(source.replace(/\}\)\(\);\s*$/,`
