@@ -4,7 +4,7 @@ const source=[...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].at(-1)[1];
 const nodes=new Map(),readers=[];
 const node=id=>{if(!nodes.has(id))nodes.set(id,{style:{},classList:{add(){},remove(){},toggle(){}},appendChild(){},setAttribute(k,v){this[k]=v;},removeAttribute(k){delete this[k];},showModal(){this.open=true;},close(){this.open=false;}});return nodes.get(id);};
 const c=vm.createContext({console,URL,URLSearchParams,AbortSignal,AbortController,location:{hostname:'dukewen04.github.io',port:''},localStorage:{getItem(){return null;}},
-  document:{getElementById:node,createElement:()=>({}),addEventListener(){},querySelectorAll:()=>[]},
+  window:{scrollX:0,scrollY:240,scrollTo(x,y){this.scrollX=x;this.scrollY=y;}},document:{body:{style:{position:'',top:'',left:'',width:'',overflow:''}},documentElement:{style:{overflow:''}},getElementById:node,createElement:()=>({}),addEventListener(){},querySelectorAll:()=>[]},
   FileReader:class{constructor(){readers.push(this);}readAsText(){}},setTimeout,clearTimeout});
 vm.runInContext(source.replace(/\}\)\(\);\s*$/,`globalThis.imports=[];importPlaylistData=data=>{imports.push(data);state.playlists=data.playlists;return {addedFavorites:1,addedPlaylists:0,addedPlaylistTracks:0};};renderPlaylistList=()=>{};renderPlaylistOptions=()=>{};verifyImportData=async data=>({data,stats:{total:data.playlists.reduce((n,p)=>n+p.tracks.length,0),checked:1,passed:1,replaced:0,failed:0,pending:0},failures:[]});globalThis.app={state,dom,importPlaylistLink,readPlaylistLinkData,playlistLinkInfo,importFileSummary,handleImportPlaylistFile,confirmImportFile,openImportGuide,setImportMethod};})();`),c);
 const a=c.app;

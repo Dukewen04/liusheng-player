@@ -4,10 +4,10 @@ const source=[...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].at(-1)[1];
 const nodes=new Map(),storage=new Map();
 function node(id){if(!nodes.has(id))nodes.set(id,{showModal(){this.open=true;},close(){this.open=false;},value:'',textContent:'',disabled:false,style:{},children:[],appendChild(child){this.children.push(child);},removeAttribute(key){delete this[key];},setAttribute(key,value){this[key]=value;}});return nodes.get(id);}
 const c=vm.createContext({console,URL,URLSearchParams,AbortSignal,AbortController,setTimeout,clearTimeout,setImmediate,
-  document:{getElementById:node,createElement:()=>({}),addEventListener(){},querySelectorAll:()=>[]},localStorage:{getItem:key=>storage.get(key),setItem:(key,value)=>storage.set(key,value)}});
+  window:{scrollX:0,scrollY:240,scrollTo(x,y){this.scrollX=x;this.scrollY=y;}},document:{body:{style:{position:'',top:'',left:'',width:'',overflow:''}},documentElement:{style:{overflow:''}},getElementById:node,createElement:()=>({}),addEventListener(){},querySelectorAll:()=>[]},localStorage:{getItem:key=>storage.get(key),setItem:(key,value)=>storage.set(key,value)}});
 vm.runInContext(source.replace(/\}\)\(\);\s*$/,`
  renderPlaylistList=()=>{};renderPlaylistOptions=()=>{};updateMainFavButton=()=>{};
- globalThis.app={state,dom,verifyImportData,findImportReplacement,importQualityRank,probeRecording,runVerifiedImport,importPlaylistData,serializeTrack,
+ globalThis.app={state,dom,verifyImportData,findImportReplacement,importQualityRank,probeRecording,runVerifiedImport,importPlaylistData,serializeTrack,removeUnavailableImports,loadLibraryFromStorage,importWorkerLimit,showImportDialog,restoreImportScroll,
    probe:fn=>probeRecording=fn,details:fn=>ensureTrackDetails=fn,
    qqSearch:fn=>searchQQ=fn,searches:fn=>{searchNetease=fn;searchQQ=async()=>{};searchKuwo=async()=>{};searchJoox=async()=>{};searchKugou=async()=>{};}};
 })();`),c);
@@ -95,6 +95,16 @@ const payload=tracks=>({version:1,favorites:[],playlists:[{id:'example-list',nam
  a.probe(async()=>{const error=new Error('Blocked');error.name='NotAllowedError';throw error;});
  await assert.rejects(a.findImportReplacement(original('original'),new AbortController().signal,()=>{}),error=>error.name==='NotAllowedError');
 
+ // Do not wait for slow candidate metadata after a lossless track has passed playback.
+ let detailCanceled=false;
+ a.searches(async(keyword,page,limit,pool)=>{for(const uid of ['ready-lossless','slow-details'])if(!pool.trackMap.has(uid)){const track=original(uid);pool.trackMap.set(uid,track);pool.searchResults.push(track);}});
+ a.details(async(track,{signal})=>{
+   if(track.uid==='slow-details')await new Promise((resolve,reject)=>signal.addEventListener('abort',()=>{detailCanceled=true;reject(signal.reason);},{once:true}));
+   else Object.assign(track,{audioUrl:'https://cdn.example/ready.flac',quality:'lossless',qualityLabel:'LOSSLESS'});
+ });
+ a.probe(async track=>({...track}));
+ assert.equal((await a.findImportReplacement(original('original'),new AbortController().signal,()=>{})).uid,'ready-lossless');assert(detailCanceled);
+
  a.searches(async(keyword,page,limit,pool)=>{if(!pool.trackMap.has('low-only')){const t={...original('low-only','kuwo')};pool.trackMap.set(t.uid,t);pool.searchResults.push(t);}});
  a.details(async track=>{if(!track.preferCompatible)throw Error('Lossless endpoint unavailable');Object.assign(track,{audioUrl:'https://cdn.example/low-only',quality:'normal',qualityLabel:'STD'});});
  a.probe(async track=>({...track}));
@@ -103,11 +113,39 @@ const payload=tracks=>({version:1,favorites:[],playlists:[{id:'example-list',nam
 
  a.searches(async()=>{});a.probe(async()=>{throw Error('Unavailable');});
  const failed=await a.verifyImportData(payload([original('original-qq'),original('original-netease','netease')]),new AbortController(),()=>{});
- assert.equal(failed.stats.failed,2);assert.equal(failed.failures.length,2);assert.equal(failed.data.playlists[0].tracks[0].importCheck,'unavailable');
+ assert.equal(failed.stats.failed,2);assert.equal(failed.failures.length,2);assert.equal(failed.data.playlists[0].tracks.length,0,'Do not import failed tracks');
  const canceled=new AbortController();let active=0,maxActive=0;
  a.probe(async(track,{signal})=>{active++;maxActive=Math.max(maxActive,active);await new Promise((resolve,reject)=>signal.addEventListener('abort',()=>{active--;reject(signal.reason);},{once:true}));});
- const pending=a.verifyImportData(payload(Array.from({length:8},(_,i)=>original('original-'+i))),canceled,()=>{});
- canceled.abort();const partial=await pending;assert.equal(maxActive,6);assert.equal(partial.stats.pending,8);assert(partial.data.playlists[0].tracks.every(track=>track.importCheck==='pending'));assert.equal(active,0);
+ const pending=a.verifyImportData(payload(Array.from({length:16},(_,i)=>original('original-'+i))),canceled,()=>{});
+ canceled.abort();const partial=await pending;assert.equal(maxActive,12);assert.equal(partial.stats.pending,16);assert(partial.data.playlists[0].tracks.every(track=>track.importCheck==='pending'));assert.equal(active,0);
+
+ // Coarse touch devices use eight original probes; repair searches remain capped at six.
+ c.matchMedia=()=>({matches:true});assert.equal(a.importWorkerLimit(),8);active=0;maxActive=0;
+ const mobileController=new AbortController();
+ const mobile=a.verifyImportData(payload(Array.from({length:16},(_,i)=>original('mobile-'+i))),mobileController,()=>{});
+ mobileController.abort();await mobile;assert.equal(maxActive,8);assert.equal(active,0);delete c.matchMedia;
+ let searching=0,maxSearching=0;const repairingController=new AbortController();
+ a.probe(async()=>{throw Error('Unavailable');});
+ a.searches(async(keyword,page,limit,pool)=>{searching++;maxSearching=Math.max(maxSearching,searching);await new Promise((resolve,reject)=>pool.signal.addEventListener('abort',()=>{searching--;reject(pool.signal.reason);},{once:true}));});
+ const repairing=a.verifyImportData(payload(Array.from({length:24},(_,i)=>original('repair-'+i))),repairingController,()=>{});
+ while(searching<6)await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(maxSearching,6);repairingController.abort();const stoppedRepairs=await repairing;assert.equal(searching,0);assert.equal(stoppedRepairs.stats.pending,24);
+
+ // Failed imported rows and old tagged rows are removed; untested rows survive migration.
+ const tagged={...original('tagged'),importCheck:'unavailable'},untested={...original('untested'),importCheck:'pending'};
+ a.state.favorites=[tagged,untested];a.state.playlists=[{id:'remove-test',name:'Remove',tracks:[tagged,untested]}];
+ a.state.trackMap.set(tagged.uid,tagged);assert.equal(a.removeUnavailableImports(),2);assert(!a.state.trackMap.has(tagged.uid));assert.equal(a.state.favorites[0].uid,'untested');
+ storage.set('liusheng-library-v1',JSON.stringify({favorites:[tagged,untested],playlists:[{id:'migration',name:'Migration',tracks:[tagged,untested]}]}));
+ a.loadLibraryFromStorage();assert.equal(a.state.favorites.length,1);assert.equal(a.state.playlists[0].tracks.length,1);assert(!JSON.stringify(JSON.parse(storage.get('liusheng-library-v1'))).includes('tagged'));
+ a.state.favorites=[original('original-qq'),untested];a.state.playlists=[{id:'remove-test',name:'Remove',tracks:[original('original-netease','netease'),untested]}];
+ assert.equal(a.removeUnavailableImports(failed.failures),2);assert.equal(a.state.favorites.length,1);assert.equal(a.state.playlists[0].tracks.length,1);
+
+ // Background scrolling stays locked across the dialog transition and restores on close/Esc.
+ node('import-progress-dialog').close();node('import-link-dialog').close();
+ c.window.scrollY=360;c.document.body.style.position='relative';c.document.documentElement.style.overflow='auto';
+ a.showImportDialog('import-link-dialog');assert.equal(c.document.body.style.position,'fixed');assert.equal(c.document.body.style.top,'-360px');assert.equal(c.document.documentElement.style.overflow,'hidden');
+ node('import-link-dialog').close();a.showImportDialog('import-progress-dialog');a.restoreImportScroll();assert.equal(c.document.body.style.position,'fixed');
+ node('import-progress-dialog').close();a.restoreImportScroll();assert.equal(c.document.body.style.position,'relative');assert.equal(c.document.documentElement.style.overflow,'auto');assert.equal(c.window.scrollY,360);
 
  // Re-import repairs the old entry in place and keeps unrelated tracks and favorites.
  const old=original('original-qq'),unrelated={...original('unrelated'),title:'Other'};
@@ -125,10 +163,16 @@ const payload=tracks=>({version:1,favorites:[],playlists:[{id:'example-list',nam
  assert(observed.includes('共 2 首 · 已完成 0 首 · 剩余 2 首'));assert.equal(countText,'共 2 首 · 已完成 2 首 · 剩余 0 首');
  assert.equal(node('import-check-progress').max,2);assert.equal(node('import-check-progress').value,2);
 
+ // Removing all failed favorites still persists deletion when no playlist is imported.
+ const doomed=original('doomed'),saved=original('saved');
+ a.state.favorites=[doomed,saved];a.state.playlists=[];a.searches(async()=>{});a.probe(async()=>{throw Error('Unavailable');});
+ assert(await a.runVerifiedImport(async()=>({version:1,favorites:[doomed],playlists:[]}),node('status')));
+ assert.equal(a.state.favorites.length,1);assert.equal(a.state.favorites[0].uid,'saved');assert.equal(JSON.parse(storage.get('liusheng-library-v1')).favorites[0].uid,'saved');assert(node('status').textContent.includes('已移除 1'));
+
  a.probe(async()=>{const error=new Error('Autoplay blocked');error.name='NotAllowedError';throw error;});
  const before=JSON.stringify(a.state.playlists);
  assert.equal(await a.runVerifiedImport(async()=>payload([original('blocked')]),node('status')),false);
  assert.equal(JSON.stringify(a.state.playlists),before);assert(node('status').textContent.includes('浏览器阻止'));
  assert(node('stop-import-check').disabled);assert(!node('import-link-submit').disabled);
- console.log('通过：网易/QQ共同检查、实际开头及中段播放、静音/取消清理、6路并发、音质排序和高音质失败降级、版本歌手保护、总数与完成进度、同档并行取消慢地址、低档延迟查询、失败保留、重复导入替换不重复、后台搜索隔离及自动播放受阻保护。');
+ console.log('通过：网易/QQ共同检查、实际开头及中段播放、静音/取消清理、电脑12/手机8路检查、替换搜索单独限流、音质排序和高音质失败降级、版本歌手保护、总数与完成进度、同档并行取消慢地址、低档延迟查询、失败移除、停止保留未检查、重复导入替换不重复、后台搜索隔离及自动播放受阻保护。');
 })().catch(error=>{console.error(error);process.exitCode=1;});
