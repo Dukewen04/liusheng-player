@@ -33,7 +33,7 @@
 .player-view-actions{display:flex;align-items:center;gap:10px}.lyrics-mode-btn{font-size:12px;min-height:32px;padding:5px 10px}
 body.lyrics-mode{overflow:hidden}.lyrics-mode .app{height:100dvh;min-height:0;max-width:1200px;padding:20px clamp(16px,5vw,64px);gap:0}.lyrics-mode .app>header,.lyrics-mode footer,.lyrics-mode .search-panel,.lyrics-mode .playlist-panel{display:none}.lyrics-mode .layout{display:flex;min-height:0;gap:0}.lyrics-mode .player-panel{flex:1;min-height:0;max-height:none;padding:0;border:0;border-radius:0;background:transparent}.lyrics-mode .player-panel>.panel-header{order:0;padding:0 0 12px}.lyrics-mode .player-view-actions>.chip,.lyrics-mode .cover-wrapper,.lyrics-mode .track-tags,.lyrics-mode .player-actions{display:none}.lyrics-mode .player-top,.lyrics-mode .player-main{display:contents}.lyrics-mode .track-title-row{order:1;justify-content:center;flex-shrink:0;text-align:center}.lyrics-mode .track-title{font-size:clamp(20px,2.3vw,30px)}.lyrics-mode .track-artist{font-size:14px;margin-top:2px}.lyrics-mode .lyrics-container{order:2;flex:1;min-height:0;max-height:none;margin:12px 0;border:0;padding:0;overscroll-behavior:contain}.lyrics-mode .lyrics-inner{max-width:900px;margin:auto;padding:25dvh 12px}.lyrics-mode .lyrics-line{font-size:clamp(24px,3vw,40px);line-height:2.1;color:#a1ad9a}.lyrics-mode .lyrics-line.active{font-size:clamp(26px,3.2vw,44px);color:var(--accent)}.lyrics-mode .player-controls{order:3;flex-shrink:0;width:min(680px,100%);align-self:center;margin:0;padding:10px 0 max(0px,env(safe-area-inset-bottom))}.lyrics-mode .control-row{margin-top:10px}.lyrics-mode .control-main{gap:22px}.lyrics-mode .volume-slider{width:70px}
 @media(hover:none) and (pointer:coarse){html{touch-action:pan-x pan-y}input:not([type=checkbox]):not([type=range]),select,textarea{font-size:16px!important}}
-#import-check-panel{margin-top:22px}#import-progress-dialog .import-note{font-size:13px;color:var(--text-sub);line-height:1.8}#import-check-status{white-space:pre-wrap}
+#import-check-panel{margin-top:22px}#import-progress-dialog .import-note{font-size:13px;color:var(--text-sub);line-height:1.8}#import-check-count{font-size:18px;font-weight:600;line-height:1.6;margin:0 0 12px}#import-check-status{white-space:pre-wrap}
 </style>
 </head>
 <body>
@@ -371,6 +371,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
   <dialog id="import-progress-dialog" aria-labelledby="import-progress-title">
     <div class="import-guide-heading"><h2 id="import-progress-title">导入进度</h2><button id="import-progress-close" class="btn btn-ghost" type="button" aria-label="关闭导入进度，后台继续检查">关闭</button></div>
     <section id="import-check-panel" aria-label="导入检查进度">
+      <p id="import-check-count" role="status" aria-live="polite">正在读取歌曲总数…</p>
       <progress id="import-check-progress" max="1" aria-label="已检查歌曲比例" style="width:100%"></progress>
       <p id="import-check-status" role="status" aria-live="polite"></p>
       <p class="import-note">逐首静音检查开头和中段。失败时搜索同歌名、同歌手、同版本的歌曲，按音源提供的音质档位从高到低试播。未找到替代时保留原曲并标记“待修复”。关闭窗口可继续检查，停止后保留已完成结果。</p>
@@ -1154,12 +1155,18 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
     }
     async function findImportReplacement(original,signal,onStage){
       const pool={searchResults:[],trackMap:new Map(),sourceErrors:{},signal};
-      for(const keyword of [...new Set([`${original.title} ${original.artist}`.trim(),original.title])]){
-        if(signal.aborted)throw signal.reason;
-        onStage('搜索替代音源');
-        await Promise.allSettled([searchNetease(keyword,1,20,pool),searchQQ(keyword,20,pool),searchKuwo(keyword,20,pool),searchJoox(keyword,20,pool),searchKugou(keyword,20,pool)]);
-      }
-      const matches=pool.searchResults.filter(track=>sameRecording(original,track)),choices=[];
+      const keywords=[...new Set([`${original.title} ${original.artist}`.trim(),original.title])];
+      onStage('搜索替代音源');
+      await Promise.allSettled([
+        keyword=>searchNetease(keyword,1,20,pool),keyword=>searchQQ(keyword,20,pool),
+        keyword=>searchKuwo(keyword,20,pool),keyword=>searchJoox(keyword,20,pool),keyword=>searchKugou(keyword,20,pool)
+      ].map(async search=>{
+        for(const keyword of keywords){
+          if(signal.aborted)throw signal.reason;
+          await search(keyword);
+        }
+      }));
+      const matches=pool.searchResults.filter(track=>sameRecording(original,track)),choices=[],compatible=[];
       let next=0;
       await Promise.all(Array.from({length:Math.min(2,matches.length)},async()=>{
         while(next<matches.length&&!signal.aborted){
@@ -1171,26 +1178,54 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
             const options=track.audioOptions?.length?track.audioOptions:[track];
             options.forEach(option=>choices.push({...track,...option}));
           }catch{}
-          if(track.source==='kuwo'&&!signal.aborted){
-            const lower={...track,audioUrl:null,detailsLoaded:false,preferCompatible:true};
-            try{
-              await ensureTrackDetails(lower,{silent:true,signal:AbortSignal.any([signal,AbortSignal.timeout(20000)])});
-              if(sameRecording(original,lower))choices.push(lower);
-            }catch{}
-          }
+          if(track.source==='kuwo')compatible.push(track);
         }
       }));
       if(signal.aborted)throw signal.reason;
-      choices.sort((a,b)=>importQualityRank(b)-importQualityRank(a));
       const attempted=new Set();
-      for(const track of choices){
-        if(signal.aborted)throw signal.reason;
-        if(attempted.has(track.audioUrl))continue;attempted.add(track.audioUrl);
-        onStage(`试播替代音源 · ${track.source} · ${track.qualityLabel||'音质未标明'}`);
-        try{return await probeRecording(track,{signal,silent:true,useLoaded:true});}
-        catch(error){if(signal.aborted||error.name==='NotAllowedError')throw error;}
+      async function tryChoices(candidates){
+        candidates.sort((a,b)=>importQualityRank(b)-importQualityRank(a));
+        for(let start=0;start<candidates.length;){
+          if(signal.aborted)throw signal.reason;
+          const rank=importQualityRank(candidates[start]),batch=[];
+          while(start<candidates.length&&batch.length<2&&importQualityRank(candidates[start])===rank){
+            const track=candidates[start++];
+            if(attempted.has(track.audioUrl))continue;
+            attempted.add(track.audioUrl);batch.push(track);
+          }
+          if(!batch.length)continue;
+          const probes=new AbortController(),probeSignal=AbortSignal.any([signal,probes.signal]);
+          try{
+            const selected=await Promise.any(batch.map(async track=>{
+              onStage(`试播替代音源 · ${track.source} · ${track.qualityLabel||'音质未标明'}`);
+              try{return await probeRecording(track,{signal:probeSignal,silent:true,useLoaded:true});}
+              catch(error){if(error.name==='NotAllowedError')probes.abort(error);throw error;}
+            }));
+            if(probes.signal.reason?.name==='NotAllowedError')throw probes.signal.reason;
+            return selected;
+          }catch(error){
+            if(signal.aborted)throw signal.reason;
+            if(probes.signal.reason?.name==='NotAllowedError')throw probes.signal.reason;
+          }finally{probes.abort();}
+        }
+        return null;
       }
-      return null;
+      const high=await tryChoices(choices.filter(track=>importQualityRank(track)>=320));
+      if(high)return high;
+      // Compatible Kuwo addresses are a lower tier; only fetch them if higher tiers fail.
+      next=0;
+      await Promise.all(Array.from({length:Math.min(2,compatible.length)},async()=>{
+        while(next<compatible.length&&!signal.aborted){
+          const lower={...compatible[next++],audioUrl:null,detailsLoaded:false,preferCompatible:true};
+          onStage('查找兼容音质');
+          try{
+            await ensureTrackDetails(lower,{silent:true,signal:AbortSignal.any([signal,AbortSignal.timeout(20000)])});
+            if(sameRecording(original,lower))choices.push(lower);
+          }catch{}
+        }
+      }));
+      if(signal.aborted)throw signal.reason;
+      return await tryChoices(choices);
     }
     async function verifyImportData(data,controller,onProgress){
       const {signal}=controller;
@@ -1199,7 +1234,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       const active=new Map();let next=0,fatal=null;
       const update=()=>onProgress({...stats,active:[...active.values()]});
       update();
-      await Promise.all(Array.from({length:Math.min(3,originals.length)},async()=>{
+      await Promise.all(Array.from({length:Math.min(6,originals.length)},async()=>{
         while(next<originals.length&&!signal.aborted){
           const original=originals[next++],name=`${original.title} — ${original.artist||'未知歌手'}`;
           const stage=text=>{active.set(original.uid,`${text}：${name}`);update();};
@@ -1235,6 +1270,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       $('import-link-dialog').close();$('import-progress-dialog').showModal();$('import-progress-dialog').scrollTop=0;
       $('import-check-failures').hidden=true;
       $('stop-import-check').disabled=false;$('import-check-progress').removeAttribute('value');
+      $('import-check-count').textContent='正在读取歌曲总数…';
       $('import-check-status').textContent='第 1 步：正在读取歌单…';status.textContent='正在读取歌单…';
       let committing=false;
       try{
@@ -1242,8 +1278,9 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         if(controller.signal.aborted)throw controller.signal.reason;
         importFileSummary(data);
         const checked=await verifyImportData(data,controller,stats=>{
+          $('import-check-count').textContent=`共 ${stats.total} 首 · 已完成 ${stats.checked} 首 · 剩余 ${stats.pending} 首`;
           const progress=$('import-check-progress');progress.max=stats.total;progress.value=stats.checked;
-          $('import-check-status').textContent=`第 2 步：已检查 ${stats.checked} / ${stats.total} 首（${Math.floor(stats.checked/stats.total*100)}%） · 原曲可播 ${stats.passed} · 已替换 ${stats.replaced} · 待修复 ${stats.failed}\n${stats.active.join('\n')}`;
+          $('import-check-status').textContent=`${Math.floor(stats.checked/stats.total*100)}% · 同时检查 ${stats.active.length} 首 · 原曲可播 ${stats.passed} · 已替换 ${stats.replaced} · 待修复 ${stats.failed}\n${stats.active.join('\n')}`;
         });
         committing=true;const stat=importPlaylistData(checked.data);
         const playlist=checked.data.playlists[0];
