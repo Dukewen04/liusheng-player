@@ -3,22 +3,53 @@ import json
 import re
 import sys
 import webbrowser
+from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.error import HTTPError, URLError
-from urllib.parse import parse_qs, urlencode, urlsplit
-from urllib.request import Request, urlopen
+from urllib.parse import parse_qs, urlencode, urljoin, urlsplit
+from urllib.request import HTTPRedirectHandler, Request, build_opener, urlopen
 
 ROOT = Path(__file__).resolve().parent
 PORT = 8766
 
 
-def playlist_id(link):
+def checked_playlist_url(link, hosts):
+    url = urlsplit(link)
+    if url.scheme not in ('http', 'https') or url.username or url.password or url.port or url.hostname not in hosts:
+        raise ValueError('仅支持网易云和 QQ 音乐的歌单分享链接。')
+    return url
+
+
+class PlaylistRedirect(HTTPRedirectHandler):
+    max_redirections = 4
+
+    def redirect_request(self, request, response, code, message, headers, new_url):
+        target = urljoin(request.full_url, new_url)
+        checked_playlist_url(target, ('163cn.tv', 'music.163.com'))
+        return super().redirect_request(request, response, code, message, headers, target)
+
+
+def resolve_playlist_url(link):
     if len(link) > 2048:
         raise ValueError('歌单链接过长。')
-    url = urlsplit(link.strip())
-    if url.scheme not in ('http', 'https') or url.username or url.password or url.port:
-        raise ValueError('请粘贴网易云或 QQ 音乐的完整歌单链接。')
+    match = re.search(r'https?://[^\s<>"\']+', link)
+    if not match:
+        raise ValueError('请粘贴网易云或 QQ 音乐的歌单分享文字或链接。')
+    link = match[0].rstrip('，。；！）)')
+    url = checked_playlist_url(link, ('163cn.tv', 'music.163.com', 'y.qq.com', 'i.y.qq.com', 'c.y.qq.com'))
+    if url.hostname == '163cn.tv':
+        if not re.fullmatch(r'/[A-Za-z0-9_-]{1,64}/?', url.path):
+            raise ValueError('网易云分享短链接格式无效。')
+        opener = build_opener(PlaylistRedirect())
+        with opener.open(Request(link, headers={'User-Agent': 'Mozilla/5.0'}), timeout=12) as response:
+            link = response.url
+        checked_playlist_url(link, ('music.163.com',))
+    return link
+
+
+def playlist_id(link):
+    url = urlsplit(resolve_playlist_url(link))
     host = url.hostname
     path = url.path
     query = parse_qs(url.query)
@@ -39,9 +70,8 @@ def playlist_id(link):
             identifier = ''
     else:
         raise ValueError('仅支持网易云和 QQ 音乐歌单链接。')
-    # ponytail: full links only; add allowlisted short-link resolution if needed.
     if not re.fullmatch(r'[0-9]{1,20}', identifier):
-        raise ValueError('没有找到歌单 ID；请复制网页中的完整歌单链接，短链接暂不支持。')
+        raise ValueError('没有找到歌单 ID；请分享具体歌单，个人主页和“我喜欢”列表页不能直接导入。')
     return source, identifier
 
 
@@ -102,8 +132,32 @@ def library(source, identifier, data):
 def get_playlist(link):
     source, identifier = playlist_id(link)
     if source == 'netease':
-        url = 'https://music.163.com/api/playlist/detail?' + urlencode({'id': identifier})
         referer = 'https://music.163.com/'
+        data = fetch_json('https://music.163.com/api/v6/playlist/detail?' + urlencode({'id': identifier}), referer)
+        if data.get('code') != 200:
+            return library(source, identifier, data)
+        playlist = data.get('playlist') or {}
+        ids = [str(row.get('id')) for row in playlist.get('trackIds', []) if re.fullmatch(r'[0-9]{1,20}', str(row.get('id', '')))]
+        if len(ids) > 10000:
+            raise ValueError('歌单超过 10000 首，请拆分后导入。')
+        songs = {str(song.get('id')): song for song in playlist.get('tracks', [])}
+        missing = list(dict.fromkeys(identifier for identifier in ids if identifier not in songs))
+
+        def song_batch(batch):
+            url = 'https://music.163.com/api/song/detail?' + urlencode({'ids': json.dumps(batch, separators=(',', ':'))})
+            result = fetch_json(url, referer)
+            if result.get('code') != 200 or not isinstance(result.get('songs'), list):
+                raise ValueError('歌曲资料读取不完整，请稍后重新导入。')
+            return result['songs']
+
+        # Playlist detail can return only a few songs; fetch the public IDs in batches.
+        batches = [missing[index:index + 100] for index in range(0, len(missing), 100)]
+        with ThreadPoolExecutor(max_workers=3) as pool:
+            for batch in pool.map(song_batch, batches):
+                songs.update((str(song.get('id')), song) for song in batch)
+        if ids:
+            playlist['tracks'] = [songs[song_id] for song_id in ids if song_id in songs]
+        return library(source, identifier, data)
     else:
         url = 'https://c.y.qq.com/qzone/fcg-bin/fcg_ucc_getcdinfo_byids_cp.fcg?' + urlencode({
             'disstid': identifier, 'type': 1, 'json': 1, 'utf8': 1, 'onlysong': 0, 'format': 'json'})
