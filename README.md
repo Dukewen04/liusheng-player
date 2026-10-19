@@ -5,6 +5,7 @@
 ## 功能
 
 - 网易云、QQ、酷我和 JOOX 音源搜索与播放。
+- 统一使用本地内嵌的 Lucide 线条图标；音质标签提供中文名称和说明，不再将未知码率一律标为 320K。
 - 收藏搜索、歌名/歌手排序、收藏 JSON 导出。
 - 歌曲搜索和“我的音乐”可分别收起、展开，自动记住状态；收起后播放器使用腾出的空间。
 - 播放时自动补全歌词：优先原平台，再匹配同歌名、歌手和版本的备用歌词；支持纯文本和滚动歌词，后台查询不阻塞播放。
@@ -65,8 +66,11 @@ node tests/check_api_routes.cjs
 node tests/check_lyrics.cjs
 node tests/check_playback_recovery.cjs
 node tests/check_panels.cjs
+node tests/check_icons.cjs
 ```
 
 ## 许可与来源
 
 基于 Zhenchao Jin（CharlesPikachu）的 MusicSquare，遵循 Apache License 2.0。详见 [LICENSE](LICENSE) 和 [NOTICE](NOTICE)。音乐内容和音源服务属于各自权利人；本项目不托管音乐文件。
+
+图标来自 [Lucide](https://lucide.dev)，仅内嵌用到的 SVG，无外部图标 CDN 请求；许可见 NOTICE 和 index.html 中的图标许可声明。

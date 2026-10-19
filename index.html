@@ -28,11 +28,67 @@
 @media(min-width:651px) and (max-width:1000px){.music-collapsed .playlist-panel{min-height:0;max-height:none}.music-collapsed .playlist-panel>.panel-header{padding:18px 22px}.music-collapsed .playlist-panel .panel-heading-row{flex-direction:row}.music-collapsed .playlist-panel .panel-title{writing-mode:horizontal-tb;font-size:25px;letter-spacing:.03em}.music-collapsed .layout{grid-template-rows:minmax(700px,1fr) auto}}
 @media(max-width:650px){.search-collapsed .search-panel,.music-collapsed .playlist-panel{min-height:0;max-height:none}.search-collapsed .search-panel>.panel-header,.music-collapsed .playlist-panel>.panel-header{padding:18px 20px}.search-collapsed .search-panel .panel-heading-row,.music-collapsed .playlist-panel .panel-heading-row{flex-direction:row}.search-collapsed .search-panel .panel-title,.music-collapsed .playlist-panel .panel-title{writing-mode:horizontal-tb;letter-spacing:.03em}.music-collapsed .playlist-panel .panel-title{font-size:23px}}
 
+.ui-icon{width:20px;height:20px;display:inline-block;vertical-align:middle;flex-shrink:0;pointer-events:none}.btn-icon,.play-btn,.playmode-btn,.shortcut-toggle-btn,.modal-close-btn{display:inline-flex;align-items:center;justify-content:center}.play-btn .ui-icon{width:24px;height:24px}.track-actions .ui-icon{width:17px;height:17px}.playmode-btn{filter:none;opacity:.65;color:var(--text-sub)}.playmode-btn.active{opacity:1;color:var(--accent)}.btn-fav-active .ui-icon{fill:currentColor;stroke-width:1.5}.empty-glyph .ui-icon{width:40px;height:40px}.modal-title-icon .ui-icon{width:22px;height:22px}.control-secondary>.ui-icon{width:18px;height:18px}.modal-close-btn{min-width:36px;min-height:36px}.lossless-pill{cursor:help}
 .player-view-actions{display:flex;align-items:center;gap:10px}.lyrics-mode-btn{font-size:12px;min-height:32px;padding:5px 10px}
 body.lyrics-mode{overflow:hidden}.lyrics-mode .app{height:100dvh;min-height:0;max-width:1200px;padding:20px clamp(16px,5vw,64px);gap:0}.lyrics-mode .app>header,.lyrics-mode footer,.lyrics-mode .search-panel,.lyrics-mode .playlist-panel{display:none}.lyrics-mode .layout{display:flex;min-height:0;gap:0}.lyrics-mode .player-panel{flex:1;min-height:0;max-height:none;padding:0;border:0;border-radius:0;background:transparent}.lyrics-mode .player-panel>.panel-header{order:0;padding:0 0 12px}.lyrics-mode .player-view-actions>.chip,.lyrics-mode .cover-wrapper,.lyrics-mode .track-tags,.lyrics-mode .player-actions{display:none}.lyrics-mode .player-top,.lyrics-mode .player-main{display:contents}.lyrics-mode .track-title-row{order:1;justify-content:center;flex-shrink:0;text-align:center}.lyrics-mode .track-title{font-size:clamp(20px,2.3vw,30px)}.lyrics-mode .track-artist{font-size:14px;margin-top:2px}.lyrics-mode .lyrics-container{order:2;flex:1;min-height:0;max-height:none;margin:12px 0;border:0;padding:0;overscroll-behavior:contain}.lyrics-mode .lyrics-inner{max-width:900px;margin:auto;padding:25dvh 12px}.lyrics-mode .lyrics-line{font-size:clamp(24px,3vw,40px);line-height:2.1;color:#a1ad9a}.lyrics-mode .lyrics-line.active{font-size:clamp(26px,3.2vw,44px);color:var(--accent)}.lyrics-mode .player-controls{order:3;flex-shrink:0;width:min(680px,100%);align-self:center;margin:0;padding:10px 0 max(0px,env(safe-area-inset-bottom))}.lyrics-mode .control-row{margin-top:10px}.lyrics-mode .control-main{gap:22px}.lyrics-mode .volume-slider{width:70px}
 </style>
 </head>
 <body>
+<!-- Lucide 0.468.0, https://lucide.dev · source f12b0de177fbc2a6795e99be065887e72b237123
+ISC License
+
+Copyright (c) for portions of Lucide are held by Cole Bemis 2013-2022 as part of Feather (MIT). All other copyright (c) for Lucide are held by Lucide Contributors 2022.
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+-->
+<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" style="position:absolute;width:0;height:0;overflow:hidden"><symbol id="icon-play" viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3" /></symbol><symbol id="icon-pause" viewBox="0 0 24 24"><rect x="14" y="4" width="4" height="16" rx="1" />
+  <rect x="6" y="4" width="4" height="16" rx="1" /></symbol><symbol id="icon-skip-back" viewBox="0 0 24 24"><polygon points="19 20 9 12 19 4 19 20" />
+  <line x1="5" x2="5" y1="19" y2="5" /></symbol><symbol id="icon-skip-forward" viewBox="0 0 24 24"><polygon points="5 4 15 12 5 20 5 4" />
+  <line x1="19" x2="19" y1="5" y2="19" /></symbol><symbol id="icon-heart" viewBox="0 0 24 24"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" /></symbol><symbol id="icon-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+  <polyline points="7 10 12 15 17 10" />
+  <line x1="12" x2="12" y1="15" y2="3" /></symbol><symbol id="icon-volume-2" viewBox="0 0 24 24"><path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z" />
+  <path d="M16 9a5 5 0 0 1 0 6" />
+  <path d="M19.364 18.364a9 9 0 0 0 0-12.728" /></symbol><symbol id="icon-repeat" viewBox="0 0 24 24"><path d="m17 2 4 4-4 4" />
+  <path d="M3 11v-1a4 4 0 0 1 4-4h14" />
+  <path d="m7 22-4-4 4-4" />
+  <path d="M21 13v1a4 4 0 0 1-4 4H3" /></symbol><symbol id="icon-repeat-1" viewBox="0 0 24 24"><path d="m17 2 4 4-4 4" />
+  <path d="M3 11v-1a4 4 0 0 1 4-4h14" />
+  <path d="m7 22-4-4 4-4" />
+  <path d="M21 13v1a4 4 0 0 1-4 4H3" />
+  <path d="M11 10h1v4" /></symbol><symbol id="icon-shuffle" viewBox="0 0 24 24"><path d="m18 14 4 4-4 4" />
+  <path d="m18 2 4 4-4 4" />
+  <path d="M2 18h1.973a4 4 0 0 0 3.3-1.7l5.454-8.6a4 4 0 0 1 3.3-1.7H22" />
+  <path d="M2 6h1.972a4 4 0 0 1 3.6 2.2" />
+  <path d="M22 18h-6.041a4 4 0 0 1-3.3-1.8l-.359-.45" /></symbol><symbol id="icon-keyboard" viewBox="0 0 24 24"><path d="M10 8h.01" />
+  <path d="M12 12h.01" />
+  <path d="M14 8h.01" />
+  <path d="M16 12h.01" />
+  <path d="M18 8h.01" />
+  <path d="M6 8h.01" />
+  <path d="M7 16h10" />
+  <path d="M8 12h.01" />
+  <rect width="20" height="16" x="2" y="4" rx="2" /></symbol><symbol id="icon-plus" viewBox="0 0 24 24"><path d="M5 12h14" />
+  <path d="M12 5v14" /></symbol><symbol id="icon-x" viewBox="0 0 24 24"><path d="M18 6 6 18" />
+  <path d="m6 6 12 12" /></symbol><symbol id="icon-music" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13" />
+  <circle cx="6" cy="18" r="3" />
+  <circle cx="18" cy="16" r="3" /></symbol><symbol id="icon-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" />
+  <path d="m21 21-4.3-4.3" /></symbol><symbol id="icon-headphones" viewBox="0 0 24 24"><path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a9 9 0 0 1 18 0v7a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3" /></symbol><symbol id="icon-list-music" viewBox="0 0 24 24"><path d="M21 15V6" />
+  <path d="M18.5 18a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" />
+  <path d="M12 12H3" />
+  <path d="M16 6H3" />
+  <path d="M12 18H3" /></symbol></svg>
+
 
   <div class="app">
     <header class="ripple-target">
@@ -53,7 +109,7 @@ body.lyrics-mode{overflow:hidden}.lyrics-mode .app{height:100dvh;min-height:0;ma
         <div class="shortcut-hint" data-i18n="shortcutHint">
           快捷键：Space 播放/暂停 · ←/→ 跳转 · ↑/↓ 音量 · N/P 切歌 · F 收藏
         </div>
-        <button id="shortcut-toggle-btn" class="shortcut-toggle-btn ripple-target" title="快捷键说明">⌨️</button>
+        <button aria-label="快捷键说明" id="shortcut-toggle-btn" class="shortcut-toggle-btn ripple-target" title="快捷键说明"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="keyboard"><use href="#icon-keyboard"></use></svg></button>
       </div>
     </header>
 
@@ -62,14 +118,14 @@ body.lyrics-mode{overflow:hidden}.lyrics-mode .app{height:100dvh;min-height:0;ma
       <section class="panel search-panel ripple-target">
         <div class="panel-header">
           <div class="panel-heading-row"><div class="panel-title">
-            <span class="icon">🔍</span>
+            <span class="icon"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="search"><use href="#icon-search"></use></svg></span>
             <span data-i18n="searchTitle">歌曲搜索</span>
           </div><button id="search-panel-toggle" class="btn btn-ghost panel-toggle" type="button" aria-expanded="true" aria-controls="search-panel-content">收起</button></div>
           <span class="chip" data-i18n="searchSubtitle">支持网易云 / QQ / 酷我 / JOOX</span>
         </div>
         <div id="search-panel-content" class="search-panel-content">
           <div class="search-row ripple-target">
-            <span class="search-prefix">🔍</span>
+            <span class="search-prefix"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="search"><use href="#icon-search"></use></svg></span>
             <input id="search-input" class="input" type="text"
                    placeholder="输入歌名 / 歌手，回车搜索…" />
             <button id="search-btn" class="btn ripple-target" data-i18n="searchButton">搜索</button>
@@ -125,7 +181,7 @@ body.lyrics-mode{overflow:hidden}.lyrics-mode .app{height:100dvh;min-height:0;ma
       <section class="panel player-panel ripple-target">
         <div class="panel-header">
           <div class="panel-title">
-            <span class="icon">🎧</span>
+            <span class="icon"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="headphones"><use href="#icon-headphones"></use></svg></span>
             <span data-i18n="playerTitle">正在播放</span>
           </div>
           <div class="player-view-actions">
@@ -154,8 +210,8 @@ body.lyrics-mode{overflow:hidden}.lyrics-mode .app{height:100dvh;min-height:0;ma
               </div>
               <div class="player-actions">
                 <div class="player-btn-row">
-                  <button id="fav-btn" class="btn btn-secondary btn-icon ripple-target" title="收藏 (F)">❤</button>
-                  <button id="download-btn" class="btn btn-secondary btn-icon ripple-target" title="下载">⬇</button>
+                  <button aria-label="收藏 (F)" id="fav-btn" class="btn btn-secondary btn-icon ripple-target" title="收藏 (F)"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="heart"><use href="#icon-heart"></use></svg></button>
+                  <button aria-label="下载" id="download-btn" class="btn btn-secondary btn-icon ripple-target" title="下载"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="download"><use href="#icon-download"></use></svg></button>
                 </div>
                 <div id="player-status" class="status-pill" data-i18n="playerStatusIdle">等待播放</div>
               </div>
@@ -172,12 +228,12 @@ body.lyrics-mode{overflow:hidden}.lyrics-mode .app{height:100dvh;min-height:0;ma
               </div>
               <div class="control-row">
                 <div class="control-main">
-                  <button id="prev-btn" class="btn btn-secondary btn-icon ripple-target" title="上一首 (P)">⏮</button>
-                  <button id="play-btn" class="btn play-btn ripple-target" title="播放/暂停 (Space)">▶</button>
-                  <button id="next-btn" class="btn btn-secondary btn-icon ripple-target" title="下一首 (N)">⏭</button>
+                  <button aria-label="上一首 (P)" id="prev-btn" class="btn btn-secondary btn-icon ripple-target" title="上一首 (P)"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="skip-back"><use href="#icon-skip-back"></use></svg></button>
+                  <button aria-label="播放 (Space)" id="play-btn" class="btn play-btn ripple-target" title="播放/暂停 (Space)"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="play"><use href="#icon-play"></use></svg></button>
+                  <button aria-label="下一首 (N)" id="next-btn" class="btn btn-secondary btn-icon ripple-target" title="下一首 (N)"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="skip-forward"><use href="#icon-skip-forward"></use></svg></button>
                 </div>
                 <div class="control-secondary">
-                  <span>🔊</span>
+                  <span><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="volume-2"><use href="#icon-volume-2"></use></svg></span>
                   <input id="volume-slider" class="volume-slider" type="range" min="0" max="1" step="0.01" value="0.8" />
                 </div>
               </div>
@@ -200,7 +256,7 @@ body.lyrics-mode{overflow:hidden}.lyrics-mode .app{height:100dvh;min-height:0;ma
       <section class="panel playlist-panel ripple-target">
         <div class="panel-header">
           <div class="panel-heading-row"><div class="panel-title">
-            <span class="icon">📜</span>
+            <span class="icon"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="list-music"><use href="#icon-list-music"></use></svg></span>
             <span data-i18n="playlistTitle">我的音乐</span>
           </div><button id="music-panel-toggle" class="btn btn-ghost panel-toggle" type="button" aria-expanded="true" aria-controls="music-panel-content music-panel-tabs import-link-btn">收起</button></div>
           <div id="music-panel-tabs" class="playlist-tabs ripple-target">
@@ -216,9 +272,9 @@ body.lyrics-mode{overflow:hidden}.lyrics-mode .app{height:100dvh;min-height:0;ma
             <div class="playlist-top-row">
               <span id="playlist-info" class="playlist-info"></span>
               <div class="playmode-row">
-                <button class="playmode-btn active ripple-target" data-mode="list" title="列表循环">🔁</button>
-                <button class="playmode-btn ripple-target" data-mode="single" title="单曲循环">🔂</button>
-                <button class="playmode-btn ripple-target" data-mode="shuffle" title="随机播放">🔀</button>
+                <button class="playmode-btn active ripple-target" data-mode="list" aria-label="列表循环" title="列表循环"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="repeat"><use href="#icon-repeat"></use></svg></button>
+                <button class="playmode-btn ripple-target" data-mode="single" aria-label="单曲循环" title="单曲循环"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="repeat-1"><use href="#icon-repeat-1"></use></svg></button>
+                <button class="playmode-btn ripple-target" data-mode="shuffle" aria-label="随机播放" title="随机播放"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="shuffle"><use href="#icon-shuffle"></use></svg></button>
               </div>
             </div>
             <div id="favorites-search-row" style="display:none;margin-top:8px;">
@@ -236,7 +292,7 @@ body.lyrics-mode{overflow:hidden}.lyrics-mode .app{height:100dvh;min-height:0;ma
             <div id="playlist-select-row" class="playlist-select-row" style="display:none;">
               <div class="playlist-select-tools">
                 <select id="playlist-select"></select>
-                <button id="add-current-btn" class="btn btn-secondary btn-icon ripple-target" title="把当前歌曲加入歌单">＋</button>
+                <button aria-label="把当前歌曲加入歌单" id="add-current-btn" class="btn btn-secondary btn-icon ripple-target" title="把当前歌曲加入歌单"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="plus"><use href="#icon-plus"></use></svg></button>
                 <button id="delete-playlist-btn" class="btn btn-ghost ripple-target" data-i18n="deletePlaylist">删除歌单</button>
               </div>
               <div class="playlist-file-actions">
@@ -292,10 +348,10 @@ body.lyrics-mode{overflow:hidden}.lyrics-mode .app{height:100dvh;min-height:0;ma
     <div class="modal ripple-target">
       <div class="modal-header">
         <div class="modal-title-wrap">
-          <div class="modal-title-icon">🎵</div>
+          <div class="modal-title-icon"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="music"><use href="#icon-music"></use></svg></div>
           <span data-i18n="modalNewPlaylistTitle">新建歌单</span>
         </div>
-        <button id="playlist-close" class="modal-close-btn">×</button>
+        <button id="playlist-close" class="modal-close-btn" aria-label="关闭" title="关闭"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="x"><use href="#icon-x"></use></svg></button>
       </div>
       <p class="modal-desc" data-i18n="modalNewPlaylistDesc">为喜欢的声音，留一个位置。</p>
       <input id="playlist-name-input" type="text" placeholder="例如：通勤歌单 / 宝可梦歌单" />
@@ -311,10 +367,10 @@ body.lyrics-mode{overflow:hidden}.lyrics-mode .app{height:100dvh;min-height:0;ma
     <div class="modal ripple-target">
       <div class="modal-header">
         <div class="modal-title-wrap">
-          <div class="modal-title-icon">⌨️</div>
+          <div class="modal-title-icon"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="keyboard"><use href="#icon-keyboard"></use></svg></div>
           <span data-i18n="shortcutPanelTitle">快捷键说明</span>
         </div>
-        <button id="shortcut-close" class="modal-close-btn">×</button>
+        <button id="shortcut-close" class="modal-close-btn" aria-label="关闭" title="关闭"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="x"><use href="#icon-x"></use></svg></button>
       </div>
       <p class="modal-desc" data-i18n="shortcutPanelDesc">
         使用键盘可以更加方便地控制留声：
@@ -687,6 +743,8 @@ body.lyrics-mode{overflow:hidden}.lyrics-mode .app{height:100dvh;min-height:0;ma
       updatePlaylistInfoLabel();
       dom.lyricsModeBtn.textContent=t(state.lyricsMode?'exitLyricsMode':'lyricsMode');
       updatePanelToggles();
+      setPlaybackIcon(state.isPlaying);
+      if(state.currentTrack?.qualityLabel){const badge=qualityBadge(state.currentTrack.qualityLabel);dom.trackQualityPill.textContent=badge.text;dom.trackQualityPill.title=badge.description;dom.trackQualityPill.ariaLabel=badge.text+'。'+badge.description;}
     }
 
     // ========== 旧的质量映射函数，暂时保留（不再使用 API 的 quality 字段） ==========
@@ -706,6 +764,23 @@ body.lyrics-mode{overflow:hidden}.lyrics-mode .app{height:100dvh;min-height:0;ma
     }
 
     // ========== 新增：统一根据音频链接后缀判断音质 ==========
+    function icon(name){
+      return `<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="${name}"><use href="#icon-${name}"></use></svg>`;
+    }
+    function setPlaybackIcon(playing){
+      dom.playBtn.innerHTML=icon(playing?'pause':'play');
+      dom.playBtn.ariaLabel=state.language==='zh' ? (playing?'暂停 (Space)':'播放 (Space)') : (playing?'Pause (Space)':'Play (Space)');
+      dom.playBtn.title=dom.playBtn.ariaLabel;
+    }
+    function qualityBadge(label){
+      const zh=state.language==='zh';
+      const labels={LOSSLESS:zh?'无损格式':'Lossless format',HQ:zh?'高品质':'High quality',STD:zh?'标准':'Standard',LOW:zh?'低码率':'Low bitrate',LOSSY:zh?'有损音频':'Lossy audio',UNKNOWN:zh?'未核实':'Unverified','320K':zh?'码率未核实':'Unverified bitrate'};
+      return {
+        text:(zh?'音质 · ':'Quality · ')+(labels[label]||label),
+        description:label==='LOSSLESS' ? (zh?'由音源档位或无损文件格式识别；不代表已验证原始母带音质。':'Identified from the source tier or lossless format; original mastering quality is not verified.') : (zh?'接口返回的音质档位或文件类型；未独立测量实际码率。':'Source tier or file type; the actual bitrate has not been independently measured.')
+      };
+    }
+
     function inferQualityFromUrl(url){
       if(!url) return {tag:null,label:''};
       let base = url.split('?')[0].toLowerCase();
@@ -715,8 +790,7 @@ body.lyrics-mode{overflow:hidden}.lyrics-mode .app{height:100dvh;min-height:0;ma
       if (losslessExts.includes(ext)) {
         return {tag:'lossless', label:'LOSSLESS'};
       }
-      // 其他一律当作 320K 显示
-      return {tag:'320k', label:'320K'};
+      return {tag:'normal', label:['mp3','aac','opus'].includes(ext)?'LOSSY':'UNKNOWN'};
     }
 
     // ===================== 歌单缓存 / 导出 =====================
@@ -1744,6 +1818,8 @@ body.lyrics-mode{overflow:hidden}.lyrics-mode .app{height:100dvh;min-height:0;ma
       const tr=state.currentTrack;
       const active=isFavorite(tr);
       dom.favBtn.classList.toggle('btn-fav-active',active);
+      dom.favBtn.ariaPressed=String(active);
+      dom.favBtn.ariaLabel=state.language==='zh' ? (active?'取消收藏 (F)':'收藏 (F)') : (active?'Unfavorite (F)':'Favorite (F)');
     }
 
     let playbackRequest = 0, lyricsController;
@@ -1761,7 +1837,7 @@ body.lyrics-mode{overflow:hidden}.lyrics-mode .app{height:100dvh;min-height:0;ma
       dom.audio.removeAttribute('src');
       dom.audio.load();
       state.isPlaying=false;
-      dom.playBtn.textContent='▶';
+      setPlaybackIcon(false);
       dom.currentTime.textContent=formatTime(startTime);
       dom.totalTime.textContent='00:00';
       dom.progressBar.style.transform='scaleX(0)';
@@ -1785,10 +1861,13 @@ body.lyrics-mode{overflow:hidden}.lyrics-mode .app{height:100dvh;min-height:0;ma
         dom.trackSourcePill.appendChild(dot);
         dom.trackSourcePill.appendChild(txt);
 
-        // 显示音质：LOSSLESS 或 320K（根据 qualityLabel）
+        // Label the reported tier without claiming an unmeasured bitrate.
         if (track.qualityLabel) {
           dom.trackQualityPill.style.display = 'inline-block';
-          dom.trackQualityPill.textContent = track.qualityLabel;
+          const badge=qualityBadge(track.qualityLabel);
+          dom.trackQualityPill.textContent=badge.text;
+          dom.trackQualityPill.title=badge.description;
+          dom.trackQualityPill.ariaLabel=badge.text+'。'+badge.description;
         } else {
           dom.trackQualityPill.style.display = 'none';
         }
@@ -1833,7 +1912,7 @@ body.lyrics-mode{overflow:hidden}.lyrics-mode .app{height:100dvh;min-height:0;ma
         await dom.audio.play();
         if(request !== playbackRequest) return;
         state.isPlaying=true;
-        dom.playBtn.textContent='⏸';
+        setPlaybackIcon(true);
         dom.playerStatus.textContent=t('playerStatusPlaying');
       }catch(e){
         if(request !== playbackRequest) return;
@@ -1921,7 +2000,7 @@ body.lyrics-mode{overflow:hidden}.lyrics-mode .app{height:100dvh;min-height:0;ma
       track.detailsLoaded=false;track.audioUrl=null;
       pendingSeek=Number.isFinite(position) ? position : 0;
       loadedTrackUid=null;
-      dom.audio.pause();state.isPlaying=false;dom.playBtn.textContent='▶';
+      dom.audio.pause();state.isPlaying=false;setPlaybackIcon(false);
       dom.playerStatus.textContent=t('playerStatusError');
       showToast(error.userMessage||t('musicAudioError'));
       savePlaybackState();
@@ -2128,7 +2207,7 @@ body.lyrics-mode{overflow:hidden}.lyrics-mode .app{height:100dvh;min-height:0;ma
       updatePlaylistInfoLabel();
       if(!list.length){
         const empty=document.createElement('div'); empty.className='empty-library';
-        empty.innerHTML=activeTab==='favorites' && state.favoriteSearch.trim() ? '<div class="empty-glyph">⌕</div><b>没有找到这首歌</b><p>试试歌手、专辑或其他关键词。</p>' : activeTab==='favorites' ? '<div class="empty-glyph">♫</div><b>给喜欢的歌留个位置</b><p>在左侧搜索歌曲，点击爱心收藏。也可以从顶部导入已有歌单。</p>' : '<div class="empty-glyph">⌕</div><b>从一首歌开始</b><p>输入歌名或歌手，发现想听的声音。</p>'; wrap.appendChild(empty);
+        empty.innerHTML=activeTab==='favorites' && state.favoriteSearch.trim() ? '<div class="empty-glyph">'+icon('search')+'</div><b>没有找到这首歌</b><p>试试歌手、专辑或其他关键词。</p>' : activeTab==='favorites' ? '<div class="empty-glyph">'+icon('music')+'</div><b>给喜欢的歌留个位置</b><p>在左侧搜索歌曲，点击爱心收藏。也可以从顶部导入已有歌单。</p>' : '<div class="empty-glyph">'+icon('search')+'</div><b>从一首歌开始</b><p>输入歌名或歌手，发现想听的声音。</p>'; wrap.appendChild(empty);
       }
 
       list.forEach((track,idx)=>{
@@ -2158,14 +2237,17 @@ body.lyrics-mode{overflow:hidden}.lyrics-mode .app{height:100dvh;min-height:0;ma
         const act=document.createElement('div');
         act.className='track-actions';
         const pBtn=document.createElement('button');
-        pBtn.className='btn btn-secondary btn-icon ripple-target'; pBtn.textContent='▶';
+        pBtn.className='btn btn-secondary btn-icon ripple-target'; pBtn.innerHTML=icon('play');
+        pBtn.ariaLabel=(state.language==='zh'?'播放 ':'Play ')+track.title;pBtn.title=pBtn.ariaLabel;
         const fBtn=document.createElement('button');
-        fBtn.className='btn btn-secondary btn-icon ripple-target'; fBtn.textContent='❤';
+        fBtn.className='btn btn-secondary btn-icon ripple-target'; fBtn.innerHTML=icon('heart');
+        fBtn.ariaLabel=(state.language==='zh'?'收藏 / 取消收藏 ':'Favorite / unfavorite ')+track.title;fBtn.title=fBtn.ariaLabel;
+        fBtn.ariaPressed=String(isFavorite(track));
         if(isFavorite(track)) fBtn.classList.add('btn-fav-active');
         const removeBtn=document.createElement('button');
         removeBtn.className='btn btn-ghost btn-icon ripple-target';
-        removeBtn.textContent='×';
-        removeBtn.title=t('removeFromPlaylist');
+        removeBtn.innerHTML=icon('x');
+        removeBtn.title=t('removeFromPlaylist');removeBtn.ariaLabel=removeBtn.title;
 
         pBtn.addEventListener('click',ev=>{
           ev.stopPropagation();
@@ -2317,6 +2399,7 @@ body.lyrics-mode{overflow:hidden}.lyrics-mode .app{height:100dvh;min-height:0;ma
     function setPlaymodeUI(){
       document.querySelectorAll('.playmode-btn').forEach(btn=>{
         btn.classList.toggle('active',btn.dataset.mode===state.playMode);
+        btn.ariaPressed=String(btn.dataset.mode===state.playMode);
       });
     }
 
@@ -2601,12 +2684,12 @@ body.lyrics-mode{overflow:hidden}.lyrics-mode .app{height:100dvh;min-height:0;ma
       });
       dom.audio.addEventListener('play',()=>{
         state.isPlaying=true;
-        dom.playBtn.textContent='⏸';
+        setPlaybackIcon(true);
         dom.playerStatus.textContent=t('playerStatusPlaying');
       });
       dom.audio.addEventListener('pause',()=>{
         state.isPlaying=false;
-        dom.playBtn.textContent='▶';
+        setPlaybackIcon(false);
         dom.playerStatus.textContent=t('playerStatusPaused');
         audioLevel = 0;
         savePlaybackState();
