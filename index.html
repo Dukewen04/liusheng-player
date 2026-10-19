@@ -11,7 +11,7 @@
 *{box-sizing:border-box}body{margin:0;background:var(--bg-dark);color:var(--text-main);font:17px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif}button,input,select{font:inherit}button,select{cursor:pointer}button{touch-action:manipulation}button:disabled{opacity:.45;cursor:wait}button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:3px solid #97b2a0;outline-offset:3px}input,select{min-width:0}a{color:var(--accent)}
 .app{max-width:1800px;margin:auto;padding:28px 34px 16px;height:100dvh;display:flex;flex-direction:column;gap:24px}.app>header{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-shrink:0}.logo-area,.header-controls,.lang-toggle{display:flex;align-items:center;gap:16px}.brand-mark{height:52px;width:52px;border-radius:17px;background:#284d3f;display:flex;align-items:center;justify-content:center;gap:4px}.brand-mark i{width:3px;height:13px;background:#e6ecd6;border-radius:3px}.brand-mark i:nth-child(2),.brand-mark i:nth-child(4){height:23px}.brand-mark i:nth-child(3){height:32px}.title-text h1{font-size:27px;letter-spacing:.1em;line-height:1.2;margin:0}.title-text p{margin:5px 0 0;font-size:12px;letter-spacing:.15em;color:var(--text-sub)}.header-controls{gap:12px}.lang-toggle{gap:3px;background:#e7ebdf;border-radius:10px;padding:3px}.lang-btn{border:0;background:transparent;font-size:13px;color:var(--text-sub);padding:5px 9px;border-radius:8px}.lang-btn.active{background:#fff;color:var(--accent)}.shortcut-hint{display:none}.shortcut-toggle-btn{border:1px solid var(--border-subtle);background:transparent;border-radius:10px;padding:7px 11px;color:var(--text-sub)}
 .layout{display:grid;grid-template-columns:var(--search-width,260px) minmax(350px,.9fr) var(--music-width,minmax(420px,1.15fr));gap:24px;min-height:0;flex:1}.panel{min-width:0;min-height:0;display:flex;flex-direction:column;border-radius:22px;background:#fff;border:1px solid var(--border-subtle);overflow:hidden}.panel-header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:24px 22px 16px;flex-shrink:0}.panel-title{font-size:19px;font-weight:650;letter-spacing:.03em;white-space:nowrap}.panel-title .icon{display:none}.chip{font-size:12px;color:var(--text-sub);font-weight:400}.btn{border:0;border-radius:10px;background:var(--accent);color:#fff;font-weight:550;font-size:14px;min-height:38px;padding:8px 14px;white-space:nowrap}.btn:hover{background:#355c49}.btn-secondary{color:var(--accent);background:#edf2e6}.btn-secondary:hover{background:#dfe8d6}.btn-ghost{color:var(--text-sub);background:transparent;border:1px solid var(--border-subtle)}.btn-ghost:hover{background:#f0f3eb}.btn-icon{height:36px;min-height:36px;min-width:36px;padding:0;display:inline-flex;align-items:center;justify-content:center;font-size:16px}.btn-fav-active{color:#ac5b65!important;background:#f9edef!important}.input{width:100%;padding:11px 12px;border:1px solid var(--border-subtle);border-radius:10px;background:#f8faf5;color:var(--text-main);outline:none;font-size:15px}.input:focus{border-color:#789c84}.source-dot{width:6px;height:6px;display:inline-block;border-radius:50%;background:#999;margin-right:5px}.source-dot.netease{background:#bf776b}.source-dot.qq{background:#6b9e8c}.source-dot.kuwo{background:#ba9c57}.source-dot.joox{background:#7e8fbb}
-.search-panel{background:#edf0e6;border-color:transparent}.search-panel>.panel-header{flex-direction:column;align-items:flex-start;gap:4px}.search-panel-content{padding:0 18px 18px;display:flex;flex-direction:column;gap:14px;min-height:0;flex:1}.search-row{display:flex;align-items:center;gap:6px;padding:6px;background:#fff;border:1px solid #dce3d5;border-radius:12px}.search-prefix{display:none}.search-row .input{border:0;background:none;padding:6px;font-size:14px}.search-row .btn{padding:7px 11px;font-size:13px}.search-source-row{display:flex;flex-wrap:wrap;gap:7px}.source-chip{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:#667361;background:#f6f8f0;border:1px solid #dce2d3;padding:4px 8px;border-radius:7px;cursor:pointer}.source-chip input{accent-color:var(--accent);width:12px;height:12px;margin:0}.source-chip .source-dot{display:none}.search-options-row,.search-stats{display:flex;align-items:center;justify-content:space-between;gap:5px;flex-wrap:wrap;font-size:12px;color:var(--text-sub)}select{color:var(--text-main);border:1px solid var(--border-subtle);background:#fff;padding:6px;border-radius:8px}.search-options-row .btn{font-size:12px;padding:4px 8px;min-height:28px}.search-results-mini{min-height:0;overflow:auto;flex:1}.search-panel .track-item{gap:7px;padding:12px 0}.search-panel .track-index{width:20px}.search-panel .track-meta-title{font-size:16px}.search-panel .track-meta-sub{gap:6px}.search-panel .track-actions{gap:0}.search-panel .empty-library{padding:24px 8px;font-size:14px;line-height:1.8}
+.search-panel{background:#edf0e6;border-color:transparent}.search-panel>.panel-header{flex-direction:column;align-items:flex-start;gap:4px}.search-panel-content{padding:0 18px 18px;display:flex;flex-direction:column;gap:14px;min-height:0;flex:1}.search-row{display:flex;align-items:center;gap:6px;padding:6px;background:#fff;border:1px solid #dce3d5;border-radius:12px}.search-prefix{display:none}.search-row .input{border:0;background:none;padding:6px;font-size:14px}.search-row .btn{padding:7px 11px;font-size:13px}.search-source-row{display:flex;flex-wrap:wrap;gap:7px}.source-chip{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:#667361;background:#f6f8f0;border:1px solid #dce2d3;padding:4px 8px;border-radius:7px;cursor:pointer}.source-chip input{accent-color:var(--accent);width:12px;height:12px;margin:0}.source-chip .source-dot{display:none}.search-options-row,.search-stats{display:flex;align-items:center;justify-content:space-between;gap:5px;flex-wrap:wrap;font-size:12px;color:var(--text-sub)}select{color:var(--text-main);border:1px solid var(--border-subtle);background:#fff;padding:6px;border-radius:8px}.search-options-row .btn{font-size:12px;padding:4px 8px;min-height:28px}.search-results-mini{min-height:0;overflow:auto;flex:1}
 .player-panel{padding:0 24px 20px;background:#fafbf7;border:1px solid #e4e8dc}.player-panel>.panel-header{padding:22px 0 16px}.player-panel .panel-title{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--text-sub)}.player-top{display:flex;flex-direction:column;align-items:stretch;gap:22px;flex-shrink:0}.cover-wrapper{position:relative;aspect-ratio:1;width:min(100%,290px);align-self:center;border-radius:14px;overflow:hidden;margin:12px 0 0;box-shadow:0 18px 35px #21352a13;background:#dce3d2}.cover-wrapper img{width:100%;height:100%;object-fit:cover}.cover-placeholder{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:18px;background:linear-gradient(140deg,#bacbb4,#dfe5d3 65%,#f0e6d2);font-size:12px;letter-spacing:.08em;color:#405c47}.cover-disc{width:65%;aspect-ratio:1;border-radius:50%;background:repeating-radial-gradient(circle,#344d3b 0px,#344d3b 2px,#405c47 3px,#344d3b 4px);position:relative;box-shadow:0 10px 20px #344d3b30}.cover-disc:after{content:'留声';position:absolute;inset:35%;border-radius:50%;background:#dfdfb8;display:grid;place-items:center;font-size:15px;letter-spacing:.05em}.player-main{min-width:0}.track-title-row{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}.track-text{min-width:0}.track-title{font-size:26px;font-weight:650;line-height:1.35;letter-spacing:.02em;overflow-wrap:anywhere}.track-artist{margin-top:6px;color:var(--text-sub);font-size:15px}.track-tags{display:flex;gap:6px;margin-top:10px}.source-pill,.lossless-pill{display:inline-flex;align-items:center;font-size:11px;line-height:1.4;padding:4px 7px;border:1px solid #dde4d5;border-radius:5px;color:#78856f}.player-actions{display:flex;flex-direction:column;align-items:flex-end;gap:10px}.player-btn-row{display:flex;gap:5px}.player-btn-row .btn{color:#7b8a75;background:transparent}.status-pill{font-size:11px;color:var(--text-sub)}.player-controls{margin-top:20px}.progress-row{display:flex;align-items:center;gap:10px}.progress-time{font-size:11px;color:var(--text-sub);font-variant-numeric:tabular-nums}.progress-bar-wrapper{height:16px;position:relative;cursor:pointer;flex:1;background:linear-gradient(transparent 6px,#e1e6d9 6px,#e1e6d9 10px,transparent 10px)}#progress-bar{height:4px;position:absolute;top:6px;left:0;width:0;background:var(--accent);border-radius:4px}#progress-handle{width:10px;height:10px;border-radius:50%;background:var(--accent);position:absolute;top:3px;left:0;transform:translateX(-50%)}.control-row{display:flex;align-items:center;justify-content:space-between;margin-top:17px;gap:12px}.control-main{display:flex;align-items:center;gap:18px}.control-main .btn{background:transparent;color:#73816c}.control-main .play-btn{border-radius:50%;background:var(--accent);color:#fff;width:52px;height:52px;font-size:19px}.control-secondary{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text-sub)}.volume-slider{width:70px;accent-color:var(--accent)}.lyrics-container{min-height:100px;overflow:auto;flex:1;margin-top:22px;border-top:1px solid #e1e6d9;padding-top:18px;mask-image:linear-gradient(transparent,#000 12%,#000 88%,transparent)}.lyrics-inner{text-align:center;padding:15px 3px}.lyrics-title-line{display:none}.lyrics-line{font-size:17px;line-height:2.25;color:#a1ad9a;margin:0;white-space:normal}.lyrics-line.active{color:#284d3f;font-weight:650;font-size:19px}.lyrics-empty{font-size:14px;color:#94a08d;line-height:2.2;padding:16px 8px}
 .playlist-panel{background:#fff}.playlist-panel>.panel-header{align-items:flex-start;flex-direction:column;padding-bottom:18px}.playlist-panel .panel-title{font-size:25px}.playlist-tabs{display:flex;gap:4px;flex-wrap:wrap;background:#f4f6ef;border-radius:10px;padding:4px;width:100%}.playlist-tab{flex:1;cursor:pointer;white-space:nowrap;text-align:center;font-size:14px;padding:7px 8px;border-radius:8px;color:var(--text-sub);border:0;background:none}.playlist-tab.active{background:#fff;box-shadow:0 1px 4px #2238240b;color:var(--accent);font-weight:650}.playlist-panel>#import-link-btn{margin-left:22px}.playlist-main{flex:1;overflow:auto;min-height:0;padding:0 22px 10px}.playlist-bar{position:sticky;top:0;background:#fff;padding:8px 0 14px;border-bottom:1px solid #eef0e9;z-index:2;font-size:13px;color:var(--text-sub)}.playlist-top-row{display:flex;align-items:center;justify-content:space-between;gap:10px}.playlist-info{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.playmode-row{display:flex;gap:3px;flex-shrink:0}.playmode-btn{border:0;background:none;font-size:14px;border-radius:7px;width:32px;height:32px;filter:grayscale(1);opacity:.5}.playmode-btn.active{background:#e8efde;filter:none;opacity:1}.playlist-select-row{flex-direction:column;gap:10px;margin-top:10px}.playlist-select-tools{display:flex;gap:6px;align-items:center}.playlist-select-tools select{flex:1;max-width:65%;font-size:13px}.playlist-file-actions{display:flex;gap:7px;flex-wrap:wrap}.playlist-file-actions .btn{font-size:12px;min-height:30px;padding:5px 8px}.track-item{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid #f0f2eb;cursor:pointer;min-height:74px}.track-item>div:nth-child(2){flex:1;min-width:0}.track-item:hover{background:#f8faf4}.track-item.playing{background:#edf3e5;border-radius:10px;padding-left:9px;padding-right:9px}.track-index{width:25px;flex-shrink:0;text-align:center;font-size:12px;color:#a1aa97;font-variant-numeric:tabular-nums}.track-meta-title{font-size:18px;line-height:1.45;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.track-meta-sub{display:flex;flex-wrap:wrap;gap:10px;font-size:12px;color:var(--text-sub);margin-top:4px}.track-actions{display:flex;align-items:center;gap:4px}.track-actions .btn{min-width:28px;height:30px;min-height:30px;font-size:13px;background:none;color:#92a087;border:0}.track-actions .btn:hover{background:#e8efdf;color:var(--accent)}.empty-library{text-align:center;padding:55px 20px 30px;color:var(--text-sub)}.empty-library b{display:block;font-size:20px;color:var(--text-main);margin:10px 0}.empty-library p{font-size:14px;line-height:1.9;max-width:235px;margin:auto}.empty-glyph{font-size:40px;color:#adbda0}#favorites-search-count{font-size:12px!important}#favorites-sort{width:100%!important}.library-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.library-actions .btn{font-size:13px}#playlist-search-count{font-size:12px;color:var(--text-sub)}#export-favorites-btn{font-size:13px}footer{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;color:#8d9885;font-size:11px;flex-shrink:0}footer a{color:inherit}footer .copyright{opacity:.8}
 .modal-backdrop{position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;background:#16251e50;backdrop-filter:blur(4px);padding:20px}.modal-backdrop.show{display:flex}.modal{width:min(500px,100%);background:#fff;border-radius:20px;padding:26px;box-shadow:0 24px 80px #12311c25}.modal-header{display:flex;justify-content:space-between;align-items:center;font-size:20px;font-weight:600}.modal-title-wrap{display:flex;gap:10px}.modal-close-btn{border:0;background:none;font-size:26px;color:var(--text-sub)}.modal-desc{color:var(--text-sub);font-size:15px}.modal input{width:100%;border:1px solid var(--border-subtle);border-radius:10px;padding:12px;font:inherit;color:inherit}.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}.shortcut-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;font-size:14px}.shortcut-key{color:var(--accent);font-weight:600}.shortcut-desc{font-size:13px;color:var(--text-sub)}dialog{border:1px solid var(--border-subtle)!important;border-radius:20px!important;background:#fff!important;color:var(--text-main)!important;padding:28px!important;width:min(540px,92vw)}dialog::backdrop{background:#16251e50;backdrop-filter:blur(4px)}dialog h2{font-size:22px;margin-top:0}dialog p{color:var(--text-sub)!important;font-size:14px!important}dialog label{font-size:14px!important}#toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:#284d3f;color:#fff;font-size:14px;padding:10px 20px;border-radius:10px;z-index:1000;opacity:0;pointer-events:none;max-width:90vw}#toast.show{opacity:1}::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-thumb{background:#d6decd;border-radius:10px}input[type=checkbox]{accent-color:var(--accent)}
@@ -34,6 +34,82 @@
 body.lyrics-mode{overflow:hidden}.lyrics-mode .app{height:100dvh;min-height:0;max-width:1200px;padding:20px clamp(16px,5vw,64px);gap:0}.lyrics-mode .app>header,.lyrics-mode footer,.lyrics-mode .search-panel,.lyrics-mode .playlist-panel{display:none}.lyrics-mode .layout{display:flex;min-height:0;gap:0}.lyrics-mode .player-panel{flex:1;min-height:0;max-height:none;padding:0;border:0;border-radius:0;background:transparent}.lyrics-mode .player-panel>.panel-header{order:0;padding:0 0 12px}.lyrics-mode .player-view-actions>.chip,.lyrics-mode .cover-wrapper,.lyrics-mode .track-tags,.lyrics-mode .player-actions{display:none}.lyrics-mode .player-top,.lyrics-mode .player-main{display:contents}.lyrics-mode .track-title-row{order:1;justify-content:center;flex-shrink:0;text-align:center}.lyrics-mode .track-title{font-size:clamp(20px,2.3vw,30px)}.lyrics-mode .track-artist{font-size:14px;margin-top:2px}.lyrics-mode .lyrics-container{order:2;flex:1;min-height:0;max-height:none;margin:12px 0;border:0;padding:0;overscroll-behavior:contain}.lyrics-mode .lyrics-inner{max-width:900px;margin:auto;padding:25dvh 12px}.lyrics-mode .lyrics-line{font-size:clamp(24px,3vw,40px);line-height:2.1;color:#a1ad9a}.lyrics-mode .lyrics-line.active{font-size:clamp(26px,3.2vw,44px);color:var(--accent)}.lyrics-mode .player-controls{order:3;flex-shrink:0;width:min(680px,100%);align-self:center;margin:0;padding:10px 0 max(0px,env(safe-area-inset-bottom))}.lyrics-mode .control-row{margin-top:10px}.lyrics-mode .control-main{gap:22px}.lyrics-mode .volume-slider{width:70px}
 @media(hover:none) and (pointer:coarse){html{touch-action:pan-x pan-y}input:not([type=checkbox]):not([type=range]),select,textarea{font-size:16px!important}}
 #import-check-panel{margin-top:22px}#import-progress-dialog .import-note{font-size:13px;color:var(--text-sub);line-height:1.8}#import-check-count{font-size:18px;font-weight:600;line-height:1.6;margin:0 0 12px}#import-check-status{white-space:pre-wrap}
+
+/* Shared surfaces keep discovery and the library visually consistent. */
+:root{--bg-dark:#f4f5f1;--panel-glass:#fff;--panel-glass-soft:#f7f9f5;--accent:#315747;--accent-strong:#254537;--text-main:#263a30;--text-sub:#748176;--border-subtle:#e3e9df;--panel-padding:22px}
+body{background:var(--bg-dark)}
+.app{max-width:1760px;padding:24px 28px 16px;gap:20px}
+.app>header{padding:0 2px}.brand-mark{width:48px;height:48px;border-radius:15px;background:var(--accent)}
+.title-text h1{font-size:26px;letter-spacing:.12em}.title-text p{font-size:11px;letter-spacing:.16em}
+.header-controls .btn,.shortcut-toggle-btn{min-height:38px;background:#ffffffb8;border:1px solid var(--border-subtle);color:var(--text-sub)}
+body:not(.lyrics-mode) .layout{grid-template-columns:var(--search-width,minmax(300px,1fr)) minmax(350px,1.18fr) var(--music-width,minmax(300px,1fr));gap:20px}
+.panel{border-radius:20px;border:1px solid var(--border-subtle);box-shadow:0 5px 24px #263a3005}
+.search-panel,.playlist-panel{background:var(--panel-glass);border-color:var(--border-subtle)}
+.search-panel>.panel-header,.playlist-panel>.panel-header{padding:22px var(--panel-padding) 18px;align-items:flex-start;flex-direction:column;gap:8px}
+.search-panel .panel-title,.playlist-panel .panel-title{font-size:21px;font-weight:650;letter-spacing:.025em}
+.panel-header>.chip{font-size:13px;line-height:1.6;white-space:normal}
+.panel-title .icon{display:inline-flex;align-items:center;justify-content:center;margin-right:8px;color:var(--accent);vertical-align:middle}
+.panel-heading-row .panel-title{display:flex;align-items:center}
+.panel-toggle{border:0;background:var(--panel-glass-soft);border-radius:8px;color:var(--text-sub);min-height:32px}
+.search-panel-content{padding:0 var(--panel-padding) 14px;gap:12px}
+.playlist-main{padding:0 var(--panel-padding) 14px}
+.library-toolbar{background:var(--panel-glass-soft);border:1px solid var(--border-subtle);border-radius:14px;padding:14px}
+.search-toolbar{display:flex;flex-direction:column;gap:13px;flex-shrink:0}
+.playlist-bar{padding:14px;margin-bottom:12px;background:var(--panel-glass-soft);border-bottom:1px solid var(--border-subtle)}
+.search-row{padding:4px;gap:4px;border:1px solid var(--border-subtle);border-radius:10px;background:#fff}
+.search-row .input{padding:8px 9px;font-size:15px;min-width:0}.search-row .btn{min-height:36px;padding:7px 12px;font-size:14px}
+.source-row{display:flex;flex-wrap:wrap;gap:6px}.source-chip{font-size:12px;min-height:29px;padding:4px 7px;border-radius:7px;background:#fff;border-color:var(--border-subtle);color:var(--text-sub)}
+.source-chip input{width:13px;height:13px}.source-chip:has(input:checked){color:var(--accent);border-color:#c9d9cb;background:#edf3e9}
+.search-stats{gap:8px;align-items:flex-start;line-height:1.7;font-size:12px}.search-stats>span:first-child{flex:1;min-width:0}#search-count:not([hidden]){background:#e7eee1;color:var(--accent);border-radius:6px;padding:0 7px;font-variant-numeric:tabular-nums}
+#results-actions{margin-top:0;justify-content:flex-end}.library-actions .btn{font-size:13px;min-height:34px}
+.btn{border-radius:9px}.btn-secondary{background:#eaf1e5;color:var(--accent)}.btn-secondary:hover{background:#dce8d6}.btn-ghost:hover{background:#edf2e9}button:disabled{cursor:not-allowed}
+.input,select{background:#fff;border-color:var(--border-subtle);border-radius:9px}.input:focus{border-color:#789d83;box-shadow:none}
+.playlist-tabs{margin-top:4px;padding:4px;gap:4px;border:1px solid #edf0e9;background:var(--panel-glass-soft);border-radius:11px}
+.playlist-tab{min-height:36px;font-size:14px}.playlist-tab.active{box-shadow:0 2px 6px #263a3008;color:var(--accent)}
+.playlist-panel>#import-link-btn{margin:0 var(--panel-padding) 14px!important;align-self:stretch!important;min-height:39px;border:1px solid #d6e2d1;background:#edf3e8}
+.playlist-top-row{gap:8px;flex-wrap:wrap}.playlist-info{font-size:13px;color:var(--accent);font-weight:550}.playmode-row{margin-left:auto}
+.playmode-btn{width:30px;height:30px;border-radius:7px}.playmode-btn.active{background:#e0ebda}.playlist-file-actions{gap:6px}.playlist-select-tools select{max-width:none}
+.track-item{gap:10px;padding:12px;margin:4px 0;min-height:78px;border:1px solid transparent;border-radius:11px;background:#fff}
+.track-item:hover{background:#f4f7f0;border-color:#e7eddf}.track-item.playing{padding:12px;background:#edf4e7;border-color:#dce8d4;box-shadow:inset 3px 0 var(--accent)}
+.track-index{width:20px;color:#9aa698;font-size:12px}.track-meta-title{font-size:17px;font-weight:550;line-height:1.5}.track-meta-sub{font-size:12px;gap:5px 8px;line-height:1.65;margin-top:4px}.track-meta-sub>span{max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.track-actions{gap:3px;flex-shrink:0}.track-actions .btn{width:32px;min-width:32px;height:34px;min-height:34px;border-radius:8px;color:#82917f}.track-actions .btn:hover{background:#e1ebda;color:var(--accent)}.track-actions .ui-icon{width:18px;height:18px}
+.search-results-mini,.playlist-main{scrollbar-width:thin;scrollbar-color:#d2ddcd transparent;overscroll-behavior:contain}
+.search-results-mini{max-height:none}.empty-library{padding:32px 16px;margin:8px 0;border:1px dashed #dce5d5;border-radius:14px;background:#fafbf8;font-size:14px;line-height:1.9}.empty-library b{font-size:19px}.empty-library p{font-size:14px;line-height:1.9}.empty-glyph{font-size:34px}
+body:not(.lyrics-mode) .player-panel{background:#fafbf8;border-color:#dfe7da;padding:0 24px 20px}
+body:not(.lyrics-mode) .player-top{gap:20px}.player-panel>.panel-header{padding:21px 0 16px}.player-view-actions>.chip{display:none}
+body:not(.lyrics-mode) .cover-wrapper{width:min(100%,clamp(180px,26dvh,290px));border-radius:17px;box-shadow:0 16px 32px #253e291a;margin-top:4px}
+body:not(.lyrics-mode) .track-title{font-size:27px;letter-spacing:.015em;line-height:1.4}body:not(.lyrics-mode) .track-artist{font-size:15px}
+body:not(.lyrics-mode) .lyrics-container{margin-top:18px;padding-top:16px;min-height:100px;border-color:#e0e8da}.lyrics-line.active{color:var(--accent)}
+.control-main .play-btn{width:54px;height:54px;box-shadow:0 5px 12px #31574718}.progress-bar-wrapper{border-radius:8px}
+.music-collapsed .playlist-panel>.panel-header>.chip{display:none}
+@media(min-width:1101px) and (max-height:760px){body:not(.lyrics-mode) .app{height:auto;min-height:100dvh}body:not(.lyrics-mode) .layout{height:600px;flex:none}}
+@media(max-width:1100px) and (min-width:651px){
+ body:not(.lyrics-mode) .app{height:auto;min-height:100dvh}
+ body:not(.lyrics-mode) .layout{grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:440px 620px;min-height:0;flex:none}
+ body:not(.lyrics-mode) .player-panel{grid-column:1/-1;grid-row:1;min-height:0;max-height:none}
+ body:not(.lyrics-mode) .search-panel{grid-column:1;grid-row:2;min-height:0;max-height:none}
+ body:not(.lyrics-mode) .playlist-panel{grid-column:2;grid-row:2;min-height:0;max-height:none}
+ body:not(.lyrics-mode) .player-top{flex-direction:row;align-items:center;gap:26px}
+ body:not(.lyrics-mode) .cover-wrapper{width:210px;flex:0 0 210px;margin:0}.player-main{flex:1}
+ body:not(.lyrics-mode) .lyrics-container{min-height:110px;max-height:none}
+ .search-collapsed .search-panel,.music-collapsed .playlist-panel{align-self:start}
+ .search-collapsed .search-panel .panel-heading-row,.music-collapsed .playlist-panel .panel-heading-row{flex-direction:row;gap:10px}
+ .search-collapsed .search-panel>.panel-header,.music-collapsed .playlist-panel>.panel-header{padding:18px 22px;align-items:stretch}
+ .search-collapsed .search-panel .panel-title,.music-collapsed .playlist-panel .panel-title{writing-mode:horizontal-tb;font-size:21px;letter-spacing:.025em}
+ body.search-collapsed.music-collapsed:not(.lyrics-mode) .layout{grid-template-rows:440px auto}
+}
+@media(max-width:650px){
+ :root{--panel-padding:18px}.app{padding:16px 14px;gap:18px}.app>header{gap:10px}.logo-area{gap:10px}.brand-mark{width:42px;height:42px}.title-text h1{font-size:23px}.title-text p{font-size:9px}.header-controls{gap:6px}.header-controls .btn{font-size:12px;min-height:34px;padding:7px 10px}
+ body:not(.lyrics-mode) .layout{display:flex;flex-direction:column;gap:16px;min-height:0}
+ body:not(.lyrics-mode) .player-panel{order:1;min-height:650px;padding:0 20px 20px}
+ body:not(.lyrics-mode) .search-panel,body:not(.lyrics-mode) .playlist-panel{height:660px;min-height:0;max-height:none}
+ body:not(.lyrics-mode) .player-top{flex-direction:column;gap:20px}body:not(.lyrics-mode) .cover-wrapper{width:220px;flex:none}
+ .search-panel>.panel-header,.playlist-panel>.panel-header{padding:18px;flex-direction:column;align-items:stretch}.search-panel .panel-title,.playlist-panel .panel-title{font-size:21px}
+ .search-results-mini{min-height:0;max-height:none}.track-item{padding:11px 9px}.track-item.playing{padding:11px 9px}.track-meta-title{font-size:17px}.track-actions .btn{width:34px;min-width:34px;height:36px;min-height:36px}
+ body.search-collapsed:not(.lyrics-mode) .search-panel,body.music-collapsed:not(.lyrics-mode) .playlist-panel{height:auto}
+ .search-collapsed .search-panel .panel-title,.music-collapsed .playlist-panel .panel-title{writing-mode:horizontal-tb;font-size:21px;letter-spacing:.025em}
+ footer{font-size:11px}
+}
 </style>
 </head>
 <body>
@@ -123,9 +199,10 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
             <span class="icon"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="search"><use href="#icon-search"></use></svg></span>
             <span data-i18n="searchTitle">歌曲搜索</span>
           </div><button id="search-panel-toggle" class="btn btn-ghost panel-toggle" type="button" aria-expanded="true" aria-controls="search-panel-content">收起</button></div>
-          <span class="chip" data-i18n="searchSubtitle">网易云 / QQ / 酷我 / JOOX / 酷狗</span>
+          <span class="chip" data-i18n="searchSubtitle">搜一首想听的歌</span>
         </div>
         <div id="search-panel-content" class="search-panel-content">
+          <div class="library-toolbar search-toolbar">
           <div class="search-row ripple-target">
             <span class="search-prefix"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="search"><use href="#icon-search"></use></svg></span>
             <input id="search-input" class="input" type="text"
@@ -163,6 +240,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
           </div>
 
           <div id="results-actions" class="library-actions"><button id="clear-results-btn" class="btn btn-ghost" data-i18n="clearResults" disabled>清空结果</button></div>
+          </div>
           <div id="search-mini-list" class="search-results-mini" aria-label="歌曲搜索结果"></div>
         </div>
       </section>
@@ -249,6 +327,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
             <span class="icon"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="list-music"><use href="#icon-list-music"></use></svg></span>
             <span data-i18n="playlistTitle">我的音乐</span>
           </div><button id="music-panel-toggle" class="btn btn-ghost panel-toggle" type="button" aria-expanded="true" aria-controls="music-panel-content music-panel-tabs import-link-btn">收起</button></div>
+          <span class="chip" data-i18n="librarySubtitle">收藏喜欢的声音，整理自己的歌单</span>
           <div id="music-panel-tabs" class="playlist-tabs ripple-target">
             <button type="button" class="playlist-tab active" data-tab="favorites" data-i18n="tabFavorites">我的收藏</button>
             <button type="button" class="playlist-tab" data-tab="playlists" data-i18n="tabCustomLists">自建歌单</button>
@@ -257,7 +336,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
         <button id="import-link-btn" class="btn btn-secondary" style="align-self:flex-start;margin-bottom:8px">导入网易云 / QQ 歌单</button>
         <div id="music-panel-content" class="playlist-main">
-          <div class="playlist-bar">
+          <div class="playlist-bar library-toolbar">
             <div class="playlist-top-row">
               <span id="playlist-info" class="playlist-info"></span>
               <div class="playmode-row">
@@ -360,7 +439,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       <p id="import-check-count" role="status" aria-live="polite">正在读取歌曲总数…</p>
       <progress id="import-check-progress" max="1" aria-label="已检查歌曲比例" style="width:100%"></progress>
       <p id="import-check-status" role="status" aria-live="polite"></p>
-      <p class="import-note">先按原歌名和歌手匹配网易云、QQ，有可播资源就保留原歌名、歌手及已有专辑信息；其他音源仍能匹配原版本时也优先保留。仅当原版本均不可播时才定位原唱，并验证原唱版本的音质和可播性。取消音质优选时，原曲可播即保留。临时接口或网络错误会保留歌曲并标为暂未验证；确认无可播放替代的歌曲才会移除。关闭窗口可继续检查；停止后保留已完成结果和未检查歌曲。</p>
+      <p class="import-note">先按原歌名和歌手匹配网易云、QQ，有可播资源就保留原歌名、歌手及已有专辑信息；其他音源仍能匹配原版本时也优先保留。精确匹配失败时先查找同歌手的繁简、数字写法或包含关系等相近歌名，多个候选有歧义时保留原歌曲等待确认；之后才尝试定位原唱。备选仍须验证可播放性。取消音质优选时，原曲可播即保留。临时接口或网络错误会保留歌曲并标为暂未验证；确认无可播放替代的歌曲才会移除。关闭窗口可继续检查；停止后保留已完成结果和未检查歌曲。</p>
       <button id="stop-import-check" class="btn btn-ghost" type="button" disabled>停止检查并保留当前结果</button>
       <details id="import-check-failures" hidden><summary id="import-check-failures-title">已移除歌曲</summary><ul id="import-check-failures-list"></ul></details>
     </section>
@@ -466,7 +545,8 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         shortcutFocusSearch:"聚焦搜索框",
         shortcutCloseModal:"提示：按 Esc 可以关闭弹窗。",
         searchTitle:"歌曲搜索",
-        searchSubtitle:"网易云 / QQ / 酷我 / JOOX / 酷狗",
+        searchSubtitle:"搜一首想听的歌",
+        librarySubtitle:"收藏喜欢的声音，整理自己的歌单",
         searchButton:"搜索",
         searchStatusIdle:"尚未搜索，试试输入“林俊杰”？",
         searchStatusSearching:"正在搜索中…",
@@ -560,7 +640,8 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         shortcutFocusSearch:"Focus on search box",
         shortcutCloseModal:"Tip: press Esc to close dialogs.",
         searchTitle:"Search",
-        searchSubtitle:"Netease / QQ / Kuwo / JOOX / Kugou",
+        searchSubtitle:"Find your next favorite",
+        librarySubtitle:"Your favorites, your playlists",
         searchButton:"Search",
         searchStatusIdle:"No search yet. Try typing \"JJ Lin\"?",
         searchStatusSearching:"Searching…",
@@ -584,7 +665,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         lyricsEmpty:"No lyrics yet. Try a song with LRC lyrics.",
         lyricsMode:"Clean mode",
         exitLyricsMode:"Exit clean mode · Esc",
-        playlistTitle:"Playlists",
+        playlistTitle:"My music",
         tabResults:"Default",
         tabFavorites:"Favorites",
         tabCustomLists:"Playlists",
@@ -837,7 +918,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         'uid','source','displayIndex','keyword','songid','songMid','qqId','qqSearchKey','qqIndex',
         'kugouPage','jooxIndex','jooxSongId','jooxSongMid','title','artist','album','cover','pageUrl','sourceTitle','sourceArtist','sourceAlbum',
         'quality','qualityLabel','qqQualityText','jooxQualityText','pay',
-        'preferHighestQuality','preferCompatible','preferredAudioQuality','importOriginalUid','importCheck','originalArtist','originalArtistStatus'
+        'preferHighestQuality','preferCompatible','preferredAudioQuality','importOriginalUid','importCheck','importCheckReason','importMatchType','originalArtist','originalArtistStatus'
       ];
       const out={};
       keys.forEach(k=>{
@@ -1203,6 +1284,55 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       if(rate)return Number(rate[1]);
       return {HQ:320,STD:128,LOW:48,LOSSY:1}[track.qualityLabel]||0;
     }
+    // OpenCC TSCharacters one-character mappings, Apache-2.0; see NOTICE.
+    const importChinesePairs=Array.from("㑯㑔㑳㑇㑶㐹㓨刾㗲𠵾㘚㘎㜄㚯㜏㛣㜢𡞱㠏㟆㠣𫵷㥮㤘㩜㨫㩳㧐㩵擜㺏𤠋䁪𥇢䁻䀥䃮鿎䊷䌶䋙䌺䋚䌻䋹䌿䋻䌾䍦䍠䎱䎬䓣𬜯䙡䙌䜀䜧䝼䞍䡵𫟦䥇䦂䥑鿏䥕𬭯䥱䥾䦛䦶䦟䦷䧢𨸟䮄𫠊䯀䯅䰾鲃䱷䲣䱽䲝䲁鳚䲘鳤䴉鹮丟丢並并乾干亂乱亙亘亞亚佇伫佈布佔占併并來来侖仑侶侣侷局俁俣係系俔伣俠侠俥伡俬私倀伥倆俩倈俫倉仓個个們们倖幸倫伦倲㑈偉伟偑㐽側侧偵侦偽伪傌㐷傑杰傖伧傘伞備备傢家傭佣傯偬傳传傴伛債债傷伤傾倾僂偻僅仅僉佥僑侨僕仆僞伪僤𫢸僥侥僨偾僱雇價价儀仪儁俊儂侬億亿儈侩儉俭儎傤儐傧儔俦儕侪儘尽償偿優优儲储儷俪儸㑩儺傩儻傥儼俨兇凶兌兑兒儿兗兖內内兩两冊册冑胄冪幂凈净凍冻凜凛凱凯別别刪删剄刭則则剋克剎刹剗刬剛刚剝剥剮剐剴剀創创剷铲劃划劄札劇剧劉刘劊刽劌刿劍剑劏㓥劑剂劚㔉勁劲動动務务勛勋勝胜勞劳勢势勣𪟝勩勚勱劢勳勋勵励勸劝勻匀匭匦匯汇匱匮區区協协卹恤卻却卽即厙厍厠厕厤历厭厌厲厉厴厣參参叄叁叢丛吒咤吳吴吶呐呂吕咼呙員员唄呗唸念問问啓启啞哑啟启啢唡喎㖞喚唤喪丧喫吃喬乔單单喲哟嗆呛嗇啬嗊唝嗎吗嗚呜嗩唢嗰𠮶嗶哔嘆叹嘍喽嘓啯嘔呕嘖啧嘗尝嘜唛嘩哗嘮唠嘯啸嘰叽嘵哓嘸呒嘽啴噁恶噓嘘噚㖊噝咝噠哒噥哝噦哕噯嗳噲哙噴喷噸吨噹当嚀咛嚇吓嚌哜嚐尝嚕噜嚙啮嚥咽嚦呖嚧𠰷嚨咙嚮向嚲亸嚳喾嚴严嚶嘤囀啭囁嗫囂嚣囅冁囈呓囉啰囌苏囑嘱囪囱圇囵國国圍围園园圓圆圖图團团垻坝埡垭埨𫭢埰采執执堅坚堊垩堖垴堝埚堯尧報报場场塊块塋茔塏垲塒埘塗涂塚冢塢坞塤埙塵尘塸𫭟塹堑塿𪣻墊垫墜坠墠𫮃墮堕墰坛墳坟墶垯墻墙墾垦壇坛壋垱壎埙壓压壗𡋤壘垒壙圹壚垆壜坛壞坏壟垄壠垅壢坜壩坝壪塆壯壮壺壶壼壸壽寿夠够夢梦夥伙夾夹奐奂奧奥奩奁奪夺奬奖奮奋奼姹妝妆姍姗姦奸娙𫰛娛娱婁娄婦妇婭娅媧娲媯妫媰㛀媼媪媽妈嫋袅嫗妪嫵妩嫺娴嫻娴嫿婳嬀妫嬃媭嬈娆嬋婵嬌娇嬙嫱嬡嫒嬤嬷嬪嫔嬰婴嬸婶孃娘孋㛤孌娈孫孙學学孻𡥧孿孪宮宫寀采寢寝實实寧宁審审寫写寬宽寵宠寶宝將将專专尋寻對对導导尷尴屆届屍尸屓屃屜屉屢屡層层屨屦屬属岡冈峯峰峴岘島岛峽峡崍崃崑昆崗岗崙仑崢峥崬岽嵐岚嵗岁嵽𫶇嵾㟥嶁嵝嶄崭嶇岖嶔嵚嶗崂嶠峤嶢峣嶧峄嶨峃嶮崄嶸嵘嶺岭嶼屿嶽岳巋岿巒峦巔巅巖岩巘𪩘巰巯巹卺帥帅師师帳帐帶带幀帧幃帏幓㡎幗帼幘帻幟帜幣币幫帮幬帱幷并幹干幾几庫库廁厕廂厢廄厩廈厦廎庼廕荫廚厨廝厮廞𫷷廟庙廠厂廡庑廢废廣广廩廪廬庐廳厅弒弑弔吊弳弪張张強强彄𫸩彆别彈弹彌弥彎弯彔录彙汇彠彟彥彦彫雕彲彨彿佛後后徑径從从徠徕復复徵征徹彻恆恒恥耻悅悦悞悮悵怅悶闷悽凄惡恶惱恼惲恽惻恻愛爱愜惬愨悫愴怆愷恺愾忾慄栗態态慍愠慘惨慚惭慟恸慣惯慤悫慪怄慫怂慮虑慳悭慶庆慺㥪慼戚慾欲憂忧憊惫憐怜憑凭憒愦憖慭憚惮憤愤憫悯憮怃憲宪憶忆懇恳應应懌怿懍懔懞蒙懟怼懣懑懤㤽懨恹懲惩懶懒懷怀懸悬懺忏懼惧懾慑戀恋戇戆戔戋戧戗戩戬戰战戱戯戲戏戶户扞捍拋抛拚拼挩捝挱挲挾挟捨舍捫扪捱挨捲卷掃扫掄抡掆㧏掗挜掙挣掛挂採采揀拣揚扬換换揮挥揯搄損损搖摇搗捣搧扇搵揾搶抢摑掴摜掼摟搂摯挚摳抠摶抟摺折摻掺撈捞撏挦撐撑撓挠撝㧑撟挢撣掸撥拨撫抚撲扑撳揿撻挞撾挝撿捡擁拥擄掳擇择擊击擋挡擓㧟擔担據据擠挤擡抬擣捣擬拟擯摈擰拧擱搁擲掷擴扩擷撷擺摆擻擞擼撸擽㧰擾扰攄摅攆撵攏拢攔拦攖撄攙搀攛撺攜携攝摄攢攒攣挛攤摊攪搅攬揽敎教敓敚敗败敘叙敵敌數数斂敛斃毙斆敩斕斓斬斩斷断於于旂旗旣既昇升時时晉晋晛𬀪晝昼暈晕暉晖暐𬀩暘旸暢畅暫暂曄晔曆历曇昙曉晓曏向曖暧曠旷曥𣆐曨昽曬晒書书會会朥𦛨朧胧朮术東东枴拐柵栅柺拐査查桱𣐕桿杆梔栀梘枧梜𬂩條条梟枭梲棁棄弃棊棋棖枨棗枣棟栋棡㭎棧栈棲栖棶梾椏桠椲㭏楊杨楓枫楨桢業业極极榘矩榦干榪杩榮荣榲榅榿桤構构槍枪槓杠槤梿槧椠槨椁槮椮槳桨槶椢槼椝樁桩樂乐樅枞樑梁樓楼標标樞枢樢㭤樣样樧榝樫㭴樳桪樸朴樹树樺桦樿椫橈桡橋桥機机橢椭橫横橯𣓿檁檩檉柽檔档檜桧檟槚檢检檣樯檮梼檯台檳槟檸柠檻槛櫃柜櫍𬃊櫓橹櫚榈櫛栉櫝椟櫞橼櫟栎櫥橱櫧槠櫨栌櫪枥櫫橥櫬榇櫱蘖櫳栊櫸榉櫻樱欄栏欅榉權权欏椤欒栾欓𣗋欖榄欞棂欽钦歎叹歐欧歟欤歡欢歲岁歷历歸归歿殁殘残殞殒殤殇殨㱮殫殚殭僵殮殓殯殡殰㱩殲歼殺杀殻壳殼壳毀毁毆殴毿毵氂牦氈毡氌氇氣气氫氢氬氩氳氲氾泛汎泛汙污決决沒没沖冲況况泝溯洩泄洶汹浹浃浿𬇙涇泾涗涚涼凉淒凄淚泪淥渌淨净淩凌淪沦淵渊淶涞淺浅渙涣減减渢沨渦涡測测渾浑湊凑湋𣲗湞浈湧涌湯汤溈沩準准溝沟溫温溮浉溳涢溼湿滄沧滅灭滌涤滎荥滙汇滬沪滯滞滲渗滷卤滸浒滻浐滾滚滿满漁渔漊溇漍𬇹漚沤漢汉漣涟漬渍漲涨漵溆漸渐漿浆潁颍潑泼潔洁潕𣲘潙沩潚㴋潛潜潤润潯浔潰溃潷滗潿涠澀涩澆浇澇涝澐沄澗涧澠渑澤泽澦滪澩泶澫𬇕澮浍澱淀澾㳠濁浊濃浓濄㳡濆𣸣濕湿濘泞濚溁濛蒙濜浕濟济濤涛濧㳔濫滥濰潍濱滨濺溅濼泺濾滤瀂澛瀅滢瀆渎瀇㲿瀉泻瀋沈瀏浏瀕濒瀘泸瀝沥瀟潇瀠潆瀦潴瀧泷瀨濑瀰弥瀲潋瀾澜灃沣灄滠灑洒灒𪷽灕漓灘滩灙𣺼灝灏灡㳕灣湾灤滦灧滟灩滟災灾為为烏乌烴烃無无煉炼煒炜煙烟煢茕煥焕煩烦煬炀煱㶽熅煴熒荧熗炝熰𬉼熱热熲颎熾炽燀𬊤燁烨燈灯燉炖燒烧燖𬊈燙烫燜焖營营燦灿燬毁燭烛燴烩燶㶶燻熏燼烬燾焘爍烁爐炉爛烂爭争爲为爺爷爾尔牀床牆墙牘牍牴抵牽牵犖荦犛牦犢犊犧牺狀状狹狭狽狈猙狰猶犹猻狲獁犸獃呆獄狱獅狮獎奖獨独獪狯獫猃獮狝獰狞獱㺍獲获獵猎獷犷獸兽獺獭獻献獼猕玀猡現现琱雕琺珐琿珲瑋玮瑒玚瑣琐瑤瑶瑩莹瑪玛瑲玱璉琏璊𫞩璕𬍤璗𬍡璡琎璣玑璦瑷璫珰璯㻅環环璵玙璸瑸璽玺璿璇瓅𬍛瓊琼瓏珑瓔璎瓚瓒瓛𤩽甌瓯甕瓮產产産产畝亩畢毕畫画異异畵画當当疇畴疊叠痙痉痠酸痾疴瘂痖瘋疯瘍疡瘓痪瘞瘗瘡疮瘧疟瘮瘆瘲疭瘺瘘瘻瘘療疗癆痨癇痫癉瘅癒愈癘疠癟瘪癡痴癢痒癤疖癥症癧疬癩癞癬癣癭瘿癮瘾癰痈癱瘫癲癫發发皁皂皚皑皰疱皸皲皺皱盃杯盜盗盞盏盡尽監监盤盘盧卢盪荡眞真眥眦眾众睍𪾢睏困睜睁睞睐瞘眍瞜䁖瞞瞒瞶瞆瞼睑矇蒙矓眬矚瞩矯矫硃朱硜硁硤硖硨砗硯砚碕埼碩硕碭砀碸砜確确碼码碽䂵磑硙磚砖磠硵磣碜磧碛磯矶磽硗磾䃅礄硚礎础礐𬒈礙碍礦矿礪砺礫砾礬矾礱砻祕秘祿禄禍祸禎祯禕祎禡祃禦御禪禅禮礼禰祢禱祷禿秃秈籼稅税稈秆稏䅉稜棱稟禀種种稱称穀谷穇䅟穌稣積积穎颖穠秾穡穑穢秽穩稳穫获穭穞窩窝窪洼窮穷窯窑窵窎窶窭窺窥竄窜竅窍竇窦竈灶竊窃竪竖競竞筆笔筍笋筧笕筴䇲箇个箋笺箏筝箚札節节範范築筑篋箧篔筼篠筿篢𬕂篤笃篩筛篳筚篸𥮾簀箦簍篓簑蓑簞箪簡简簣篑簫箫簹筜簽签簾帘籃篮籅𥫣籌筹籔䉤籙箓籛篯籜箨籟籁籠笼籤签籩笾籪簖籬篱籮箩籲吁粵粤糉粽糝糁糞粪糧粮糰团糲粝糴籴糶粜糹纟糾纠紀纪紂纣紃𬘓約约紅红紆纡紇纥紈纨紉纫紋纹納纳紐纽紓纾純纯紕纰紖纼紗纱紘纮紙纸級级紛纷紜纭紝纴紞𬘘紡纺紬䌷紮扎細细紱绂紲绁紳绅紵纻紹绍紺绀紼绋紿绐絀绌終终絃弦組组絅䌹絆绊絎绗結结絕绝絛绦絝绔絞绞絡络絢绚給给絨绒絪𬘡絰绖統统絲丝絳绛絶绝絹绢絺𫄨綁绑綃绡綄𬘫綆绠綈绨綉绣綌绤綎𬘩綏绥綐䌼綑捆經经綖𫄧綜综綝𬘭綞缍綠绿綡𫟅綢绸綣绻綧𬘯綪𬘬綫线綬绶維维綯绹綰绾綱纲網网綳绷綴缀綵彩綸纶綹绺綺绮綻绽綽绰綾绫綿绵緄绲緇缁緊紧緋绯緑绿緒绪緓绬緔绱緗缃緘缄緙缂線线緝缉緞缎締缔緡缗緣缘緦缌編编緩缓緬缅緯纬緱缑緲缈練练緶缏緹缇緻致緼缊縈萦縉缙縊缢縋缒縐绉縑缣縕缊縗缞縛缚縝缜縞缟縟缛縣县縧绦縫缝縭缡縮缩縯𬙂縱纵縲缧縳䌸縴纤縵缦縶絷縷缕縹缥總总績绩繃绷繅缫繆缪繒缯織织繕缮繚缭繞绕繡绣繢缋繩绳繪绘繫系繭茧繮缰繯缳繰缲繳缴繶𫄷繸䍁繹绎繻𦈡繼继繽缤繾缱繿䍀纁𫄸纆𬙊纇颣纈缬纊纩續续纍累纏缠纓缨纔才纕𬙋纖纤纘缵纜缆缽钵罃䓨罈坛罌罂罎坛罰罚罵骂罷罢羅罗羆罴羈羁羋芈羣群羥羟羨羡義义羶膻習习翫玩翬翚翹翘翽翙耬耧耮耢聖圣聞闻聯联聰聪聲声聳耸聵聩聶聂職职聹聍聽听聾聋肅肃脅胁脈脉脛胫脣唇脩修脫脱脹胀腎肾腖胨腡脶腦脑腫肿腳脚腸肠膃腽膕腘膚肤膞䏝膠胶膢𦝼膩腻膽胆膾脍膿脓臉脸臍脐臏膑臘腊臚胪臟脏臠脔臢臜臥卧臨临臺台與与興兴舉举舊旧舖铺舘馆艙舱艤舣艦舰艫舻艱艰艷艳芻刍苧苎茲兹荊荆莊庄莖茎莢荚莧苋華华菴庵菸烟萇苌萊莱萬万萴荝萵莴葉叶葒荭葤荮葦苇葯药葷荤蒍𫇭蒐搜蒓莼蒔莳蒕蒀蒞莅蒼苍蓀荪蓆席蓋盖蓮莲蓯苁蓴莼蓽荜蔄𬜬蔔卜蔘参蔞蒌蔣蒋蔥葱蔦茑蔭荫蔯𫈟蔿𫇭蕁荨蕆蒇蕎荞蕒荬蕓芸蕕莸蕘荛蕢蒉蕩荡蕪芜蕭萧蕷蓣薀蕰薈荟薊蓟薌芗薑姜薔蔷薘荙薟莶薦荐薩萨薴苧薵䓓薹苔薺荠藍蓝藎荩藝艺藥药藪薮藭䓖藴蕴藶苈藹蔼藺蔺蘀萚蘄蕲蘆芦蘇苏蘊蕴蘋苹蘚藓蘞蔹蘟𦻕蘢茏蘭兰蘺蓠蘿萝虆蔂虉𬟁處处虛虚虜虏號号虧亏虯虬蛺蛱蛻蜕蜆蚬蝀𬟽蝕蚀蝟猬蝦虾蝨虱蝸蜗螄蛳螞蚂螢萤螮䗖螻蝼螿螀蟄蛰蟈蝈蟎螨蟣虮蟬蝉蟯蛲蟲虫蟳𫊻蟶蛏蟻蚁蠁蚃蠅蝇蠆虿蠍蝎蠐蛴蠑蝾蠔蚝蠟蜡蠣蛎蠨蟏蠱蛊蠶蚕蠻蛮衆众衊蔑術术衕同衚胡衛卫衝冲袞衮袷夹裊袅裏里補补裝装裡里製制複复褌裈褘袆褲裤褳裢褸褛褻亵襀𫌀襇裥襉裥襏袯襖袄襝裣襠裆襤褴襪袜襬摆襯衬襲袭襴襕覈核見见覎觃規规覓觅視视覘觇覡觋覥觍覦觎親亲覬觊覯觏覲觐覷觑覺觉覽览覿觌觀观觴觞觶觯觸触訁讠訂订訃讣計计訊讯訌讧討讨訏𬣙訐讦訒讱訓训訕讪訖讫託托記记訛讹訝讶訟讼訢䜣訣诀訥讷訩讻訪访設设許许訴诉訶诃診诊註注証证詀𧮪詁诂詆诋詎讵詐诈詒诒詔诏評评詖诐詗诇詘诎詛诅詝𬣞詞词詠咏詡诩詢询詣诣試试詩诗詪𬣳詫诧詬诟詭诡詮诠詰诘話话該该詳详詵诜詷𫍣詼诙詿诖誄诔誅诛誆诓誇夸誌志認认誑诳誒诶誕诞誘诱誚诮語语誠诚誡诫誣诬誤误誥诰誦诵誨诲說说説说誰谁課课誶谇誹诽誼谊誾訚調调諂谄諄谆談谈諉诿請请諍诤諏诹諑诼諒谅諓𬣡論论諗谂諛谀諜谍諝谞諞谝諟𬤊諡谥諢诨諤谔諦谛諧谐諫谏諭谕諮咨諱讳諲𬤇諳谙諴𫍯諶谌諷讽諸诸諺谚諼谖諾诺謀谋謁谒謂谓謄誊謅诌謊谎謎谜謏𫍲謐谧謔谑謖谡謗谤謙谦謚谥講讲謝谢謠谣謡谣謨谟謫谪謬谬謭谫謳讴謹谨謾谩譁哗證证譎谲譏讥譓𬤝譖谮識识譙谯譚谭譜谱譞𫍽譟噪譫谵譭毁譯译議议譴谴護护譸诪譽誉譾谫讀读讅谉變变讋詟讌䜩讎雠讒谗讓让讕谰讖谶讚赞讜谠讞谳谿溪豈岂豎竖豐丰豔艳豬猪豶豮貍狸貓猫貙䝙貝贝貞贞貟贠負负財财貢贡貧贫貨货販贩貪贪貫贯責责貯贮貰贳貲赀貳贰貴贵貶贬買买貸贷貺贶費费貼贴貽贻貿贸賀贺賁贲賂赂賃赁賄贿賅赅資资賈贾賊贼賑赈賒赊賓宾賕赇賙赒賚赉賜赐賞赏賠赔賡赓賢贤賣卖賤贱賦赋賧赕質质賫赍賬账賭赌賰䞐賴赖賵赗賺赚賻赙購购賽赛賾赜贄贽贅赘贇赟贈赠贊赞贋赝贍赡贏赢贐赆贓赃贔赑贖赎贗赝贛赣贜赃赬赪趕赶趙赵趨趋趲趱跡迹踐践踰逾踴踊蹌跄蹕跸蹟迹蹠跖蹣蹒蹤踪蹺跷躂跶躉趸躊踌躋跻躍跃躎䟢躑踯躒跞躓踬躕蹰躚跹躡蹑躥蹿躦躜躪躏軀躯車车軋轧軌轨軍军軏𫐄軑轪軒轩軔轫軛轭軝𬨂軟软軤轷軫轸軲轱軸轴軹轵軺轺軻轲軼轶軾轼較较輄𨐈輅辂輇辁輈辀載载輊轾輋𪨶輒辄輓挽輔辅輕轻輗𫐐輛辆輜辎輝辉輞辋輟辍輥辊輦辇輩辈輪轮輬辌輮𫐓輯辑輳辏輶𬨎輸输輻辐輼辒輾辗輿舆轀辒轂毂轄辖轅辕轆辘轉转轍辙轎轿轔辚轟轰轡辔轢轹轤轳辦办辭辞辮辫辯辩農农迴回逕径這这連连週周進进遊游運运過过達达違违遙遥遜逊遞递遠远遡溯適适遲迟遶绕遷迁選选遺遗遼辽邁迈還还邇迩邊边邏逻邐逦郟郏郵邮鄆郓鄉乡鄒邹鄔邬鄖郧鄧邓鄩𬩽鄭郑鄰邻鄲郸鄳𫑡鄴邺鄶郐鄺邝酇酂酈郦醃腌醖酝醜丑醞酝醟蒏醣糖醫医醬酱醱酦醲𬪩釀酿釁衅釃酾釅酽釋释釐厘釒钅釓钆釔钇釕钌釗钊釘钉釙钋針针釣钓釤钐釦扣釧钏釩钒釴𬬩釵钗釷钍釹钕釺钎釾䥺釿𬬱鈀钯鈁钫鈃钘鈄钭鈅钥鈇𫓧鈈钚鈉钠鈍钝鈎钩鈐钤鈑钣鈒钑鈔钞鈕钮鈞钧鈡钟鈣钙鈥钬鈦钛鈧钪鈮铌鈰铈鈳钶鈴铃鈷钴鈸钹鈹铍鈺钰鈽钸鈾铀鈿钿鉀钾鉅巨鉆钻鉈铊鉉铉鉊𬬿鉋铇鉍铋鉑铂鉕钷鉗钳鉚铆鉛铅鉝𫟷鉞钺鉢钵鉤钩鉥𬬸鉦钲鉧𬭁鉬钼鉭钽鉮𬬹鉳锫鉶铏鉷𫟹鉸铰鉺铒鉻铬鉿铪銀银銃铳銅铜銈𫓯銍铚銑铣銓铨銖铢銘铭銚铫銛铦銜衔銠铑銣铷銥铱銦铟銨铵銩铥銪铕銫铯銬铐銱铞銳锐銶𨱇銷销銹锈銻锑銼锉鋁铝鋃锒鋅锌鋇钡鋌铤鋏铗鋐𬭎鋒锋鋗𫓶鋙铻鋝锊鋟锓鋣铘鋤锄鋥锃鋦锔鋨锇鋩铓鋪铺鋭锐鋮铖鋯锆鋰锂鋱铽鋶锍鋸锯鋹𬬮鋼钢錀𬬭錁锞錄录錆锖錇锫錈锩錏铔錐锥錒锕錕锟錘锤錙锱錚铮錛锛錞𬭚錟锬錠锭錡锜錢钱錤𫓹錦锦錨锚錩锠錫锡錮锢錯错録录錳锰錶表錸铼錼镎鍀锝鍁锨鍃锪鍅钫鍆钔鍇锴鍈锳鍊炼鍋锅鍍镀鍔锷鍘铡鍚钖鍛锻鍠锽鍤锸鍥锲鍩锘鍬锹鍭𬭤鍰锾鍵键鍶锶鍺锗鍼针鍾钟鎂镁鎄锿鎇镅鎊镑鎌镰鎓𬭩鎔镕鎖锁鎘镉鎚锤鎛镈鎝𨱏鎡镃鎢钨鎣蓥鎦镏鎧铠鎩铩鎪锼鎬镐鎭镇鎮镇鎰镒鎲镋鎳镍鎵镓鎶鿔鎸镌鎿镎鏃镞鏇旋鏈链鏌镆鏍镙鏏𬭬鏐镠鏑镝鏗铿鏘锵鏜镗鏝镘鏞镛鏟铲鏡镜鏢镖鏤镂鏨錾鏰镚鏵铧鏷镤鏹镪鏺䥽鏻𬭸鏽锈鐃铙鐄𨱑鐇𫔍鐋铴鐍𫔎鐏𨱔鐐镣鐒铹鐓镦鐔镡鐘钟鐙镫鐝镢鐠镨鐥䦅鐦锎鐧锏鐨镄鐩𬭼鐫镌鐮镰鐯䦃鐲镯鐳镭鐵铁鐶镮鐸铎鐺铛鐽𫟼鐿镱鑄铸鑊镬鑌镔鑑鉴鑒鉴鑔镲鑕锧鑞镴鑠铄鑣镳鑥镥鑪𬬻鑭镧鑰钥鑱镵鑲镶鑷镊鑹镩鑼锣鑽钻鑾銮鑿凿钁镢钂镋長长門门閂闩閃闪閆闫閈闬閉闭開开閌闶閎闳閏闰閑闲閒闲間间閔闵閘闸閡阂閣阁閤合閥阀閨闺閩闽閫阃閬阆閭闾閱阅閲阅閶阊閹阉閻阎閼阏閽阍閾阈閿阌闃阒闆板闇暗闈闱闉𬮱闊阔闋阕闌阑闍阇闐阗闑𫔶闒阘闓闿闔阖闕阙闖闯關关闞阚闠阓闡阐闢辟闤阛闥闼陘陉陝陕陞升陣阵陰阴陳陈陸陆陽阳隉陧隊队階阶隑𬮿隕陨際际隤𬯎隨随險险隮𬯀隯陦隱隐隴陇隸隶隻只雋隽雖虽雙双雛雏雜杂雞鸡離离難难雲云電电霑沾霢霡霧雾霽霁靂雳靄霭靆叇靈灵靉叆靚靓靜静靝靔靦腼靨靥鞏巩鞝绱鞦秋鞽鞒韁缰韃鞑韆千韉鞯韋韦韌韧韍韨韓韩韙韪韜韬韝鞲韞韫韻韵響响頁页頂顶頃顷項项順顺頇顸須须頊顼頌颂頍𫠆頎颀頏颃預预頑顽頒颁頓顿頔𬱖頗颇領领頜颌頠𬱟頡颉頤颐頦颏頫𫖯頭头頮颒頰颊頲颋頴颕頵𫖳頷颔頸颈頹颓頻频頽颓顆颗題题額额顎颚顏颜顒颙顓颛顔颜顗𫖮願愿顙颡顛颠類类顢颟顥颢顧顾顫颤顬颥顯显顰颦顱颅顳颞顴颧風风颭飐颮飑颯飒颱台颳刮颶飓颸飔颺飏颻飖颼飕飀飗飄飘飆飙飈飚飛飞飠饣飢饥飣饤飥饦飩饨飪饪飫饫飭饬飯饭飱飧飲饮飴饴飼饲飽饱飾饰飿饳餃饺餄饸餅饼餈糍餉饷養养餌饵餎饹餏饻餑饽餒馁餓饿餕馂餖饾餗𫗧餘余餚肴餛馄餜馃餞饯餡馅館馆餬糊餱糇餳饧餵喂餶馉餷馇餸𩠌餺馎餼饩餾馏餿馊饁馌饃馍饅馒饈馐饉馑饊馓饋馈饌馔饑饥饒饶饗飨饘𫗴饜餍饞馋饢馕馬马馭驭馮冯馱驮馳驰馴驯馹驲馼𫘜駁驳駃𫘝駉𬳶駐驻駑驽駒驹駓𬳵駔驵駕驾駘骀駙驸駛驶駝驼駟驷駡骂駢骈駪𬳽駭骇駰骃駱骆駸骎駼𬳿駿骏騁骋騂骍騄𫘧騅骓騊𫘦騌骔騍骒騎骑騏骐騑𬴂騖骛騙骗騞𬴃騠𫘨騤骙騧䯄騫骞騭骘騮骝騰腾騱𫘬騵𫘪騶驺騷骚騸骟騾骡驀蓦驁骜驂骖驃骠驄骢驅驱驊骅驌骕驍骁驎𬴊驏骣驕骄驗验驚惊驛驿驟骤驢驴驤骧驥骥驦骦驪骊驫骉骯肮髏髅髒脏體体髕髌髖髋髮发鬆松鬍胡鬚须鬢鬓鬥斗鬧闹鬨哄鬩阋鬮阄鬱郁鬹鬶魎魉魘魇魚鱼魛鱽魟𫚉魢鱾魨鲀魯鲁魴鲂魷鱿魺鲄鮀𬶍鮁鲅鮃鲆鮆𫚖鮈𬶋鮊鲌鮋鲉鮍鲏鮎鲇鮐鲐鮑鲍鮒鲋鮓鲊鮚鲒鮜鲘鮝鲞鮞鲕鮟𩽾鮠𬶏鮡𬶐鮣䲟鮦鲖鮪鲔鮫鲛鮭鲑鮮鲜鮳鲓鮶鲪鮸𩾃鮺鲝鯀鲧鯁鲠鯇鲩鯉鲤鯊鲨鯒鲬鯔鲻鯕鲯鯖鲭鯗鲞鯛鲷鯝鲴鯡鲱鯢鲵鯤鲲鯧鲳鯨鲸鯪鲮鯫鲰鯰鲶鯴鲺鯷鳀鯻𬶟鯽鲫鯿鳊鰁鳈鰂鲗鰃鳂鰆䲠鰈鲽鰉鳇鰊𬶠鰌䲡鰍鳅鰏鲾鰐鳄鰒鳆鰓鳃鰛鳁鰜鳒鰟鳑鰠鳋鰣鲥鰤𫚕鰥鳏鰧䲢鰨鳎鰩鳐鰭鳍鰮鳁鰱鲢鰲鳌鰳鳓鰵鳘鰶𬶭鰷鲦鰹鲣鰺鲹鰻鳗鰼鳛鰾鳔鱀𬶨鱂鳉鱅鳙鱇𩾌鱈鳕鱉鳖鱒鳟鱔鳝鱖鳜鱗鳞鱘鲟鱚𬶮鱝鲼鱟鲎鱠鲙鱣鳣鱤鳡鱧鳢鱨鲿鱭鲚鱯鳠鱲𫚭鱷鳄鱸鲈鱺鲡鳥鸟鳧凫鳩鸠鳬凫鳲鸤鳳凤鳴鸣鳶鸢鳾䴓鴆鸩鴇鸨鴉鸦鴒鸰鴕鸵鴛鸳鴝鸲鴞鸮鴟鸱鴣鸪鴦鸯鴨鸭鴯鸸鴰鸹鴴鸻鴷䴕鴻鸿鴿鸽鵁䴔鵂鸺鵃鸼鵏𬷕鵐鹀鵑鹃鵒鹆鵓鹁鵜鹈鵝鹅鵟𫛭鵠鹄鵡鹉鵪鹌鵬鹏鵮鹐鵯鹎鵰雕鵲鹊鵷鹓鵾鹍鶄䴖鶇鸫鶉鹑鶊鹒鶓鹋鶖鹙鶘鹕鶚鹗鶠𬸘鶡鹖鶥鹛鶩鹜鶪䴗鶬鸧鶯莺鶱𬸣鶲鹟鶴鹤鶹鹠鶺鹡鶻鹘鶼鹣鶿鹚鷀鹚鷁鹢鷂鹞鷄鸡鷉䴘鷊鹝鷓鹧鷖鹥鷗鸥鷙鸷鷚鹨鷟𬸦鷥鸶鷦鹪鷫鹔鷭𬸪鷯鹩鷲鹫鷳鹇鷴鹇鷸鹬鷹鹰鷺鹭鷽鸴鸂㶉鸇鹯鸊䴙鸌鹱鸏鹲鸑𬸚鸕鸬鸘鹴鸚鹦鸛鹳鸝鹂鸞鸾鹵卤鹹咸鹺鹾鹼碱鹽盐麗丽麥麦麩麸麪面麫面麬𤿲麯曲麳𪎌麴曲麵面麼么麽么黃黄黌黉點点黨党黲黪黴霉黶黡黷黩黽黾黿鼋鼂鼌鼉鼍鼕冬鼴鼹齊齐齋斋齎赍齏齑齒齿齔龀齕龁齗龂齘𬹼齙龅齜龇齟龃齠龆齡龄齣出齦龈齧啮齪龊齬龉齮𬺈齯𫠜齲龋齶腭齷龌齼𬺓龍龙龎厐龐庞龑䶮龔龚龕龛龜龟鿁䜤鿓鿒𠁞𠀾𠗣㓆𡃕𠴛𡅏𠲥𡑍𫭼𡑭𡋗𡓾𡋀𡔖𡍣𡞵㛟𡠹㛿𡢃㛠𡮉𡭜𡮣𡭬𡳳𡳃𡻕岁𡾱㟜𢣚𢘝𢶫𢫞𢹿𢬦𣈶暅𣙎㭣𣞻𣘓𣠩𣞎𣠲𣑶𣯶毶𣾷㳢𤁣𣺽𤅶𣷷𤓩𤊰𤪺㻘𤫩㻏𤳸𤳄𥊝𥅿𥌃𥅘𥕥𥐰𥖅𥐯𥗽𬒗𥢢䅪𥸠𥮋𥼽𥹥𦘧𡳒𦣎𦟗𦪙䑽𧜗䘞𧜵䙊𧝞䘛𧟀𧝧𧩙䜥𧵳䞌𧶧䞎𨊰䢀𨊸䢁𨋢䢂𨤻𨤰𨦫䦀𨧀𬭊𨧜䦁𨨏𬭛𨭆𬭶𨭎𬭳𨯅䥿𩞯䭪𩠴𩠠𩣑䯃𩶘䲞𰻞𰻝");
+    const importChineseMap=new Map(Array.from({length:importChinesePairs.length/2},(_,i)=>[importChinesePairs[i*2],importChinesePairs[i*2+1]]));
+    const simplifyImportText=value=>Array.from(String(value||'').normalize('NFKC'),char=>importChineseMap.get(char)||char).join('');
+    function normalizeImportTitle(value){
+      return simplifyImportText(value).toLowerCase().replace(/[零〇一二三四五六七八九十百千万两]+/g,text=>{
+        const digits={零:0,〇:0,一:1,二:2,两:2,三:3,四:4,五:5,六:6,七:7,八:8,九:9};
+        if(!/[十百千万]/.test(text))return Array.from(text,c=>digits[c]).join('');
+        let total=0,section=0,number=0;
+        for(const char of text){
+          if(char in digits)number=digits[char];
+          else if(char==='万'){total+=(section+number)*10000;section=number=0;}
+          else {section+=(number||1)*({十:10,百:100,千:1000}[char]);number=0;}
+        }
+        return String(total+section+number);
+      }).replace(/[^\p{L}\p{N}]/gu,'');
+    }
+    function spellImportNumbers(value){
+      return simplifyImportText(value).replace(/\d+/g,text=>{
+        if(text.length>4||/^0\d/.test(text))return text;
+        const digits='零一二三四五六七八九',units=['','十','百','千'];
+        let out='',zero=false;
+        for(let i=0;i<text.length;i++){
+          const n=Number(text[i]),place=text.length-i-1;
+          if(!n){if(out)zero=true;continue;}
+          if(zero)out+='零';zero=false;out+=digits[n]+units[place];
+        }
+        return out.replace(/^一十/,'十')||'零';
+      });
+    }
+    function nearImportTitleScore(original,candidate){
+      if(!String(original.artist||'').trim()||!String(candidate.artist||'').trim())return 0;
+      if(!sameRecording({title:'',artist:simplifyImportText(original.artist)},{title:'',artist:simplifyImportText(candidate.artist)}))return 0;
+      const version=/[([【][^)\]】]*(?:live|remix|instrumental|karaoke|acoustic|version|edit|DJ|现场|伴奏|混音|清唱|说唱|改编|版|重录|重制|TV\s*size)[^)\]】]*[)\]】]|[-—]\s*(?:live|remix|instrumental|karaoke|DJ|伴奏|现场)|instrumental|karaoke|伴奏|纯音乐/i;
+      if(version.test(`${original.title} ${candidate.title} ${candidate.album||''}`))return 0;
+      const a=normalizeImportTitle(original.title),b=normalizeImportTitle(candidate.title);
+      if(!a||!b)return 0;
+      if(a===b)return 100;
+      const shorter=a.length<b.length?a:b,longer=a.length<b.length?b:a;
+      const shortLength=Array.from(shorter).length,longLength=Array.from(longer).length;
+      return shortLength>=2&&longLength<=shortLength+3&&shortLength/longLength>=0.5&&longer.includes(shorter)?60:0;
+    }
+    function nearImportCandidates(original,tracks){
+      const scored=tracks.filter(track=>!sameImportRecording(original,track)).map(track=>({track,score:nearImportTitleScore(original,track)})).filter(item=>item.score);
+      const best=Math.max(0,...scored.map(item=>item.score));
+      const matches=scored.filter(item=>item.score===best).map(item=>item.track);
+      const titles=new Set(matches.map(track=>normalizeImportTitle(track.title)));
+      return {tracks:titles.size===1?matches:[],ambiguous:titles.size>1};
+    }
     function importFallbackInfo(track){
       const title=String(track.title||'').normalize('NFKC');
       const singer=title.match(/[(\[【]\s*(?:原唱\s*[:：]?|翻自|cover\s*[:：]?)\s*([^()\[\]【】]+)/i)?.[1]?.trim();
@@ -1272,6 +1402,20 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       onStage('在其他音源保留原版本');
       const sameVersion=await searchAndSelect(others,null,verifiedOriginal);
       if(sameVersion)return unchanged(sameVersion);
+      onStage('精确匹配未找到，查找同歌手相近歌名');
+      let near=nearImportCandidates(original,pool.searchResults);
+      if(!near.tracks.length&&!near.ambiguous){
+        const singer=simplifyImportText(original.artist),alternate=spellImportNumbers(original.title);
+        await search([...primary,...others],[`${alternate} ${singer}`.trim(),singer].filter(Boolean));
+        near=nearImportCandidates(original,pool.searchResults);
+      }
+      if(near.ambiguous)throw temporaryMusicError('同一歌手有多个相近歌名，未自动替换；原歌曲已保留，需确认。');
+      if(near.tracks.length){
+        const candidates={...pool,searchResults:near.tracks};
+        const matched=await selectImportRecording(original,parentSignal,onStage,null,candidates,{sources:['netease','qq'],nearTitle:true})||
+          await selectImportRecording(original,parentSignal,onStage,null,candidates,{nearTitle:true});
+        if(matched)return {...unchanged(matched),importMatchType:'same-artist-near-title'};
+      }
       if(Object.keys(pool.sourceErrors).length||pool.transientErrors.length)return unavailable();
       onStage('原版本不可播，定位原唱');
       const info=importFallbackInfo(original);
@@ -1289,12 +1433,12 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       const selected=await selectImportRecording(anchor,parentSignal,onStage,null,pool,{originalSinger:true});
       return selected?{...selected,originalArtist:artist,originalArtistStatus:'identified'}:unavailable();
     }
-    async function selectImportRecording(original,parentSignal,onStage,verifiedOriginal,pool,{sources=null,originalSinger=false}={}){
+    async function selectImportRecording(original,parentSignal,onStage,verifiedOriginal,pool,{sources=null,originalSinger=false,nearTitle=false}={}){
       const lookup=new AbortController(),signal=AbortSignal.any([parentSignal,lookup.signal]);
       try{
       const transient=error=>{if(error?.retryable||error?.name==='TimeoutError')pool.transientErrors.push(error);};
       const matchesRecording=track=>(!sources||sources.includes(track.source))&&
-        (originalSinger?importFallbackRank(original,track)===2:sameImportRecording(original,track));
+        (nearTitle?nearImportTitleScore(original,track)>0:originalSinger?importFallbackRank(original,track)===2:sameImportRecording(original,track));
       const verified=verifiedOriginal?.audioUrl?{...verifiedOriginal,...verifiedOriginal.audioOptions?.find(option=>option.audioUrl===verifiedOriginal.audioUrl),preferHighestQuality:true}:null;
       const matches=pool.searchResults.filter(matchesRecording),choices=verified?[verified]:[],compatible=[],attempted=pool.attempted;
       let next=0,best=null,probeFatal=null;
@@ -1408,7 +1552,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
           }catch(error){
             if(error.name==='NotAllowedError'){fatal=error;controller.abort();}
             else if(!signal.aborted&&error.retryable){
-              results.set(original.uid,{...original,importCheck:'deferred'});stats.checked++;stats.deferred++;stats.pending=stats.total-stats.checked;
+              results.set(original.uid,{...original,importCheck:'deferred',importCheckReason:error.userMessage||error.message});stats.checked++;stats.deferred++;stats.pending=stats.total-stats.checked;
             }else if(!signal.aborted){fatal=error;controller.abort();}
           }finally{active.delete(original.uid);update();}
         }
@@ -2195,7 +2339,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       track.audioUrl=null;
       const display={title:track.title,artist:track.artist,...(track.album?{album:track.album}:{})};
       const target=track.sourceTitle?{...track,title:track.sourceTitle,artist:track.sourceArtist||track.artist,album:track.sourceAlbum||track.album}:track;
-      if(!sameImportRecording(track,target))throw musicError('musicMismatch');
+      if(!sameImportRecording(track,target)&&!(track.importMatchType==='same-artist-near-title'&&nearImportTitleScore(track,target)>0))throw musicError('musicMismatch');
       if(!silent)dom.playerStatus.textContent=t('playerStatusLoading');
       if(track.source==='netease') await fetchNeteaseDetails(target,false);
       else if(track.source==='kuwo') await fetchKuwoDetails(target,signal);
@@ -2337,7 +2481,11 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       const lookupSignal=AbortSignal.any([signal,AbortSignal.timeout(20000)]);
       track.lyricsLoading=!parseLRC(track.lrc).length;
       renderLyrics();
-      try{await ensureTrackLyrics(track,lookupSignal);}
+      try{
+        const lookup=track.importMatchType==='same-artist-near-title'?{...track,title:track.sourceTitle||track.title,artist:track.sourceArtist||track.artist}:track;
+        await ensureTrackLyrics(lookup,lookupSignal);
+        if(lookup!==track)Object.assign(track,{lrc:lookup.lrc,lyricSource:lookup.lyricSource});
+      }
       catch(error){if(!lookupSignal.aborted)console.warn('lyric lookup failed',error);}
       finally{
         if(request===playbackRequest && state.currentTrack===track){
@@ -2850,7 +2998,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
         const meta=document.createElement('div');
         const title=document.createElement('div');
-        title.className='track-meta-title'; title.textContent=track.title||'Unknown';
+        title.className='track-meta-title'; title.textContent=track.title||'Unknown';title.title=track.title||'';
         const sub=document.createElement('div');
         sub.className='track-meta-sub';
         const aSpan=document.createElement('span'); aSpan.textContent=track.artist||'';
@@ -2862,13 +3010,16 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         const txt=document.createElement('span'); txt.textContent=t(key);
         sSpan.appendChild(dot);sSpan.appendChild(txt);
         sub.appendChild(aSpan);sub.appendChild(sSpan);
+        if(track.importMatchType==='same-artist-near-title'){
+          const match=document.createElement('span');match.textContent='近似匹配：'+(track.sourceTitle||track.title);sub.appendChild(match);
+        }
         if(track.originalArtistStatus){
           const original=document.createElement('span');
           original.textContent=track.originalArtistStatus==='identified'?'原唱已识别':track.originalArtistStatus==='unavailable'?'原唱不可播，保留其他版本':'原唱待确认';
           sub.appendChild(original);
         }
         if(track.importCheck==='deferred'){
-          const check=document.createElement('span');check.textContent='暂未验证（接口或网络错误）';sub.appendChild(check);
+          const check=document.createElement('span');check.textContent=track.importCheckReason?.includes('多个相近歌名')?'相近歌名待确认':'暂未验证';check.title=track.importCheckReason||'接口或网络错误，稍后重试';sub.appendChild(check);
         }
         if(track.importCheck==='pending'){
           const check=document.createElement('span');check.textContent='未检查';sub.appendChild(check);
