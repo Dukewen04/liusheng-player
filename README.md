@@ -68,7 +68,7 @@
 python3 server.py
 ```
 
-打开 [本地播放器](http://127.0.0.1:8766/)。服务仅监听本机回环地址。macOS 也可以运行 `启动留声.command`，日志写入 `/tmp/liusheng-player.log`。
+打开 [本地播放器](http://127.0.0.1:8766/)。服务仅监听本机回环地址。macOS 也可以运行 `start-liusheng.command`，日志写入 `/tmp/liusheng-player.log`。
 
 ## 部署到 GitHub Pages
 
@@ -100,7 +100,7 @@ python3 server.py
 index.html                    页面、样式及播放器逻辑
 server.py                     本地静态服务和平台接口代理
 services/playlist-service.mjs  服务端歌单解析核心
-启动留声.command              macOS 本地启动脚本
+start-liusheng.command              macOS 本地启动脚本
 tests/                        自动检查脚本
 LICENSE                       项目许可证
 NOTICE                        来源及第三方许可声明
