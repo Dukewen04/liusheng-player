@@ -16,7 +16,7 @@ function boot(fetch){
     async play(){this.plays++;this.paused=false;this.emit('loadedmetadata');this.emit('play');}
   };
   nodes.set('audio',audio);
-  const context=vm.createContext({URL,URLSearchParams,AbortSignal,AbortController,fetch,console:{error(){},warn(){}},
+  const context=vm.createContext({URL,URLSearchParams,AbortSignal,AbortController,setTimeout,clearTimeout,fetch,console:{error(){},warn(){}},
     location:{hostname:'dukewen04.github.io',port:''},window:{addEventListener(){}},
     document:{getElementById:node,createElement:()=>node(Symbol()),querySelector:s=>s==='.playlist-tab.active'?{dataset:{tab:'favorites'}}:node(s),querySelectorAll:()=>[],addEventListener(){}},
     localStorage:{getItem:key=>storage.get(key),setItem:(key,value)=>storage.set(key,value)}});

@@ -224,5 +224,11 @@ const payload=tracks=>({version:1,favorites:[],playlists:[{id:'example-list',nam
  assert.equal(await a.runVerifiedImport(async()=>payload([original('blocked')]),node('status')),false);
  assert.equal(JSON.stringify(a.state.playlists),before);assert(node('status').textContent.includes('浏览器阻止'));
  assert(node('stop-import-check').disabled);assert(!node('import-link-submit').disabled);
- console.log('通过：网易云与QQ原版本优先择优、取消音质优选保留可播原曲、原平台音质升级及可播原曲兜底、网易/QQ共同检查、实际开头及中段播放、静音/取消清理、电脑12/手机8路检查、替换搜索单独限流、音质排序和高音质失败降级、版本歌手保护、总数与完成进度、同档并行取消慢地址、低档延迟查询、失败移除、停止保留未检查、重复导入替换不重复、后台搜索隔离及自动播放受阻保护。');
+ a.providers(async()=>{});
+ const temporary=Object.assign(new Error('Provider throttled'),{retryable:true});
+ a.probe(async()=>{throw temporary;});a.details(async()=>{throw temporary;});
+ const deferred=await a.verifyImportData(payload([original('temporary-qq')]),new AbortController(),()=>{});
+ assert.equal(deferred.stats.failed,0);assert.equal(deferred.stats.deferred,1);assert.equal(deferred.stats.checked,1);assert.equal(deferred.stats.pending,0);
+ assert.equal(deferred.failures.length,0);assert.equal(deferred.data.playlists[0].tracks[0].importCheck,'deferred');assert.equal(deferred.data.playlists[0].tracks[0].uid,'temporary-qq');
+ console.log('通过：网易云与QQ原版本优先择优、取消音质优选保留可播原曲、原平台音质升级及可播原曲兜底、网易/QQ共同检查、实际开头及中段播放、静音/取消清理、电脑12/手机8路检查、替换搜索单独限流、音质排序和高音质失败降级、版本歌手保护、总数与完成进度、同档并行取消慢地址、低档延迟查询、失败移除、停止保留未检查、限流及临时错误保留不误删、重复导入替换不重复、后台搜索隔离及自动播放受阻保护。');
 })().catch(error=>{console.error(error);process.exitCode=1;});
