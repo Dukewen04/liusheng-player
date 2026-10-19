@@ -33,7 +33,7 @@ const find=track=>c.app.findBestImportRecording(track,new AbortController().sign
  assert.equal(girl.uid,'qqgirl');assert.equal(girl.title,'姑娘');assert.equal(girl.sourceTitle,'你的姑娘');assert.equal(girl.album,'Imported Album');assert(queries.includes('隔壁老樊'),'Only broaden to artist catalog after exact matching fails');
  artistOnly=false;catalog=[choice('exact','姑娘','隔壁老樊','qq','128k'),choice('near','你的姑娘','隔壁老樊')];queries.length=0;
  assert.equal((await find(original('姑娘','隔壁老樊'))).uid,'exact','Playable exact recording always outranks fuzzy alternatives');assert(!queries.includes('隔壁老樊'));
- catalog=[choice('one','你的姑娘','隔壁老樊'),choice('two','老姑娘','隔壁老樊')];
+ catalog=[choice('one','你的姑娘','隔壁老樊','kuwo'),choice('two','老姑娘','隔壁老樊','kuwo')];
  const result=await c.app.verifyImportData({playlists:[{id:'list',name:'Example',tracks:[original('姑娘','隔壁老樊')]}]},new AbortController(),()=>{});
  assert.equal(result.stats.deferred,1);assert.equal(result.stats.failed,0);assert.equal(result.data.playlists[0].tracks[0].uid,'imported');assert(result.data.playlists[0].tracks[0].importCheckReason.includes('多个相近歌名'));
  for(const bad of [choice('other','你的姑娘','另一歌手'),choice('live','你的姑娘 (Live)','隔壁老樊'),choice('dj','你的姑娘 (DJ版)','隔壁老樊'),{...choice('inst','你的姑娘','隔壁老樊'),album:'Instrumental Edition'}])assert.equal(c.app.nearImportTitleScore(original('姑娘','隔壁老樊'),bad),0);

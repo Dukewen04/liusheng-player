@@ -13,7 +13,7 @@ vm.runInContext(source.replace(/\}\)\(\);\s*$/,`
    qqSearch:fn=>searchQQ=fn,searches:fn=>{searchNetease=fn;searchQQ=async()=>{};searchKuwo=async()=>{};searchJoox=async()=>{};searchKugou=async()=>{};}};
 })();`),c);
 const a=c.app;node('import-compare-all').checked=true;
-const original=(uid,source='qq')=>({uid,source,songid:uid,title:'Song',artist:'Singer'});
+const original=(uid,source='netease')=>({uid,source,songid:uid,title:'Song',artist:'Singer'});
 const payload=tracks=>({version:1,favorites:[],playlists:[{id:'example-list',name:'Example',tracks}]});
 (async()=>{
  // The shared audio probe must advance both at the beginning and in the middle.
@@ -68,7 +68,7 @@ const payload=tracks=>({version:1,favorites:[],playlists:[{id:'example-list',nam
    a.details(async track=>Object.assign(track,{audioUrl:'https://cdn.example/'+track.uid,quality:track.tier==='lossless'?'lossless':'128k',qualityLabel:track.tier==='lossless'?'LOSSLESS':'STD'}));
    a.probe(async(track,options)=>options.useLoaded?{...track}:{...track,audioUrl:'https://cdn.example/'+track.uid,quality:'128k',qualityLabel:'STD'});
    const upgraded=await a.verifyImportData(payload([base]),new AbortController(),()=>{});
-   assert.equal(seenSources.size,2);assert.equal(upgraded.data.playlists[0].tracks[0].source,target);assert.equal(upgraded.data.playlists[0].tracks[0].quality,'lossless');assert.equal(upgraded.stats.replaced,1);assert.equal(upgraded.stats.passed,0);assert.equal(upgraded.data.playlists[0].tracks[0].importOriginalUid,base.uid);
+   assert.equal(seenSources.size,source==='qq'?1:2);assert.equal(seenSources.has('qq'),source!=='qq');assert.equal(upgraded.data.playlists[0].tracks[0].source,target);assert.equal(upgraded.data.playlists[0].tracks[0].quality,'lossless');assert.equal(upgraded.stats.replaced,1);assert.equal(upgraded.stats.passed,0);assert.equal(upgraded.data.playlists[0].tracks[0].importOriginalUid,base.uid);
  }
  a.state.enabledSources=savedEnabled;
  // Opting out keeps a playable original without unnecessary searching.
