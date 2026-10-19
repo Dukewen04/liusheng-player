@@ -16,6 +16,7 @@ class PlaylistTests(unittest.TestCase):
     def test_full_share_and_qq(self):
         self.assertEqual(player.playlist_id('分享歌单: 示例 https://music.163.com/#/playlist?id=123 (@网易云音乐)'), ('netease', '123'))
         self.assertEqual(player.playlist_id('https://y.qq.com/n/ryqq_v2/playlist/456'), ('qq', '456'))
+        self.assertEqual(player.playlist_id('分享歌单 https://i2.y.qq.com/n3/other/pages/details/playlist.html?hosteuin=example**&id=456&appshare=iphone_wx'), ('qq', '456'))
 
     def test_short_share(self):
         response = MagicMock()
@@ -36,6 +37,15 @@ class PlaylistTests(unittest.TestCase):
                      'https://music.163.com/playlist?id=bad'):
             with self.subTest(link=link), self.assertRaises(ValueError):
                 player.playlist_id(link)
+
+    def test_mobile_qq_uses_only_playlist_id(self):
+        data = {'code': 0, 'cdlist': [{'dissname': 'Example', 'total_song_num': 1,
+                'songlist': [{'songmid': 'abc123', 'songname': 'Song', 'singer': [{'name': 'Singer'}]}]}]}
+        with patch.object(player, 'fetch_json', return_value=data) as fetch:
+            result = player.get_playlist('https://i2.y.qq.com/n3/other/pages/details/playlist.html?hosteuin=example**&id=456')
+        self.assertNotIn('hosteuin', fetch.call_args.args[0])
+        self.assertEqual(parse_qs(urlsplit(fetch.call_args.args[0]).query)['disstid'], ['456'])
+        self.assertEqual(result['playlists'][0]['tracks'][0]['songMid'], 'abc123')
 
     def test_reject_redirect_outside_music_hosts(self):
         handler = player.PlaylistRedirect()

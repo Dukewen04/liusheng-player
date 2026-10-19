@@ -6,7 +6,7 @@ const node=id=>{if(!nodes.has(id))nodes.set(id,{style:{},classList:{add(){},remo
 const c=vm.createContext({console,URL,URLSearchParams,AbortSignal,AbortController,location:{hostname:'dukewen04.github.io',port:''},localStorage:{getItem(){return null;}},
   document:{getElementById:node,createElement:()=>({}),addEventListener(){},querySelectorAll:()=>[]},
   FileReader:class{constructor(){readers.push(this);}readAsText(){}},setTimeout,clearTimeout});
-vm.runInContext(source.replace(/\}\)\(\);\s*$/,`globalThis.imports=[];importPlaylistData=data=>{imports.push(data);return {addedFavorites:1,addedPlaylists:0,addedPlaylistTracks:0};};renderPlaylistList=()=>{};renderPlaylistOptions=()=>{};globalThis.app={state,dom,importPlaylistLink,playlistLinkInfo,importFileSummary,handleImportPlaylistFile,confirmImportFile,openImportGuide,setImportMethod};})();`),c);
+vm.runInContext(source.replace(/\}\)\(\);\s*$/,`globalThis.imports=[];importPlaylistData=data=>{imports.push(data);return {addedFavorites:1,addedPlaylists:0,addedPlaylistTracks:0};};renderPlaylistList=()=>{};renderPlaylistOptions=()=>{};globalThis.app={state,dom,importPlaylistLink,readPlaylistLinkData,playlistLinkInfo,importFileSummary,handleImportPlaylistFile,confirmImportFile,openImportGuide,setImportMethod};})();`),c);
 const a=c.app;
 assert.equal(a.playlistLinkInfo('分享歌单 https://music.163.com/#/my/m/music/playlist?id=123。').id,'123');
 assert.equal(a.playlistLinkInfo('https://music.163.com/playlist?id=42').source,'netease');
@@ -15,6 +15,9 @@ assert.equal(shared.source,'netease');assert(shared.short);assert.equal(shared.u
 assert.throws(()=>a.playlistLinkInfo('https://163cn.tv/a/b'));
 assert.equal(a.playlistLinkInfo('https://y.qq.com/n/ryqq_v2/playlist/12345').id,'12345');
 assert.equal(a.playlistLinkInfo('https://i.y.qq.com/n2/m/share/details/taoge.html?id=432').source,'qq');
+const mobile=a.playlistLinkInfo('分享歌单 https://i2.y.qq.com/n3/other/pages/details/playlist.html?hosteuin=example**&id=456&appshare=iphone_wx');
+assert.equal(mobile.source,'qq');assert.equal(mobile.id,'456');assert.equal(mobile.url,'https://y.qq.com/n/ryqq/playlist/456','Strip account and tracking parameters');
+assert.throws(()=>a.playlistLinkInfo('https://i2.y.qq.com.evil.test/n3/other/pages/details/playlist.html?id=456'));
 for(const url of ['https://music.163.com.evil.test/playlist?id=1','https://y.qq.com/n/ryqq_v2/profile/like/song','https://x.test/playlist?id=1','javascript:alert(1)','https://a:b@music.163.com/playlist?id=1','https://music.163.com:443/playlist?id=1']){
   if(url.includes(':443/'))continue;assert.throws(()=>a.playlistLinkInfo(url));
 }
@@ -22,7 +25,7 @@ const song={uid:'qq-abc',source:'qq',songid:'abc',title:'Song',artist:'Singer'},
 assert.equal(a.importFileSummary(data).tracks,1);assert.equal(a.importFileSummary(data).favorites,1);
 for(const invalid of [[],{}, {favorites:[{title:'missing IDs'}]}, {favorites:'bad'}, {playlists:[{}]}, {favorites:[{...song,source:'fake'}]}])assert.throws(()=>a.importFileSummary(invalid));
 a.openImportGuide('file');assert(node('import-link-form').hidden);assert(!node('import-file-panel').hidden);assert(node('import-link-dialog').open);
-node('import-platform').value='qq';a.setImportMethod('link');assert(!node('import-link-form').hidden);assert(node('import-connection-note').textContent.includes('尚未连接'));
+node('import-platform').value='qq';a.setImportMethod('link');assert(!node('import-link-form').hidden);assert(node('import-connection-note').textContent.includes('无需配置代理'));
 function choose(name,size=100){const target={files:[{name,size}],value:name};a.handleImportPlaylistFile({target});return target;}
 choose('bad.mp3');assert(node('confirm-import-file').disabled);assert.equal(readers.length,0);
 choose('big.json',6*1024*1024);assert.equal(readers.length,0);
@@ -48,5 +51,20 @@ console.log('通过：平台链接识别及错误指引、JSON格式/大小/空�
   c.fetch=async()=>({ok:false,json:async()=>({error:'短链接失效'})});
   await a.importPlaylistLink({preventDefault(){}});
   assert.equal(c.imports.length,2);assert.equal(node('import-link-status').textContent,'短链接失效');assert(!node('import-link-submit').disabled);
+  c.location.hostname='dukewen04.github.io';c.location.port='';
+  const rows=[{name:'Song A',artist:'Singer A',url:'https://api.qijieya.cn/meting/?server=tencent&type=url&id=abc123',pic:'http://cdn.example/cover.jpg'},
+              {name:'Song B',artist:'Singer B',url:'https://api.qijieya.cn/meting/?server=tencent&type=url&id=def456'}];
+  c.fetch=async raw=>{const u=new URL(raw);assert.equal(u.origin,'https://api.qijieya.cn');assert.equal(u.searchParams.get('server'),'tencent');assert.equal(u.searchParams.get('type'),'playlist');assert.equal(u.searchParams.get('id'),'456');return {ok:true,json:async()=>rows};};
+  const qqData=await a.readPlaylistLinkData(mobile);
+  assert.equal(qqData.playlists[0].tracks.length,2);assert.equal(qqData.playlists[0].tracks[0].songMid,'abc123');
+  assert.equal(qqData.playlists[0].tracks[0].cover,'https://cdn.example/cover.jpg');assert(!qqData.playlists[0].tracks[0].audioUrl);
+  node('import-link-url').value='https://i2.y.qq.com/n3/other/pages/details/playlist.html?hosteuin=example**&id=456';
+  await a.importPlaylistLink({preventDefault(){}});assert.equal(c.imports.length,3);assert.equal(c.imports[2].playlists[0].id,'qq-playlist-456');assert(node('import-link-status').textContent.includes('读取 2 首'));
+  for(const invalid of [[],{code:403},[null],[{...rows[0],url:'https://evil.test/?id=abc123'}],[{...rows[0],name:''}]]){
+    c.fetch=async()=>({ok:true,json:async()=>invalid});await assert.rejects(a.readPlaylistLinkData(mobile));
+  }
+  c.fetch=async()=>{throw new TypeError('Failed to fetch');};await a.importPlaylistLink({preventDefault(){}});
+  assert.equal(c.imports.length,3);assert(!node('import-link-submit').disabled);assert(node('import-link-status').textContent.includes('代理'));
   console.log('通过：整段分享文字转发本地短链解析、自动导入歌单和可选收藏、失败不修改资料且恢复按钮。');
+  console.log('通过：QQ手机分享链接、账户和跟踪参数剥离、线上无代理导入、歌曲标识/顺序保持、空歌单及格式错误拒绝、网络失败保留收藏。');
 })().catch(error=>{console.error(error);process.exitCode=1;});
