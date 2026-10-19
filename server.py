@@ -37,7 +37,7 @@ def resolve_playlist_url(link):
     if not match:
         raise ValueError('请粘贴网易云或 QQ 音乐的歌单分享文字或链接。')
     link = match[0].rstrip('，。；！）)')
-    url = checked_playlist_url(link, ('163cn.tv', 'music.163.com', 'y.qq.com', 'i.y.qq.com', 'c.y.qq.com'))
+    url = checked_playlist_url(link, ('163cn.tv', 'music.163.com', 'y.qq.com', 'i.y.qq.com', 'i2.y.qq.com', 'c.y.qq.com'))
     if url.hostname == '163cn.tv':
         if not re.fullmatch(r'/[A-Za-z0-9_-]{1,64}/?', url.path):
             raise ValueError('网易云分享短链接格式无效。')
@@ -60,7 +60,7 @@ def playlist_id(link):
             query = parse_qs(fragment.query)
         source = 'netease'
         identifier = (query.get('id') or [''])[0] if 'playlist' in path else ''
-    elif host in ('y.qq.com', 'i.y.qq.com', 'c.y.qq.com'):
+    elif host in ('y.qq.com', 'i.y.qq.com', 'i2.y.qq.com', 'c.y.qq.com'):
         source = 'qq'
         identifier = (query.get('id') or query.get('disstid') or [''])[0]
         if not identifier:

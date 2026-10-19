@@ -5,7 +5,7 @@
   <title>留声 · Liusheng Player</title>
   <meta name="description" content="留住喜欢的声音。一个支持多音源搜索、收藏和歌单管理的简洁音乐播放器。" />
   <meta name="referrer" content="no-referrer" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <style>
 :root{color-scheme:light;--bg-dark:#f4f5ef;--panel-glass:#fff;--panel-glass-soft:#f7f8f3;--accent:#284d3f;--accent-strong:#1b392e;--accent-green:#47725b;--accent-pink:#ad6980;--accent-blue:#567389;--accent-red:#ad5749;--text-main:#24332b;--text-sub:#758078;--border-subtle:#e3e8dd}
 *{box-sizing:border-box}body{margin:0;background:var(--bg-dark);color:var(--text-main);font:17px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif}button,input,select{font:inherit}button,select{cursor:pointer}button{touch-action:manipulation}button:disabled{opacity:.45;cursor:wait}button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:3px solid #97b2a0;outline-offset:3px}input,select{min-width:0}a{color:var(--accent)}
@@ -32,6 +32,7 @@
 #import-link-dialog{width:min(660px,94vw)!important;max-height:88dvh;overflow:auto}#import-link-dialog [hidden]{display:none!important}.import-guide-heading{display:flex;align-items:center;justify-content:space-between;gap:16px}.import-guide-heading h2{margin:0}.import-methods{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}.import-methods [aria-pressed="true"]{background:var(--accent);color:#fff}#import-link-dialog h3{font-size:16px;margin:22px 0 10px}#import-link-dialog p,#import-link-dialog li{font-size:14px;line-height:1.8}#import-link-dialog ol{padding-left:23px}#import-link-dialog .input{margin:10px 0}#import-link-dialog .import-note{font-size:13px;color:var(--text-sub)}.import-favorite-option{display:flex;align-items:center;gap:8px}.import-favorite-option input{width:auto}.import-format{margin-top:14px;font-size:13px}.import-format summary{cursor:pointer;color:var(--accent)}.import-format pre{overflow:auto;padding:16px;background:#f5f7ef;border-radius:10px;font:12px/1.7 monospace}#import-link-status:empty,#import-file-status:empty,#import-connection-note:empty{display:none}#import-link-status,#import-file-status{white-space:pre-wrap;background:#f1f5e9;padding:12px;border-radius:10px}.source-dot.kugou{background:#5f8ca7}
 .player-view-actions{display:flex;align-items:center;gap:10px}.lyrics-mode-btn{font-size:12px;min-height:32px;padding:5px 10px}
 body.lyrics-mode{overflow:hidden}.lyrics-mode .app{height:100dvh;min-height:0;max-width:1200px;padding:20px clamp(16px,5vw,64px);gap:0}.lyrics-mode .app>header,.lyrics-mode footer,.lyrics-mode .search-panel,.lyrics-mode .playlist-panel{display:none}.lyrics-mode .layout{display:flex;min-height:0;gap:0}.lyrics-mode .player-panel{flex:1;min-height:0;max-height:none;padding:0;border:0;border-radius:0;background:transparent}.lyrics-mode .player-panel>.panel-header{order:0;padding:0 0 12px}.lyrics-mode .player-view-actions>.chip,.lyrics-mode .cover-wrapper,.lyrics-mode .track-tags,.lyrics-mode .player-actions{display:none}.lyrics-mode .player-top,.lyrics-mode .player-main{display:contents}.lyrics-mode .track-title-row{order:1;justify-content:center;flex-shrink:0;text-align:center}.lyrics-mode .track-title{font-size:clamp(20px,2.3vw,30px)}.lyrics-mode .track-artist{font-size:14px;margin-top:2px}.lyrics-mode .lyrics-container{order:2;flex:1;min-height:0;max-height:none;margin:12px 0;border:0;padding:0;overscroll-behavior:contain}.lyrics-mode .lyrics-inner{max-width:900px;margin:auto;padding:25dvh 12px}.lyrics-mode .lyrics-line{font-size:clamp(24px,3vw,40px);line-height:2.1;color:#a1ad9a}.lyrics-mode .lyrics-line.active{font-size:clamp(26px,3.2vw,44px);color:var(--accent)}.lyrics-mode .player-controls{order:3;flex-shrink:0;width:min(680px,100%);align-self:center;margin:0;padding:10px 0 max(0px,env(safe-area-inset-bottom))}.lyrics-mode .control-row{margin-top:10px}.lyrics-mode .control-main{gap:22px}.lyrics-mode .volume-slider{width:70px}
+@media(hover:none) and (pointer:coarse){html{touch-action:pan-x pan-y}input:not([type=checkbox]):not([type=range]),select,textarea{font-size:16px!important}}
 </style>
 </head>
 <body>
@@ -330,7 +331,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       <select id="import-platform" aria-label="音乐平台"><option value="netease">网易云音乐</option><option value="qq">QQ 音乐</option></select>
       <h3>2 · 复制歌单链接</h3>
       <ol id="import-platform-steps"></ol>
-      <p class="import-note">仅能读取平台允许公开访问的歌单；私有收藏可改用歌单文件导入。可直接粘贴网易云的整段分享文字，163cn.tv 短链接会自动展开。QQ 短链接需先在浏览器打开后复制歌单地址。</p>
+      <p class="import-note">仅能读取平台允许公开访问的歌单；私有收藏可改用歌单文件导入。QQ 支持手机分享的 i2.y.qq.com 歌单网址，线上可直接导入。网易云支持整段分享文字，163cn.tv 短链接需通过歌单读取服务展开。其他短链接请先在浏览器打开后复制歌单地址。</p>
       <label for="import-link-url">粘贴完整歌单链接或分享文字</label>
       <input id="import-link-url" class="input" type="text" required maxlength="2048" placeholder="https://music.163.com/#/playlist?id=…" />
       <p id="import-connection-note" class="import-note"></p>
@@ -1012,12 +1013,11 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
     }
     function renderImportPlatform(){
       const qq=$('import-platform').value==='qq';
-      const steps=qq ? ['打开 QQ 音乐，进入“我的音乐”，打开要导入的歌单。','在歌单页面点击“分享”并复制链接；电脑网页也可以直接复制歌单地址。','完整地址通常包含 y.qq.com/n/ryqq/playlist/歌单ID，或 taoge.html?id=歌单ID。个人主页、“我喜欢”列表页不是歌单链接。'] : ['打开网易云音乐，进入“我的音乐”，打开要导入的歌单。','在歌单页面点击“分享”并复制链接；电脑网页也可以直接复制歌单地址。','直接粘贴“分享歌单: … https://163cn.tv/…”即可，系统会自动展开短链接并读取歌曲列表；也支持 music.163.com 的完整歌单网址。'];
+      const steps=qq ? ['打开 QQ 音乐，进入“我的音乐”，打开要导入的歌单。','在歌单页面点击“分享”并复制链接；手机分享到微信的 i2.y.qq.com 链接也可以直接粘贴。','支持 playlist.html?id=歌单ID、taoge.html?id=歌单ID 和电脑网页的 /playlist/歌单ID。个人主页、“我喜欢”列表页不是歌单链接。'] : ['打开网易云音乐，进入“我的音乐”，打开要导入的歌单。','在歌单页面点击“分享”并复制链接；电脑网页也可以直接复制歌单地址。','直接粘贴“分享歌单: … https://163cn.tv/…”即可，系统会自动展开短链接并读取歌曲列表；也支持 music.163.com 的完整歌单网址。'];
       $('import-platform-steps').innerHTML='';
       steps.forEach(text=>{const li=document.createElement('li');li.textContent=text;$('import-platform-steps').appendChild(li);});
-      $('import-link-url').placeholder=qq?'https://y.qq.com/n/ryqq/playlist/…':'分享歌单: 我的歌单 https://163cn.tv/… (@网易云音乐)';
-      const connected=Boolean(localStorage.getItem('liusheng-api-base')) || (['localhost','127.0.0.1'].includes(location.hostname)&&location.port==='8766');
-      $('import-connection-note').textContent=connected?'当前已连接歌单读取服务，可在下面导入链接。':'当前线上页面尚未连接歌单读取服务。你可以切换“歌单文件”导入备份，或在“音源设置”连接自己的兼容服务后再使用链接导入。';
+      $('import-link-url').placeholder=qq?'https://i2.y.qq.com/n3/other/pages/details/playlist.html?id=…':'分享歌单: 我的歌单 https://163cn.tv/… (@网易云音乐)';
+      $('import-connection-note').textContent=playlistServiceConnected()?'当前已连接歌单读取服务，可在下面导入链接。':qq?'QQ 公开歌单可在线直接导入，无需配置代理。粘贴分享链接后点击“导入这个歌单”。':'当前线上页面尚未连接歌单读取服务。你可以切换“歌单文件”导入备份，或在“音源设置”连接自己的兼容服务后再使用链接导入。';
     }
     function openImportGuide(method){
       setImportMethod(method);$('import-link-status').textContent='';
@@ -1035,11 +1035,31 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       if(url.hostname==='music.163.com'){
         source='netease';const fragment=new URL(url.hash.slice(1)||url.pathname+url.search,'https://music.163.com');
         if(fragment.pathname.includes('playlist'))id=fragment.searchParams.get('id');
-      }else if(['y.qq.com','i.y.qq.com','c.y.qq.com'].includes(url.hostname)){
+      }else if(['y.qq.com','i.y.qq.com','i2.y.qq.com','c.y.qq.com'].includes(url.hostname)){
         source='qq';if(/playlist|taoge/.test(url.pathname))id=url.searchParams.get('id')||url.searchParams.get('disstid')||url.pathname.match(/playlist\/(\d+)/)?.[1];
       }
       if(!source||!/^\d{1,20}$/.test(id||''))throw new Error('没有找到歌单 ID。网易云支持 163cn.tv 分享短链接；其他短链接请先在浏览器打开后复制具体歌单网址。个人主页不能直接导入。');
-      return {source,id,url:url.href};
+      return {source,id,url:source==='qq'?`https://y.qq.com/n/ryqq/playlist/${id}`:url.href};
+    }
+    function playlistServiceConnected(){
+      return Boolean(localStorage.getItem('liusheng-api-base')) || (['localhost','127.0.0.1'].includes(location.hostname)&&location.port==='8766');
+    }
+    async function readPlaylistLinkData(info){
+      if(info.source==='qq'&&!playlistServiceConnected()){
+        const rows=await readMusicJSON('https://api.qijieya.cn/meting/?'+new URLSearchParams({server:'tencent',type:'playlist',id:info.id}));
+        if(!Array.isArray(rows)||!rows.length)throw new Error('QQ 歌单为空或未开放，请检查歌单公开设置，或稍后重试。');
+        if(rows.length>10000)throw new Error('歌单超过 10000 首，请拆分后导入。');
+        const tracks=rows.map((row,index)=>{
+          let mid;try{const url=new URL(row.url);if(url.origin==='https://api.qijieya.cn'&&url.pathname==='/meting/'&&url.searchParams.get('server')==='tencent'&&url.searchParams.get('type')==='url')mid=url.searchParams.get('id');}catch{}
+          if(!/^[A-Za-z0-9]{1,32}$/.test(mid||'')||typeof row?.name!=='string'||!row.name.trim()||typeof row.artist!=='string')throw new Error('QQ 歌曲资料不完整，请稍后重试或改用歌单文件导入。');
+          return {uid:'qq-'+mid,source:'qq',songid:mid,qqId:mid,songMid:mid,title:row.name.trim(),artist:row.artist.trim(),album:'',cover:mediaUrl(row.pic),keyword:`${row.name} ${row.artist}`.trim(),displayIndex:index+1};
+        });
+        return {version:1,favorites:[],playlists:[{id:'qq-playlist-'+info.id,name:'QQ 歌单 '+info.id,tracks}],warning:''};
+      }
+      const response=await fetch(musicApiUrl('/api/playlist',{url:info.url}),{signal:AbortSignal.timeout(60000)});
+      const data=await response.json();
+      if(!response.ok)throw new Error(data.error||'导入失败，请稍后重试。');
+      return data;
     }
     function importFileSummary(data){
       if(!data||typeof data!=='object'||Array.isArray(data))throw new Error('文件顶层需要是 JSON 对象。请下载格式示例。');
@@ -1101,11 +1121,9 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       status.textContent='正在读取歌单…';
       try{
         const info=playlistLinkInfo($('import-link-url').value);
-        const url=info.url;$('import-platform').value=info.source;renderImportPlatform();
+        $('import-platform').value=info.source;renderImportPlatform();
         status.textContent=info.short?'正在展开网易云分享短链接并读取完整歌单…':'正在读取歌单…';
-        const response=await fetch(musicApiUrl('/api/playlist',{url}),{signal:AbortSignal.timeout(60000)});
-        const data=await response.json();
-        if(!response.ok) throw new Error(data.error || '导入失败，请稍后重试。');
+        const data=await readPlaylistLinkData(info);
         if(!Array.isArray(data?.playlists)||!data.playlists[0]?.tracks?.length)throw new Error('歌单服务没有返回有效歌曲，请检查链接或稍后重试。');
         importFileSummary(data);
         const playlist=data.playlists[0];
@@ -1118,7 +1136,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         renderPlaylistList();
         status.textContent=`已导入「${playlist.name}」：读取 ${playlist.tracks.length} 首，新增 ${stat.addedPlaylistTracks} 首歌单歌曲、${stat.addedFavorites} 首收藏。`+(data.warning?'\n'+data.warning:'');
       }catch(error){
-        status.textContent=error.message || '导入失败，请稍后重试。';
+        status.textContent=error.userMessage || error.message || '导入失败，请稍后重试。';
       }finally{
         button.disabled=false;
       }
