@@ -6,6 +6,7 @@
 
 - 网易云、QQ、酷我和 JOOX 音源搜索与播放。
 - 收藏搜索、歌名/歌手排序、收藏 JSON 导出。
+- 歌曲搜索和“我的音乐”可分别收起、展开，自动记住状态；收起后播放器使用腾出的空间。
 - 播放时自动补全歌词：优先原平台，再匹配同歌名、歌手和版本的备用歌词；支持纯文本和滚动歌词，后台查询不阻塞播放。
 - 播放器右上角可切换「纯歌词」：大字居中歌词，保留进度、切歌和音量；点击退出或按 Esc 返回，刷新后记住显示模式。
 - JSON 歌单导入导出、自建歌单、一键同步收藏。
@@ -63,6 +64,7 @@ node tests/check_favorites_rebuild.js
 node tests/check_api_routes.cjs
 node tests/check_lyrics.cjs
 node tests/check_playback_recovery.cjs
+node tests/check_panels.cjs
 ```
 
 ## 许可与来源
