@@ -33,6 +33,7 @@
 .player-view-actions{display:flex;align-items:center;gap:10px}.lyrics-mode-btn{font-size:12px;min-height:32px;padding:5px 10px}
 body.lyrics-mode{overflow:hidden}.lyrics-mode .app{height:100dvh;min-height:0;max-width:1200px;padding:20px clamp(16px,5vw,64px);gap:0}.lyrics-mode .app>header,.lyrics-mode footer,.lyrics-mode .search-panel,.lyrics-mode .playlist-panel{display:none}.lyrics-mode .layout{display:flex;min-height:0;gap:0}.lyrics-mode .player-panel{flex:1;min-height:0;max-height:none;padding:0;border:0;border-radius:0;background:transparent}.lyrics-mode .player-panel>.panel-header{order:0;padding:0 0 12px}.lyrics-mode .player-view-actions>.chip,.lyrics-mode .cover-wrapper,.lyrics-mode .track-tags,.lyrics-mode .player-actions{display:none}.lyrics-mode .player-top,.lyrics-mode .player-main{display:contents}.lyrics-mode .track-title-row{order:1;justify-content:center;flex-shrink:0;text-align:center}.lyrics-mode .track-title{font-size:clamp(20px,2.3vw,30px)}.lyrics-mode .track-artist{font-size:14px;margin-top:2px}.lyrics-mode .lyrics-container{order:2;flex:1;min-height:0;max-height:none;margin:12px 0;border:0;padding:0;overscroll-behavior:contain}.lyrics-mode .lyrics-inner{max-width:900px;margin:auto;padding:25dvh 12px}.lyrics-mode .lyrics-line{font-size:clamp(24px,3vw,40px);line-height:2.1;color:#a1ad9a}.lyrics-mode .lyrics-line.active{font-size:clamp(26px,3.2vw,44px);color:var(--accent)}.lyrics-mode .player-controls{order:3;flex-shrink:0;width:min(680px,100%);align-self:center;margin:0;padding:10px 0 max(0px,env(safe-area-inset-bottom))}.lyrics-mode .control-row{margin-top:10px}.lyrics-mode .control-main{gap:22px}.lyrics-mode .volume-slider{width:70px}
 @media(hover:none) and (pointer:coarse){html{touch-action:pan-x pan-y}input:not([type=checkbox]):not([type=range]),select,textarea{font-size:16px!important}}
+#import-check-panel{margin-top:22px;border-top:1px solid var(--border-subtle);padding-top:16px}#import-check-status{white-space:pre-wrap}
 </style>
 </head>
 <body>
@@ -361,12 +362,19 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
   }]
 }</pre><p class="import-note">source 可填 netease、qq、kuwo、joox、kugou。uid 为“来源-歌曲ID”；只填写歌名不能定位所有平台的歌曲。</p></details>
       <h3>2 · 选择文件并检查</h3>
-      <p class="import-note">文件在当前浏览器读取，不会上传。请选择 UTF-8 编码的 .json 文件，最大 5 MB。</p>
+      <p class="import-note">文件本体在当前浏览器读取，不上传；检查时会按歌名和歌手查询音乐接口。请选择 UTF-8 编码的 .json 文件，最大 5 MB。</p>
       <button id="choose-import-file" class="btn btn-secondary" type="button">选择 JSON 文件</button>
       <p id="import-file-status" role="status" aria-live="polite"></p>
       <h3>3 · 确认导入</h3>
       <p class="import-note">检查歌曲数量后再导入。已有歌单与收藏会保留。</p>
       <button id="confirm-import-file" class="btn" type="button" disabled>确认导入文件</button>
+    </section>
+    <section id="import-check-panel" hidden aria-label="导入检查进度">
+      <progress id="import-check-progress" max="1" aria-label="已检查歌曲比例" style="width:100%"></progress>
+      <p id="import-check-status" role="status" aria-live="polite"></p>
+      <p class="import-note">逐首静音检查开头和中段。失败时搜索同歌名、同歌手、同版本的歌曲，按音源提供的音质档位从高到低试播。未找到替代时保留原曲并标记“待修复”。关闭窗口可继续检查，停止后保留已完成结果。</p>
+      <button id="stop-import-check" class="btn btn-ghost" type="button" disabled>停止检查并保留当前结果</button>
+      <details id="import-check-failures" hidden><summary id="import-check-failures-title">待修复歌曲</summary><ul id="import-check-failures-list"></ul></details>
     </section>
   </dialog>
 
@@ -842,7 +850,8 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       const keys=[
         'uid','source','displayIndex','keyword','songid','songMid','qqId','qqSearchKey','qqIndex',
         'kugouPage','jooxIndex','jooxSongId','jooxSongMid','title','artist','album','cover','pageUrl',
-        'quality','qualityLabel','qqQualityText','jooxQualityText','pay'
+        'quality','qualityLabel','qqQualityText','jooxQualityText','pay',
+        'preferHighestQuality','preferCompatible','preferredAudioQuality','importOriginalUid','importCheck'
       ];
       const out={};
       keys.forEach(k=>{
@@ -946,7 +955,16 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         if(!imported || !imported.uid) return;
 
         const track=state.trackMap.get(imported.uid) || imported;
+        if(imported.importCheck)Object.assign(track,imported);
         if(!state.trackMap.has(track.uid)) state.trackMap.set(track.uid, track);
+
+        if(imported.importOriginalUid){
+          const oldIndex=targetList.findIndex(item=>item.uid===imported.importOriginalUid || item.importOriginalUid===imported.importOriginalUid);
+          if(oldIndex>=0&&sameRecording(targetList[oldIndex],track)){
+            const duplicate=targetList.some((item,index)=>index!==oldIndex&&item.uid===track.uid);
+            if(duplicate)targetList.splice(oldIndex,1);else targetList[oldIndex]=track;
+          }
+        }
 
         if(!targetList.some(item=>item.uid===track.uid)){
           targetList.push(track);
@@ -1020,6 +1038,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       $('import-connection-note').textContent=playlistServiceConnected()?'当前已连接歌单读取服务，可在下面导入链接。':qq?'QQ 公开歌单可在线直接导入，无需配置代理。粘贴分享链接后点击“导入这个歌单”。':'当前线上页面尚未连接歌单读取服务。你可以切换“歌单文件”导入备份，或在“音源设置”连接自己的兼容服务后再使用链接导入。';
     }
     function openImportGuide(method){
+      if(importController){$('import-link-dialog').showModal();return;}
       setImportMethod(method);$('import-link-status').textContent='';
       $('import-link-dialog').showModal();$('import-link-dialog').scrollTop=0;
     }
@@ -1044,9 +1063,9 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
     function playlistServiceConnected(){
       return Boolean(localStorage.getItem('liusheng-api-base')) || (['localhost','127.0.0.1'].includes(location.hostname)&&location.port==='8766');
     }
-    async function readPlaylistLinkData(info){
+    async function readPlaylistLinkData(info,signal){
       if(info.source==='qq'&&!playlistServiceConnected()){
-        const rows=await readMusicJSON('https://api.qijieya.cn/meting/?'+new URLSearchParams({server:'tencent',type:'playlist',id:info.id}));
+        const rows=await readMusicJSON('https://api.qijieya.cn/meting/?'+new URLSearchParams({server:'tencent',type:'playlist',id:info.id}),signal);
         if(!Array.isArray(rows)||!rows.length)throw new Error('QQ 歌单为空或未开放，请检查歌单公开设置，或稍后重试。');
         if(rows.length>10000)throw new Error('歌单超过 10000 首，请拆分后导入。');
         const tracks=rows.map((row,index)=>{
@@ -1056,7 +1075,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         });
         return {version:1,favorites:[],playlists:[{id:'qq-playlist-'+info.id,name:'QQ 歌单 '+info.id,tracks}],warning:''};
       }
-      const response=await fetch(musicApiUrl('/api/playlist',{url:info.url}),{signal:AbortSignal.timeout(60000)});
+      const response=await fetch(musicApiUrl('/api/playlist',{url:info.url}),{signal:signal?AbortSignal.any([signal,AbortSignal.timeout(60000)]):AbortSignal.timeout(60000)});
       const data=await response.json();
       if(!response.ok)throw new Error(data.error||'导入失败，请稍后重试。');
       return data;
@@ -1099,14 +1118,12 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       reader.onerror=()=>{if(request!==importFileRequest)return;status.textContent='文件读取失败，请重新选择文件。';input.value='';};
       reader.readAsText(file,'utf-8');
     }
-    function confirmImportFile(){
-      if(!pendingImport)return;
-      const data=pendingImport;pendingImport=null;$('confirm-import-file').disabled=true;
-      const stat=importPlaylistData(data);
-      $('import-file-status').textContent=`导入完成：新增 ${stat.addedFavorites} 首收藏、${stat.addedPlaylists} 个歌单、${stat.addedPlaylistTracks} 首歌单歌曲。已有内容已保留，重复条目已跳过。`;
-      const tab=data.playlists?.length?'playlists':'favorites';
-      document.querySelectorAll('.playlist-tab').forEach(item=>item.classList.toggle('active',item.dataset.tab===tab));
-      renderPlaylistList();
+    async function confirmImportFile(){
+      if(!pendingImport||importController)return;
+      const data=pendingImport;
+      const completed=await runVerifiedImport(async()=>data,$('import-file-status'));
+      if(completed)pendingImport=null;
+      $('confirm-import-file').disabled=!pendingImport;
     }
     function downloadImportExample(){
       const data={version:1,favorites:[],playlists:[{name:'示例歌单',tracks:[{uid:'qq-002ITrVX0Pwgg0',source:'qq',songid:'002ITrVX0Pwgg0',qqId:'002ITrVX0Pwgg0',title:'等你下课(with 杨瑞代)',artist:'周杰伦'}]}]};
@@ -1116,29 +1133,140 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
     async function importPlaylistLink(e){
       e.preventDefault();
-      const button=$('import-link-submit'), status=$('import-link-status');
-      button.disabled=true;
-      status.textContent='正在读取歌单…';
-      try{
+      const favorite=$('import-link-favorite').checked;
+      await runVerifiedImport(async signal=>{
         const info=playlistLinkInfo($('import-link-url').value);
         $('import-platform').value=info.source;renderImportPlatform();
-        status.textContent=info.short?'正在展开网易云分享短链接并读取完整歌单…':'正在读取歌单…';
-        const data=await readPlaylistLinkData(info);
+        $('import-link-status').textContent=info.short?'正在展开网易云分享短链接并读取完整歌单…':'正在读取歌单…';
+        const data=await readPlaylistLinkData(info,signal);
         if(!Array.isArray(data?.playlists)||!data.playlists[0]?.tracks?.length)throw new Error('歌单服务没有返回有效歌曲，请检查链接或稍后重试。');
+        if(favorite)data.favorites=data.playlists[0].tracks;
+        return data;
+      },$('import-link-status'));
+    }
+
+    let importController=null;
+    function importQualityRank(track){
+      if(track.quality==='lossless'||track.qualityLabel==='LOSSLESS')return 10000;
+      const rate=String(track.quality||'').match(/^(\d+)k$/i);
+      if(rate)return Number(rate[1]);
+      return {HQ:320,STD:128,LOW:48,LOSSY:1}[track.qualityLabel]||0;
+    }
+    async function findImportReplacement(original,signal,onStage){
+      const pool={searchResults:[],trackMap:new Map(),sourceErrors:{},signal};
+      for(const keyword of [...new Set([`${original.title} ${original.artist}`.trim(),original.title])]){
+        if(signal.aborted)throw signal.reason;
+        onStage('搜索替代音源');
+        await Promise.allSettled([searchNetease(keyword,1,20,pool),searchQQ(keyword,20,pool),searchKuwo(keyword,20,pool),searchJoox(keyword,20,pool),searchKugou(keyword,20,pool)]);
+      }
+      const matches=pool.searchResults.filter(track=>sameRecording(original,track)),choices=[];
+      let next=0;
+      await Promise.all(Array.from({length:Math.min(2,matches.length)},async()=>{
+        while(next<matches.length&&!signal.aborted){
+          const track={...matches[next++],preferHighestQuality:true,preferCompatible:false,preferredAudioQuality:null};
+          onStage('比较候选音质');
+          try{
+            await ensureTrackDetails(track,{silent:true,signal:AbortSignal.any([signal,AbortSignal.timeout(20000)])});
+            if(!sameRecording(original,track))continue;
+            const options=track.audioOptions?.length?track.audioOptions:[track];
+            options.forEach(option=>choices.push({...track,...option}));
+          }catch{}
+          if(track.source==='kuwo'&&!signal.aborted){
+            const lower={...track,audioUrl:null,detailsLoaded:false,preferCompatible:true};
+            try{
+              await ensureTrackDetails(lower,{silent:true,signal:AbortSignal.any([signal,AbortSignal.timeout(20000)])});
+              if(sameRecording(original,lower))choices.push(lower);
+            }catch{}
+          }
+        }
+      }));
+      if(signal.aborted)throw signal.reason;
+      choices.sort((a,b)=>importQualityRank(b)-importQualityRank(a));
+      const attempted=new Set();
+      for(const track of choices){
+        if(signal.aborted)throw signal.reason;
+        if(attempted.has(track.audioUrl))continue;attempted.add(track.audioUrl);
+        onStage(`试播替代音源 · ${track.source} · ${track.qualityLabel||'音质未标明'}`);
+        try{return await probeRecording(track,{signal,silent:true,useLoaded:true});}
+        catch(error){if(signal.aborted||error.name==='NotAllowedError')throw error;}
+      }
+      return null;
+    }
+    async function verifyImportData(data,controller,onProgress){
+      const {signal}=controller;
+      const originals=[...new Map([...(data.favorites||[]),...(data.playlists||[]).flatMap(pl=>pl.tracks)].map(track=>[track.uid,track])).values()];
+      const results=new Map(),stats={total:originals.length,checked:0,passed:0,replaced:0,failed:0,pending:originals.length};
+      const active=new Map();let next=0,fatal=null;
+      const update=()=>onProgress({...stats,active:[...active.values()]});
+      update();
+      await Promise.all(Array.from({length:Math.min(3,originals.length)},async()=>{
+        while(next<originals.length&&!signal.aborted){
+          const original=originals[next++],name=`${original.title} — ${original.artist||'未知歌手'}`;
+          const stage=text=>{active.set(original.uid,`${text}：${name}`);update();};
+          stage('检查原曲');let selected=null,replaced=false;
+          try{
+            try{selected=await probeRecording(original,{signal,silent:true});}
+            catch(error){
+              if(signal.aborted||error.name==='NotAllowedError')throw error;
+              selected=await findImportReplacement(original,signal,stage);replaced=Boolean(selected);
+            }
+            if(signal.aborted)break;
+            const track={...(selected||original),importCheck:selected?'playable':'unavailable'};
+            if(replaced)track.importOriginalUid=original.importOriginalUid||original.uid;
+            results.set(original.uid,track);stats.checked++;
+            stats[selected?(replaced?'replaced':'passed'):'failed']++;stats.pending=stats.total-stats.checked;
+          }catch(error){
+            if(error.name==='NotAllowedError'){fatal=error;controller.abort();}
+            else if(!signal.aborted){fatal=error;controller.abort();}
+          }finally{active.delete(original.uid);update();}
+        }
+      }));
+      if(fatal)throw fatal;
+      const selected=track=>results.get(track.uid)||{...track,importCheck:'pending'};
+      return {data:{...data,favorites:(data.favorites||[]).map(selected),playlists:(data.playlists||[]).map(pl=>({...pl,tracks:pl.tracks.map(selected)}))},stats,
+        failures:originals.filter(track=>results.get(track.uid)?.importCheck==='unavailable')};
+    }
+    async function runVerifiedImport(read,status){
+      if(importController)return false;
+      const controller=new AbortController();importController=controller;
+      const controls=['import-link-submit','confirm-import-file','import-method-link','import-method-file','choose-import-file','import-platform','import-link-favorite','import-link-url'];
+      const disabled=controls.map(id=>$(id).disabled);
+      controls.forEach(id=>$(id).disabled=true);
+      $('import-check-panel').hidden=false;$('import-check-failures').hidden=true;
+      $('stop-import-check').disabled=false;$('import-check-progress').removeAttribute('value');
+      $('import-check-status').textContent='第 1 步：正在读取歌单…';status.textContent='正在读取歌单…';
+      let committing=false;
+      try{
+        const data=await read(controller.signal);
+        if(controller.signal.aborted)throw controller.signal.reason;
         importFileSummary(data);
-        const playlist=data.playlists[0];
-        if($('import-link-favorite').checked) data.favorites=playlist.tracks;
-        const stat=importPlaylistData(data);
-        state.playContext={type:'playlist', index:0, playlistId:playlist.id};
-        document.querySelectorAll('.playlist-tab').forEach(tab=>tab.classList.toggle('active',tab.dataset.tab==='playlists'));
-        renderPlaylistOptions();
-        dom.playlistSelect.value=playlist.id;
+        const checked=await verifyImportData(data,controller,stats=>{
+          const progress=$('import-check-progress');progress.max=stats.total;progress.value=stats.checked;
+          $('import-check-status').textContent=`第 2 步：已检查 ${stats.checked} / ${stats.total} 首（${Math.floor(stats.checked/stats.total*100)}%） · 原曲可播 ${stats.passed} · 已替换 ${stats.replaced} · 待修复 ${stats.failed}\n${stats.active.join('\n')}`;
+        });
+        committing=true;const stat=importPlaylistData(checked.data);
+        const playlist=checked.data.playlists[0];
+        document.querySelectorAll('.playlist-tab').forEach(tab=>tab.classList.toggle('active',tab.dataset.tab===(playlist?'playlists':'favorites')));
+        if(playlist){
+          const target=state.playlists.find(pl=>pl.id===playlist.id)||state.playlists.find(pl=>pl.name===playlist.name);
+          if(target){dom.playlistSelect.value=target.id;state.playContext={type:'playlist',index:0,playlistId:target.id};}
+        }
         renderPlaylistList();
-        status.textContent=`已导入「${playlist.name}」：读取 ${playlist.tracks.length} 首，新增 ${stat.addedPlaylistTracks} 首歌单歌曲、${stat.addedFavorites} 首收藏。`+(data.warning?'\n'+data.warning:'');
+        const counts=checked.stats;
+        const summary=`${controller.signal.aborted?'已停止检查并保留结果':'导入检查完成'}：已检查 ${counts.checked} / ${counts.total} 首 · 原曲可播 ${counts.passed} · 已替换 ${counts.replaced} · 待修复 ${counts.failed} · 未检查 ${counts.pending}。`;
+        $('import-check-status').textContent=summary;
+        status.textContent=`已导入${playlist?'「'+playlist.name+'」':''}：读取 ${counts.total} 首，新增 ${stat.addedPlaylistTracks} 首歌单歌曲、${stat.addedFavorites} 首收藏。\n${summary}`+(data.warning?'\n'+data.warning:'');
+        const list=$('import-check-failures-list');list.innerHTML='';
+        checked.failures.forEach(track=>{const item=document.createElement('li');item.textContent=`${track.title} — ${track.artist||'未知歌手'}（${track.source}）：未找到可播放的同版本替代，已保留原曲。`;list.appendChild(item);});
+        $('import-check-failures-title').textContent=`待修复歌曲（${checked.failures.length} 首）`;
+        $('import-check-failures').hidden=!checked.failures.length;
+        return true;
       }catch(error){
-        status.textContent=error.userMessage || error.message || '导入失败，请稍后重试。';
+        const message=error.name==='NotAllowedError'?'浏览器阻止了后台试播。请保持页面在前台，点击导入重试；未修改歌单。':controller.signal.aborted?'已停止读取，未修改歌单。':error.userMessage||error.message||'导入检查失败，请重试。';
+        status.textContent=message;$('import-check-status').textContent=message+(committing?' 导入过程中发生错误，请检查当前歌单。':'');return false;
       }finally{
-        button.disabled=false;
+        controller.abort();importController=null;$('stop-import-check').disabled=true;
+        controls.forEach((id,index)=>$(id).disabled=disabled[index]);
       }
     }
 
@@ -1639,9 +1767,13 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       const data=await readMusicJSON(musicApiUrl('/api/qq',{msg,mid}),signal);
       if(!data || typeof data!=='object' || !data.song_mid)throw musicError('musicServiceError');
       if(String(data.song_mid)!==mid || !sameRecording(track,{title:data.song_title||data.song_name,artist:data.singer_name}))throw musicError('musicMismatch');
-      const choices=track.preferCompatible
+      let choices=track.preferHighestQuality&&!track.preferCompatible
+        ? [['song_play_url_pq','LOSSLESS'],['song_play_url_sq','LOSSLESS'],['song_play_url_hq','HQ'],['song_play_url_standard','STD'],['song_play_url','UNKNOWN'],['song_play_url_fq','LOW']]
+        : track.preferCompatible
         ? [['song_play_url_standard','STD'],['song_play_url_hq','HQ'],['song_play_url','320K'],['song_play_url_fq','LOW']]
         : [['song_play_url_hq','HQ'],['song_play_url_standard','STD'],['song_play_url','320K'],['song_play_url_sq','LOSSLESS'],['song_play_url_pq','LOSSLESS'],['song_play_url_fq','LOW']];
+      if(track.preferredAudioQuality&&!track.preferCompatible)choices=[...choices.filter(([key])=>key===track.preferredAudioQuality),...choices.filter(([key])=>key!==track.preferredAudioQuality)];
+      track.audioOptions=choices.filter(([key])=>mediaUrl(data[key])).map(([key,label])=>({audioUrl:mediaUrl(data[key]),quality:label==='LOSSLESS'?'lossless':'normal',qualityLabel:label,preferredAudioQuality:key}));
       const best=choices.find(([key])=>mediaUrl(data[key]));
       if(!best)throw musicError('musicNoAudio');
       Object.assign(track,{
@@ -1735,12 +1867,17 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       }
 
       async function pickJooxPlayUrl(links){
-        const order=['MP3 320','AAC 192','OGG 320','无损FLAC','OGG 192','MP3 128','AAC 96','AAC 48'];
+        let order=track.preferHighestQuality?['无损FLAC','MP3 320','OGG 320','AAC 192','OGG 192','MP3 128','AAC 96','AAC 48']:['MP3 320','AAC 192','OGG 320','无损FLAC','OGG 192','MP3 128','AAC 96','AAC 48'];
+        if(track.preferredAudioQuality)order=[...order.filter(name=>name===track.preferredAudioQuality),...order.filter(name=>name!==track.preferredAudioQuality)];
+        track.audioOptions=order.filter(name=>mediaUrl(links[name])).map(name=>{
+          const lossless=/无损|flac/i.test(name),bitrate=name.match(/(\d+)$/)?.[1];
+          return {audioUrl:mediaUrl(links[name]),quality:lossless?'lossless':bitrate+'k',qualityLabel:lossless?'LOSSLESS':bitrate+'K',preferredAudioQuality:name};
+        });
         for(const name of order){
           if(signal?.aborted)throw signal.reason;
           const u=links[name];
           if(!u)continue;
-          if(!(await probeJooxAudioUrl(u)))continue;
+          if(!track.preferHighestQuality&&!(await probeJooxAudioUrl(u)))continue;
           if(/母带|无损|flac|hi-res|atmos/i.test(name) || /\.flac(?:\?|$)/i.test(u)){
             return {url:u, tag:'lossless', label:'LOSSLESS', text:name};
           }
@@ -2449,6 +2586,9 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         const txt=document.createElement('span'); txt.textContent=t(key);
         sSpan.appendChild(dot);sSpan.appendChild(txt);
         sub.appendChild(aSpan);sub.appendChild(sSpan);
+        if(['unavailable','pending'].includes(track.importCheck)){
+          const check=document.createElement('span');check.textContent=track.importCheck==='unavailable'?'待修复':'未检查';sub.appendChild(check);
+        }
         meta.appendChild(title);meta.appendChild(sub);
 
         const act=document.createElement('div');
@@ -2639,25 +2779,32 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       $('rebuild-status').textContent=`已检查 ${job.results.length} / ${job.tracks.length} 首 · 原曲通过 ${passed} · 搜索替换 ${replaced} · 未解决 ${job.results.length-passed-replaced}\n${detail}`;
     }
 
-    async function probeRecording(track){
-      const candidate={...track,audioUrl:null,detailsLoaded:false,lrc:null};
-      if(candidate.source==='netease')await fetchNeteaseDetails(candidate,false);
-      else await ensureTrackDetails(candidate);
+    async function probeRecording(track,{signal,silent=false,useLoaded=false}={}){
+      const checkSignal=signal?AbortSignal.any([signal,AbortSignal.timeout(35000)]):null;
+      if(checkSignal?.aborted)throw checkSignal.reason;
+      const candidate=useLoaded?{...track}:{...track,audioUrl:null,detailsLoaded:false,lrc:null};
+      if(!useLoaded)await ensureTrackDetails(candidate,{silent,signal:checkSignal});
+      if(checkSignal?.aborted)throw checkSignal.reason;
       if(!sameRecording(track,candidate))throw new Error('详情返回了不同歌名或歌手');
       if(!candidate.audioUrl)throw new Error('未取得播放地址');
       await new Promise((resolve,reject)=>{
         const audio=new Audio();
         audio.muted=true;
+        audio.playsInline=true;audio.preload='auto';
         audio.playbackRate=4;
         let seeking=false, sampleStart=0, finished=false;
         const finish=error=>{
           if(finished)return;
           finished=true; clearTimeout(timer);
+          checkSignal?.removeEventListener('abort',abort);
+          audio.onerror=null;audio.ontimeupdate=null;audio.onloadedmetadata=null;
           audio.pause(); audio.removeAttribute('src'); audio.load();
           error ? reject(error) : resolve();
         };
+        const abort=()=>finish(checkSignal.reason);
         const timer=setTimeout(()=>finish(new Error('音频加载或播放超时')),18000);
-        audio.onerror=()=>finish(new Error('浏览器无法解码或访问音频'));
+        checkSignal?.addEventListener('abort',abort,{once:true});
+        audio.onerror=()=>{const error=new Error('浏览器无法解码或访问音频');error.mediaCode=audio.error?.code;finish(error);};
         audio.ontimeupdate=()=>{
           if(!Number.isFinite(audio.duration)||audio.duration<45)return;
           if(!seeking && audio.currentTime>=1){
@@ -2670,7 +2817,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
           if(!Number.isFinite(audio.duration)||audio.duration<45)finish(new Error('音源不足45秒，可能是试听片段'));
         };
         audio.src=candidate.audioUrl;
-        audio.play().catch(finish);
+        try{audio.play().catch(finish);}catch(error){finish(error);}
       });
       return candidate;
     }
@@ -2816,6 +2963,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       $('import-platform').addEventListener('change',renderImportPlatform);
       $('choose-import-file').addEventListener('click',()=>dom.importPlaylistInput.click());
       $('confirm-import-file').addEventListener('click',confirmImportFile);
+      $('stop-import-check').addEventListener('click',()=>importController?.abort());
       $('download-import-example').addEventListener('click',downloadImportExample);
       $('import-link-close').addEventListener('click',()=>$('import-link-dialog').close());
       $('import-link-form').addEventListener('submit',importPlaylistLink);
