@@ -47,36 +47,36 @@ const payload=tracks=>({version:1,favorites:[],playlists:[{id:'example-list',nam
  const progress=[],data=payload([original('original-qq'),{...original('good-netease','netease'),title:'Other Song'}]);data.favorites=[data.playlists[0].tracks[0]];
  const checked=await a.verifyImportData(data,new AbortController(),stats=>progress.push(stats));
  assert.equal(checked.stats.total,2,'A song in both favorites and a playlist is checked once');assert.equal(checked.stats.replaced,1);assert.equal(checked.stats.passed,1);assert.equal(checked.stats.pending,0);
- assert.equal(checked.data.playlists[0].tracks[0].uid,'kuwo-choice');assert.equal(checked.data.playlists[0].tracks[0].importOriginalUid,'original-qq');assert.equal(checked.data.playlists[0].tracks[0].qualityLabel,'LOSSLESS');
- assert(attempted.indexOf('https://cdn.example/broken-flac')<attempted.indexOf('https://cdn.example/kuwo-choice'));
+ assert.equal(checked.data.playlists[0].tracks[0].uid,'qq-choice');assert.equal(checked.data.playlists[0].tracks[0].importOriginalUid,'original-qq');assert.equal(checked.data.playlists[0].tracks[0].qualityLabel,'HQ');
+ assert(attempted.indexOf('https://cdn.example/broken-flac')<attempted.indexOf('https://cdn.example/qq-hq'));
  assert.equal(compatibleLoads,0,'Do not wait for lower-tier addresses when lossless is playable');
- assert(!attempted.includes('https://cdn.example/qq-hq'),'Never pick a lower quality before trying another available lossless source');
+ assert(!attempted.includes('https://cdn.example/kuwo-choice'),'Prefer a playable NetEase/QQ exact version before other sources');
  assert(!loaded.includes('wrong-version')&&!loaded.includes('wrong-singer'));assert.equal(a.state.searchResults.length,0,'Repair searches must not overwrite the user search');
  assert.equal(data.playlists[0].tracks[0].uid,'original-qq','Verification must not mutate input data');
  assert.equal(progress.at(-1).checked,2);assert(progress.some(item=>item.active.some(text=>text.includes('比较候选音质'))));
 
- // Playable NetEase and QQ originals must still compare all five sources, regardless of search checkboxes.
+ // Compare NetEase and QQ exact versions first, regardless of the manual search checkboxes.
  const savedEnabled=a.state.enabledSources;a.state.enabledSources={netease:false,qq:false,kuwo:false,joox:false,kugou:false};
  for(const source of ['netease','qq']){
    const base={...original('playable-'+source,source),quality:'128k'};
-   const target=source==='netease'?'qq':'kuwo',seenSources=new Set();
+   const target=source==='netease'?'qq':'netease',seenSources=new Set();
    const better={...original(target+'-lossless',target),tier:'lossless'};
    a.providers(async(name,keyword,pool)=>{seenSources.add(name);if(name===target&&!pool.trackMap.has(better.uid)){pool.trackMap.set(better.uid,better);pool.searchResults.push({...better});}});
    a.details(async track=>Object.assign(track,{audioUrl:'https://cdn.example/'+track.uid,quality:track.tier==='lossless'?'lossless':'128k',qualityLabel:track.tier==='lossless'?'LOSSLESS':'STD'}));
    a.probe(async(track,options)=>options.useLoaded?{...track}:{...track,audioUrl:'https://cdn.example/'+track.uid,quality:'128k',qualityLabel:'STD'});
    const upgraded=await a.verifyImportData(payload([base]),new AbortController(),()=>{});
-   assert.equal(seenSources.size,5);assert.equal(upgraded.data.playlists[0].tracks[0].source,target);assert.equal(upgraded.data.playlists[0].tracks[0].quality,'lossless');assert.equal(upgraded.stats.replaced,1);assert.equal(upgraded.stats.passed,0);assert.equal(upgraded.data.playlists[0].tracks[0].importOriginalUid,base.uid);
+   assert.equal(seenSources.size,2);assert.equal(upgraded.data.playlists[0].tracks[0].source,target);assert.equal(upgraded.data.playlists[0].tracks[0].quality,'lossless');assert.equal(upgraded.stats.replaced,1);assert.equal(upgraded.stats.passed,0);assert.equal(upgraded.data.playlists[0].tracks[0].importOriginalUid,base.uid);
  }
  a.state.enabledSources=savedEnabled;
- // Opting out still checks all sources for original-singer evidence, but does not compare quality if unresolved.
+ // Opting out keeps a playable original without unnecessary searching.
  let legacySearches=0;a.providers(async()=>{legacySearches++;throw Error('Unexpected cross-source search');});
  a.probe(async track=>({...track,audioUrl:'https://cdn.example/original.mp3',quality:'128k'}));
  const legacy=await a.verifyImportData(payload([original('legacy','netease')]),new AbortController(),()=>{},{compareAll:false});
- assert.equal(legacySearches,5);assert.equal(legacy.stats.originalUnconfirmed,1);assert.equal(legacy.stats.passed,1);assert.equal(legacy.data.playlists[0].tracks[0].uid,'legacy');assert.equal(legacy.data.playlists[0].tracks[0].quality,'128k');
+ assert.equal(legacySearches,0);assert.equal(legacy.stats.passed,1);assert.equal(legacy.data.playlists[0].tracks[0].uid,'legacy');assert.equal(legacy.data.playlists[0].tracks[0].quality,'128k');
  // With the option off, a failed original still falls back to all five sources.
  const rescueSources=new Set();const rescue={...original('rescue','kuwo'),tier:'lossless'};
  a.providers(async(name,keyword,pool)=>{rescueSources.add(name);if(name==='kuwo'&&!pool.trackMap.has(rescue.uid)){pool.trackMap.set(rescue.uid,rescue);pool.searchResults.push({...rescue});}});
- a.details(async track=>Object.assign(track,{audioUrl:'https://cdn.example/'+track.uid,quality:track.tier==='lossless'?'lossless':'128k'}));
+ a.details(async track=>{if(track.uid==='broken')throw Error('Original unavailable');Object.assign(track,{audioUrl:'https://cdn.example/'+track.uid,quality:track.tier==='lossless'?'lossless':'128k'});});
  a.probe(async(track,options)=>{if(!options.useLoaded)throw Error('Original unavailable');return {...track};});
  const rescued=await a.verifyImportData(payload([original('broken','netease')]),new AbortController(),()=>{},{compareAll:false});
  assert.equal(rescueSources.size,5);assert.equal(rescued.stats.replaced,1);assert.equal(rescued.data.playlists[0].tracks[0].source,'kuwo');
@@ -195,7 +195,7 @@ const payload=tracks=>({version:1,favorites:[],playlists:[{id:'example-list',nam
  const old=original('original-qq'),unrelated={...original('unrelated'),title:'Other'};
  a.state.favorites=[unrelated];a.state.playlists=[{id:'example-list',name:'Example',tracks:[old,unrelated]}];a.state.trackMap=new Map([[old.uid,old],[unrelated.uid,unrelated]]);
  a.importPlaylistData(checked.data);
- assert.equal(a.state.playlists[0].tracks.length,3);assert.equal(a.state.playlists[0].tracks[0].uid,'kuwo-choice');assert(a.state.playlists[0].tracks.includes(unrelated));
+ assert.equal(a.state.playlists[0].tracks.length,3);assert.equal(a.state.playlists[0].tracks[0].uid,'qq-choice');assert(a.state.playlists[0].tracks.includes(unrelated));
  a.importPlaylistData(checked.data);assert.equal(a.state.playlists[0].tracks.length,3,'Re-import never appends another replacement');
  const upgraded={...checked.data.playlists[0].tracks[0],uid:'higher-quality',songid:'higher-quality'};
  a.importPlaylistData(payload([upgraded]));assert.equal(a.state.playlists[0].tracks[0].uid,'higher-quality');assert.equal(a.state.playlists[0].tracks.length,3);
@@ -213,10 +213,16 @@ const payload=tracks=>({version:1,favorites:[],playlists:[{id:'example-list',nam
  assert(await a.runVerifiedImport(async()=>({version:1,favorites:[doomed],playlists:[]}),node('status')));
  assert.equal(a.state.favorites.length,1);assert.equal(a.state.favorites[0].uid,'saved');assert.equal(JSON.parse(storage.get('liusheng-library-v1')).favorites[0].uid,'saved');assert(node('status').textContent.includes('已移除 1'));
 
+ const coverRow={...original('old-cover'),title:'Song (cover Original Singer)',artist:'Cover Singer'};
+ const originalRow={...original('true-original'),artist:'Original Singer',importOriginalUid:coverRow.uid,originalArtist:'Original Singer',originalArtistStatus:'identified',importCheck:'playable'};
+ a.state.favorites=[coverRow];a.state.trackMap.set(coverRow.uid,coverRow);
+ a.importPlaylistData({favorites:[originalRow],playlists:[]});
+ assert.equal(a.state.favorites.length,1,'A verified original-singer fallback replaces the unavailable old entry instead of appending a duplicate');
+ assert.equal(a.state.favorites[0].uid,'true-original');
  a.probe(async()=>{const error=new Error('Autoplay blocked');error.name='NotAllowedError';throw error;});
  const before=JSON.stringify(a.state.playlists);
  assert.equal(await a.runVerifiedImport(async()=>payload([original('blocked')]),node('status')),false);
  assert.equal(JSON.stringify(a.state.playlists),before);assert(node('status').textContent.includes('浏览器阻止'));
  assert(node('stop-import-check').disabled);assert(!node('import-link-submit').disabled);
- console.log('通过：原曲可播仍跨全部五源择优、取消音质优选仍识别原唱、原平台音质升级及可播原曲兜底、网易/QQ共同检查、实际开头及中段播放、静音/取消清理、电脑12/手机8路检查、替换搜索单独限流、音质排序和高音质失败降级、版本歌手保护、总数与完成进度、同档并行取消慢地址、低档延迟查询、失败移除、停止保留未检查、重复导入替换不重复、后台搜索隔离及自动播放受阻保护。');
+ console.log('通过：网易云与QQ原版本优先择优、取消音质优选保留可播原曲、原平台音质升级及可播原曲兜底、网易/QQ共同检查、实际开头及中段播放、静音/取消清理、电脑12/手机8路检查、替换搜索单独限流、音质排序和高音质失败降级、版本歌手保护、总数与完成进度、同档并行取消慢地址、低档延迟查询、失败移除、停止保留未检查、重复导入替换不重复、后台搜索隔离及自动播放受阻保护。');
 })().catch(error=>{console.error(error);process.exitCode=1;});
