@@ -13,7 +13,7 @@ function boot(fetch,storage=new Map()){
       setRequest:value=>playbackRequest=value,stubDetails:()=>ensureTrackDetails=async()=>{}};
   })();`);
   const node=()=>({style:{},classList:{add(){},remove(){},toggle(){}},appendChild(){},addEventListener(){}});
-  const context=vm.createContext({console,URLSearchParams,AbortSignal,AbortController,fetch,location:{hostname:'dukewen04.github.io',port:''},
+  const context=vm.createContext({console,URL,URLSearchParams,AbortSignal,AbortController,setTimeout,clearTimeout,fetch,location:{hostname:'dukewen04.github.io',port:''},
     document:{addEventListener(){},getElementById:node,createElement:node,querySelector:()=>null},
     localStorage:{getItem:key=>storage.get(key),setItem:(key,value)=>storage.set(key,value)}});
   vm.runInContext(script,context);

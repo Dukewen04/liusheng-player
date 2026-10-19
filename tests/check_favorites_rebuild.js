@@ -15,7 +15,7 @@ const element = id => {
 };
 const storage = new Map();
 const tabs = ['results','favorites','playlists'].map(tab=>({dataset:{tab},classList:{toggle(){}}}));
-const context = vm.createContext({console, URLSearchParams, document:{
+const context = vm.createContext({console, URL, URLSearchParams, document:{
   addEventListener(){}, getElementById:element, querySelectorAll:()=>tabs
 }, localStorage:{setItem:(k,v)=>storage.set(k,v),getItem:k=>storage.get(k)}});
 vm.runInContext(script, context);

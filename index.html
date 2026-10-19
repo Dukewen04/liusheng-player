@@ -1216,11 +1216,11 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       if(sameRecording(target,{title:other.title,artist:candidate.artist}))return 2;
       return sameRecording({...target,artist:original.artist},{title:other.title,artist:candidate.artist})?1:0;
     }
-    async function findBestImportRecording(original,parentSignal,onStage,verifiedOriginal=null,{compareAll=true}={}){
+    async function findBestImportRecording(original,parentSignal,onStage,verifiedOriginal=null,{compareAll=true,failedAudioUrl=null}={}){
       if(parentSignal.aborted)throw parentSignal.reason;
       const unchanged=track=>{
         if(!track)return null;
-        const result={...track,title:original.title,artist:original.artist};
+        const result={...track,...track.audioOptions?.find(option=>option.audioUrl===track.audioUrl),title:original.title,artist:original.artist};
         if(track.title!==original.title||track.artist!==original.artist){
           result.sourceTitle=track.sourceTitle||track.title;result.sourceArtist=track.sourceArtist||track.artist;result.sourceAlbum=track.sourceAlbum||track.album||'';
         }
@@ -1228,33 +1228,49 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         delete result.originalArtistStatus;
         return result;
       };
-      if(!compareAll&&verifiedOriginal)return unchanged(verifiedOriginal);
+      if(verifiedOriginal&&(!compareAll||(['netease','qq'].includes(verifiedOriginal.source)&&importQualityRank(verifiedOriginal)===10000)))return unchanged(verifiedOriginal);
       const seed={...(verifiedOriginal||original)};
-      const pool={searchResults:[seed],trackMap:new Map([[seed.uid,seed]]),sourceErrors:{},transientErrors:[],signal:parentSignal};
+      const pool={searchResults:[seed],trackMap:new Map([[seed.uid,seed]]),sourceErrors:{},transientErrors:[],attempted:new Set(failedAudioUrl?[failedAudioUrl]:[]),signal:parentSignal};
       const unavailable=()=>{
         if(Object.keys(pool.sourceErrors).length||pool.transientErrors.length)throw temporaryMusicError('音源限流、网络或服务错误，暂未完成验证；已保留原歌曲。');
         return null;
       };
-      const primary=[keyword=>searchNetease(keyword,1,20,pool),keyword=>searchQQ(keyword,20,pool)];
-      const others=[keyword=>searchKuwo(keyword,20,pool),keyword=>searchJoox(keyword,20,pool),keyword=>searchKugou(keyword,20,pool)];
-      async function search(providers,keywords){
+      const primary=[(keyword,target)=>searchNetease(keyword,1,20,target),(keyword,target)=>searchQQ(keyword,20,target)];
+      const others=[(keyword,target)=>searchKuwo(keyword,20,target),(keyword,target)=>searchJoox(keyword,20,target),(keyword,target)=>searchKugou(keyword,20,target)];
+      async function search(providers,keywords,target=pool){
         await Promise.allSettled(providers.map(async provider=>{
           for(const keyword of new Set(keywords)){
-            if(parentSignal.aborted)throw parentSignal.reason;
-            await provider(keyword);
+            if(target.signal.aborted)throw target.signal.reason;
+            await provider(keyword,target);
           }
         }));
         if(parentSignal.aborted)throw parentSignal.reason;
       }
       const keywords=[`${original.title} ${String(original.artist||'').replace(/[/&,、，]/g,' ')}`.trim(),original.title];
+      async function searchAndSelect(providers,sources,verified){
+        if(verified&&importQualityRank(verified)===10000)return verified;
+        const controller=new AbortController(),phase={...pool,signal:AbortSignal.any([parentSignal,controller.signal])};
+        const jobs=providers.map((provider,index)=>search([provider],keywords,phase).then(()=>({index}),error=>({index,error})));
+        const pending=new Set(jobs.map((_,index)=>index));
+        let best=verified;
+        try{
+          while(pending.size){
+            const done=await Promise.race([...pending].map(index=>jobs[index]));pending.delete(done.index);
+            if(parentSignal.aborted)throw parentSignal.reason;
+            if(done.error?.retryable)pool.transientErrors.push(done.error);
+            const selected=await selectImportRecording(original,parentSignal,onStage,best,pool,{sources});
+            if(selected&&(!best||importQualityRank(selected)>=importQualityRank(best)))best=selected;
+            if(best&&importQualityRank(best)===10000)return best;
+          }
+          return best;
+        }finally{controller.abort();}
+      }
       onStage('按原歌名和歌手匹配网易云 / QQ');
-      await search(primary,keywords);
-      const preferred=await selectImportRecording(original,parentSignal,onStage,
-        ['netease','qq'].includes(verifiedOriginal?.source)?verifiedOriginal:null,pool,{sources:['netease','qq']});
+      const preferred=await searchAndSelect(primary,['netease','qq'],
+        ['netease','qq'].includes(verifiedOriginal?.source)?verifiedOriginal:null);
       if(preferred)return unchanged(preferred);
       onStage('在其他音源保留原版本');
-      await search(others,keywords);
-      const sameVersion=await selectImportRecording(original,parentSignal,onStage,verifiedOriginal,pool);
+      const sameVersion=await searchAndSelect(others,null,verifiedOriginal);
       if(sameVersion)return unchanged(sameVersion);
       if(Object.keys(pool.sourceErrors).length||pool.transientErrors.length)return unavailable();
       onStage('原版本不可播，定位原唱');
@@ -1280,7 +1296,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       const matchesRecording=track=>(!sources||sources.includes(track.source))&&
         (originalSinger?importFallbackRank(original,track)===2:sameImportRecording(original,track));
       const verified=verifiedOriginal?.audioUrl?{...verifiedOriginal,...verifiedOriginal.audioOptions?.find(option=>option.audioUrl===verifiedOriginal.audioUrl),preferHighestQuality:true}:null;
-      const matches=pool.searchResults.filter(matchesRecording),choices=verified?[verified]:[],compatible=[],attempted=new Set();
+      const matches=pool.searchResults.filter(matchesRecording),choices=verified?[verified]:[],compatible=[],attempted=pool.attempted;
       let next=0,best=null,probeFatal=null;
       await Promise.all(Array.from({length:Math.min(2,matches.length)},async()=>{
         while(next<matches.length&&!signal.aborted){
@@ -1290,6 +1306,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
           try{
             await ensureTrackDetails(track,{silent:true,signal:AbortSignal.any([signal,AbortSignal.timeout(20000)])});
             if(!matchesRecording(track))continue;
+            Object.assign(raw,track);
             const options=track.audioOptions?.length?track.audioOptions:[track];
             options.forEach(option=>choices.push({...track,...option}));
             // A playable lossless candidate is already the highest tier; cancel other lookups.
@@ -1362,11 +1379,11 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       const active=new Map(),selectionQueue=[];let next=0,fatal=null,selecting=0;
       const cancelSelections=()=>selectionQueue.splice(0).forEach(waiter=>waiter.reject(signal.reason));
       signal.addEventListener('abort',cancelSelections,{once:true});
-      async function selectBest(original,stage,verifiedOriginal){
+      async function selectBest(original,stage,verifiedOriginal,failedAudioUrl){
         if(signal.aborted)throw signal.reason;
         if(selecting>=6){stage('等待跨源音质比较');await new Promise((resolve,reject)=>selectionQueue.push({resolve,reject}));}
         else selecting++;
-        try{if(signal.aborted)throw signal.reason;return await findBestImportRecording(original,signal,stage,verifiedOriginal,{compareAll});}
+        try{if(signal.aborted)throw signal.reason;return await findBestImportRecording(original,signal,stage,verifiedOriginal,{compareAll,failedAudioUrl});}
         finally{const waiter=selectionQueue.shift();if(waiter)waiter.resolve();else selecting--;}
       }
       const update=()=>onProgress({...stats,active:[...active.values()]});
@@ -1375,12 +1392,12 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         while(next<originals.length&&!signal.aborted){
           const original=originals[next++],name=`${original.title} — ${original.artist||'未知歌手'}`;
           const stage=text=>{active.set(original.uid,`${text}：${name}`);update();};
-          stage('检查原曲');let selected=null,replaced=false;
+          stage(compareAll?'检查原曲最高可用音质':'检查原曲');let selected=null,replaced=false;
           try{
             let verifiedOriginal=null,originalError=null;
-            try{verifiedOriginal=await probeRecording(original,{signal,silent:true});}
+            try{verifiedOriginal=await probeRecording(compareAll?{...original,preferHighestQuality:true,preferCompatible:false,preferredAudioQuality:null}:original,{signal,silent:true});}
             catch(error){if(signal.aborted||error.name==='NotAllowedError')throw error;originalError=error;}
-            selected=await selectBest(original,stage,verifiedOriginal);
+            selected=await selectBest(original,stage,verifiedOriginal,originalError?.failedAudioUrl);
             if(!selected&&(originalError?.retryable||originalError?.name==='TimeoutError'))throw temporaryMusicError(originalError.message);
             replaced=Boolean(selected&&selected.uid!==original.uid);
             if(signal.aborted)break;
@@ -1547,6 +1564,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
     }
     let qqBusy=false,qqNextRequest=0,qqBlockedUntil=0;
     const qqWaiters=[];
+    const importRequestCache=new Map(),musicServiceCooldowns=new Map();
     function musicDelay(ms,signal){
       if(!ms)return signal?.aborted?Promise.reject(signal.reason):Promise.resolve();
       return new Promise((resolve,reject)=>{
@@ -1559,6 +1577,12 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
     }
 
     async function readMusicJSON(url,signal){
+      const cacheKey=String(url),cached=importController&&importRequestCache.get(cacheKey);
+      if(signal?.aborted)throw signal.reason;
+      if(cached&&cached.expires>Date.now())return JSON.parse(cached.json);
+      const serviceURL=new URL(url,'https://player.local'),serviceKey=serviceURL.origin+serviceURL.pathname;
+      if(importController&&Date.now()<(musicServiceCooldowns.get(serviceKey)||0))throw temporaryMusicError('音源暂时不可用，正在使用其他音源。');
+      const attempts=importController?1:2;
       const qq=/tang\.api\.s01s\.cn\/music_open_api\.php|\/api\/qq(?:\?|$)/.test(String(url));
       if(signal?.aborted)throw signal.reason;
       const limited=()=>temporaryMusicError('QQ 接口请求过于频繁，已暂停该接口；歌曲保留，稍后可重试。');
@@ -1574,19 +1598,20 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       try{
         if(qq){
           if(Date.now()<qqBlockedUntil)throw limited();
+          if(importController&&Date.now()<(musicServiceCooldowns.get(serviceKey)||0))throw temporaryMusicError('音源暂时不可用，正在使用其他音源。');
           await musicDelay(Math.max(0,qqNextRequest-Date.now()),signal);
           qqNextRequest=Date.now()+450;
         }
-        for(let attempt=0;attempt<2;attempt++){
+        for(let attempt=0;attempt<attempts;attempt++){
           let response;
           try{response=await fetch(url,{signal:signal?AbortSignal.any([signal,AbortSignal.timeout(8000)]):AbortSignal.timeout(8000)});}
-          catch(error){if(signal?.aborted)throw signal.reason;if(attempt===0)continue;throw musicError('musicNetworkError');}
+          catch(error){if(signal?.aborted)throw signal.reason;if(attempt+1<attempts)continue;throw musicError('musicNetworkError');}
           if(response.status===429){
             if(qq)qqBlockedUntil=Date.now()+15000;
             throw qq?limited():temporaryMusicError('音乐接口限流，请稍后重试。');
           }
           if(!response.ok){
-            if(response.status>=500 && attempt===0)continue;
+            if(response.status>=500 && attempt+1<attempts)continue;
             throw musicError('musicServiceError');
           }
           try{
@@ -1604,9 +1629,18 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
               throw qq?limited():temporaryMusicError('音乐接口限流，请稍后重试。');
             }
             if(Number(data?.code)<0)throw musicError('musicServiceError');
+            if(importController){
+              importRequestCache.delete(cacheKey);
+              importRequestCache.set(cacheKey,{json:JSON.stringify(data),expires:Date.now()+60000});
+              if(importRequestCache.size>256)importRequestCache.delete(importRequestCache.keys().next().value);
+              musicServiceCooldowns.delete(serviceKey);
+            }
             return data;
           }catch(error){if(signal?.aborted)throw signal.reason;if(error.retryable)throw error;throw musicError('musicServiceError');}
         }
+      }catch(error){
+        if(importController&&error.retryable&&!signal?.aborted&&Date.now()>=(musicServiceCooldowns.get(serviceKey)||0))musicServiceCooldowns.set(serviceKey,Date.now()+(qq?15000:30000));
+        throw error;
       }finally{
         if(qq){const next=qqWaiters.shift();if(next)next.resolve();else qqBusy=false;}
       }
@@ -3048,7 +3082,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         };
         audio.src=candidate.audioUrl;
         try{audio.play().catch(finish);}catch(error){finish(error);}
-      });
+      }).catch(error=>{if(error&&typeof error==='object'&&Object.isExtensible(error))error.failedAudioUrl=candidate.audioUrl;throw error;});
       return candidate;
     }
 

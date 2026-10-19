@@ -29,6 +29,9 @@ const payload=tracks=>({version:1,favorites:[],playlists:[{id:'example-list',nam
  const stopAudio=new AbortController();
  const stoppedAudio=a.probeRecording({...original('hang'),audioUrl:'https://cdn.example/hang'},{signal:stopAudio.signal,silent:true,useLoaded:true});
  stopAudio.abort();await assert.rejects(stoppedAudio,error=>error.name==='AbortError');assert(audioInstances.at(-1).paused);
+ const AudioClass=c.Audio;c.Audio=class extends AudioClass{play(){return Promise.reject(new Error('Audio unavailable'));}};
+ await assert.rejects(a.probeRecording(original('failed-audio'),{signal:new AbortController().signal,silent:true}),error=>error.failedAudioUrl==='https://cdn.example/good');
+ c.Audio=AudioClass;
 
  const candidates=[{...original('wrong-version'),title:'Song (Live)',tier:'lossless'},
    {...original('wrong-singer'),artist:'Other Singer',tier:'lossless'},
@@ -81,13 +84,13 @@ const payload=tracks=>({version:1,favorites:[],playlists:[{id:'example-list',nam
  const rescued=await a.verifyImportData(payload([original('broken','netease')]),new AbortController(),()=>{},{compareAll:false});
  assert.equal(rescueSources.size,5);assert.equal(rescued.stats.replaced,1);assert.equal(rescued.data.playlists[0].tracks[0].source,'kuwo');
 
- // A compatible-tier preference on the original must not hide that source's lossless options.
+ // Bulk quality selection checks the highest tier first, ignoring an old compatible preference.
  a.searches(async()=>{});let refreshed=false;
  const compatibleOriginal={...original('same-source'),preferCompatible:true};
- a.details(async track=>{assert(!track.preferCompatible);assert.equal(track.detailsLoaded,false);refreshed=true;Object.assign(track,{audioUrl:'https://cdn.example/sq.flac',quality:'lossless',qualityLabel:'LOSSLESS',audioOptions:[{audioUrl:'https://cdn.example/sq.flac',quality:'lossless',qualityLabel:'LOSSLESS',preferredAudioQuality:'song_play_url_sq'}]});});
- a.probe(async(track,options)=>options.useLoaded?{...track}:{...track,audioUrl:'https://cdn.example/std.mp3',qualityLabel:'STD',quality:'normal',detailsLoaded:true,detailsExpiresAt:Date.now()+10000});
+ a.details(async()=>{refreshed=true;throw Error('Unexpected duplicate metadata request');});
+ a.probe(async track=>{assert(track.preferHighestQuality);assert(!track.preferCompatible);return {...track,audioUrl:'https://cdn.example/sq.flac',quality:'lossless',qualityLabel:'LOSSLESS',audioOptions:[{audioUrl:'https://cdn.example/sq.flac',quality:'lossless',qualityLabel:'LOSSLESS',preferredAudioQuality:'song_play_url_sq'}]};});
  const ownUpgrade=await a.verifyImportData(payload([compatibleOriginal]),new AbortController(),()=>{});
- assert(refreshed);assert.equal(ownUpgrade.stats.passed,1);assert.equal(ownUpgrade.data.playlists[0].tracks[0].preferredAudioQuality,'song_play_url_sq');assert(!ownUpgrade.data.playlists[0].tracks[0].preferCompatible);
+ assert(!refreshed);assert.equal(ownUpgrade.stats.passed,1);assert.equal(ownUpgrade.data.playlists[0].tracks[0].preferredAudioQuality,'song_play_url_sq');assert(!ownUpgrade.data.playlists[0].tracks[0].preferCompatible);
  // Keep the already-tested original if higher tiers and other providers fail, without replaying it.
  let originalProbes=0;
  a.providers(async()=>{throw Error('Provider unavailable');});a.details(async()=>{throw Error('Details unavailable');});
@@ -121,7 +124,7 @@ const payload=tracks=>({version:1,favorites:[],playlists:[{id:'example-list',nam
  a.qqSearch(async keyword=>{slowQueries.push(keyword);if(slowQueries.length===1)await slowSearch;});
  const pipelined=a.findBestImportRecording(original('original'),new AbortController().signal,()=>{});
  await new Promise(resolve=>setImmediate(resolve));assert.equal(fastQueries.length,2);assert.equal(slowQueries.length,1);
- finishSlow();assert.equal((await pipelined).uid,'found');assert.equal(slowQueries.length,2);
+ assert.equal((await pipelined).uid,'found');finishSlow();await new Promise(resolve=>setImmediate(resolve));assert.equal(slowQueries.length,1,'Cancel the slow source before it starts another round after playable lossless is found');
  a.searches(async(keyword,page,limit,pool)=>{for(const track of racing)if(!pool.trackMap.has(track.uid)){pool.trackMap.set(track.uid,track);pool.searchResults.push({...track});}});
 
  // Do not drop to 320K while any lossless probe is still pending.
