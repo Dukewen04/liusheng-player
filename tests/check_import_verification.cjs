@@ -7,11 +7,12 @@ const c=vm.createContext({console,URL,URLSearchParams,AbortSignal,AbortControlle
   window:{scrollX:0,scrollY:240,scrollTo(x,y){this.scrollX=x;this.scrollY=y;}},document:{body:{style:{position:'',top:'',left:'',width:'',overflow:''}},documentElement:{style:{overflow:''}},getElementById:node,createElement:()=>({}),addEventListener(){},querySelectorAll:()=>[]},localStorage:{getItem:key=>storage.get(key),setItem:(key,value)=>storage.set(key,value)}});
 vm.runInContext(source.replace(/\}\)\(\);\s*$/,`
  renderPlaylistList=()=>{};renderPlaylistOptions=()=>{};updateMainFavButton=()=>{};
- globalThis.app={state,dom,verifyImportData,findImportReplacement,importQualityRank,probeRecording,runVerifiedImport,importPlaylistData,serializeTrack,removeUnavailableImports,loadLibraryFromStorage,importWorkerLimit,showImportDialog,restoreImportScroll,
+ globalThis.app={state,dom,verifyImportData,findBestImportRecording,importQualityRank,probeRecording,runVerifiedImport,importPlaylistData,serializeTrack,removeUnavailableImports,loadLibraryFromStorage,importWorkerLimit,showImportDialog,restoreImportScroll,
    probe:fn=>probeRecording=fn,details:fn=>ensureTrackDetails=fn,
+   providers:fn=>{searchNetease=(k,p,n,pool)=>fn('netease',k,pool);searchQQ=(k,n,pool)=>fn('qq',k,pool);searchKuwo=(k,n,pool)=>fn('kuwo',k,pool);searchJoox=(k,n,pool)=>fn('joox',k,pool);searchKugou=(k,n,pool)=>fn('kugou',k,pool);},
    qqSearch:fn=>searchQQ=fn,searches:fn=>{searchNetease=fn;searchQQ=async()=>{};searchKuwo=async()=>{};searchJoox=async()=>{};searchKugou=async()=>{};}};
 })();`),c);
-const a=c.app;
+const a=c.app;node('import-compare-all').checked=true;
 const original=(uid,source='qq')=>({uid,source,songid:uid,title:'Song',artist:'Singer'});
 const payload=tracks=>({version:1,favorites:[],playlists:[{id:'example-list',name:'Example',tracks}]});
 (async()=>{
@@ -43,7 +44,7 @@ const payload=tracks=>({version:1,favorites:[],playlists:[{id:'example-list',nam
    else Object.assign(track,{audioUrl:'https://cdn.example/'+track.uid+(track.preferCompatible?'-low':''),quality:track.preferCompatible?'normal':track.tier==='lossless'?'lossless':'320k',qualityLabel:track.preferCompatible?'STD':track.tier==='lossless'?'LOSSLESS':'320K'});
  });
  a.probe(async(track,{signal,silent})=>{assert(signal);assert(silent);attempted.push(track.audioUrl||track.uid);if(track.uid.startsWith('original')||track.audioUrl?.includes('broken'))throw Error('Unavailable');return {...track};});
- const progress=[],data=payload([original('original-qq'),original('good-netease','netease')]);data.favorites=[data.playlists[0].tracks[0]];
+ const progress=[],data=payload([original('original-qq'),{...original('good-netease','netease'),title:'Other Song'}]);data.favorites=[data.playlists[0].tracks[0]];
  const checked=await a.verifyImportData(data,new AbortController(),stats=>progress.push(stats));
  assert.equal(checked.stats.total,2,'A song in both favorites and a playlist is checked once');assert.equal(checked.stats.replaced,1);assert.equal(checked.stats.passed,1);assert.equal(checked.stats.pending,0);
  assert.equal(checked.data.playlists[0].tracks[0].uid,'kuwo-choice');assert.equal(checked.data.playlists[0].tracks[0].importOriginalUid,'original-qq');assert.equal(checked.data.playlists[0].tracks[0].qualityLabel,'LOSSLESS');
@@ -54,10 +55,53 @@ const payload=tracks=>({version:1,favorites:[],playlists:[{id:'example-list',nam
  assert.equal(data.playlists[0].tracks[0].uid,'original-qq','Verification must not mutate input data');
  assert.equal(progress.at(-1).checked,2);assert(progress.some(item=>item.active.some(text=>text.includes('比较候选音质'))));
 
+ // Playable NetEase and QQ originals must still compare all five sources, regardless of search checkboxes.
+ const savedEnabled=a.state.enabledSources;a.state.enabledSources={netease:false,qq:false,kuwo:false,joox:false,kugou:false};
+ for(const source of ['netease','qq']){
+   const base={...original('playable-'+source,source),quality:'128k'};
+   const target=source==='netease'?'qq':'kuwo',seenSources=new Set();
+   const better={...original(target+'-lossless',target),tier:'lossless'};
+   a.providers(async(name,keyword,pool)=>{seenSources.add(name);if(name===target&&!pool.trackMap.has(better.uid)){pool.trackMap.set(better.uid,better);pool.searchResults.push({...better});}});
+   a.details(async track=>Object.assign(track,{audioUrl:'https://cdn.example/'+track.uid,quality:track.tier==='lossless'?'lossless':'128k',qualityLabel:track.tier==='lossless'?'LOSSLESS':'STD'}));
+   a.probe(async(track,options)=>options.useLoaded?{...track}:{...track,audioUrl:'https://cdn.example/'+track.uid,quality:'128k',qualityLabel:'STD'});
+   const upgraded=await a.verifyImportData(payload([base]),new AbortController(),()=>{});
+   assert.equal(seenSources.size,5);assert.equal(upgraded.data.playlists[0].tracks[0].source,target);assert.equal(upgraded.data.playlists[0].tracks[0].quality,'lossless');assert.equal(upgraded.stats.replaced,1);assert.equal(upgraded.stats.passed,0);assert.equal(upgraded.data.playlists[0].tracks[0].importOriginalUid,base.uid);
+ }
+ a.state.enabledSources=savedEnabled;
+ // Opting out keeps a playable original and avoids all cross-source requests.
+ let legacySearches=0;a.providers(async()=>{legacySearches++;throw Error('Unexpected cross-source search');});
+ a.probe(async track=>({...track,audioUrl:'https://cdn.example/original.mp3',quality:'128k'}));
+ const legacy=await a.verifyImportData(payload([original('legacy','netease')]),new AbortController(),()=>{},{compareAll:false});
+ assert.equal(legacySearches,0);assert.equal(legacy.stats.passed,1);assert.equal(legacy.data.playlists[0].tracks[0].uid,'legacy');assert.equal(legacy.data.playlists[0].tracks[0].quality,'128k');
+ // With the option off, a failed original still falls back to all five sources.
+ const rescueSources=new Set();const rescue={...original('rescue','kuwo'),tier:'lossless'};
+ a.providers(async(name,keyword,pool)=>{rescueSources.add(name);if(name==='kuwo'&&!pool.trackMap.has(rescue.uid)){pool.trackMap.set(rescue.uid,rescue);pool.searchResults.push({...rescue});}});
+ a.details(async track=>Object.assign(track,{audioUrl:'https://cdn.example/'+track.uid,quality:track.tier==='lossless'?'lossless':'128k'}));
+ a.probe(async(track,options)=>{if(!options.useLoaded)throw Error('Original unavailable');return {...track};});
+ const rescued=await a.verifyImportData(payload([original('broken','netease')]),new AbortController(),()=>{},{compareAll:false});
+ assert.equal(rescueSources.size,5);assert.equal(rescued.stats.replaced,1);assert.equal(rescued.data.playlists[0].tracks[0].source,'kuwo');
+
+ // A compatible-tier preference on the original must not hide that source's lossless options.
+ a.searches(async()=>{});let refreshed=false;
+ const compatibleOriginal={...original('same-source'),preferCompatible:true};
+ a.details(async track=>{assert(!track.preferCompatible);assert.equal(track.detailsLoaded,false);refreshed=true;Object.assign(track,{audioUrl:'https://cdn.example/sq.flac',quality:'lossless',qualityLabel:'LOSSLESS',audioOptions:[{audioUrl:'https://cdn.example/sq.flac',quality:'lossless',qualityLabel:'LOSSLESS',preferredAudioQuality:'song_play_url_sq'}]});});
+ a.probe(async(track,options)=>options.useLoaded?{...track}:{...track,audioUrl:'https://cdn.example/std.mp3',qualityLabel:'STD',quality:'normal',detailsLoaded:true,detailsExpiresAt:Date.now()+10000});
+ const ownUpgrade=await a.verifyImportData(payload([compatibleOriginal]),new AbortController(),()=>{});
+ assert(refreshed);assert.equal(ownUpgrade.stats.passed,1);assert.equal(ownUpgrade.data.playlists[0].tracks[0].preferredAudioQuality,'song_play_url_sq');assert(!ownUpgrade.data.playlists[0].tracks[0].preferCompatible);
+ // Keep the already-tested original if higher tiers and other providers fail, without replaying it.
+ let originalProbes=0;
+ a.providers(async()=>{throw Error('Provider unavailable');});a.details(async()=>{throw Error('Details unavailable');});
+ a.probe(async track=>{originalProbes++;return {...track,audioUrl:'https://cdn.example/known-hq.mp3',qualityLabel:'HQ',quality:'normal',audioOptions:[{audioUrl:'https://cdn.example/known-hq.mp3',quality:'normal',qualityLabel:'HQ',preferredAudioQuality:'song_play_url_hq'}]};});
+ const retained=await a.verifyImportData(payload([original('fallback-original')]),new AbortController(),()=>{});
+ assert.equal(retained.stats.passed,1);assert.equal(retained.stats.failed,0);assert.equal(originalProbes,1);assert.equal(retained.data.playlists[0].tracks[0].preferredAudioQuality,'song_play_url_hq');
+ // Restore detail/search fixtures for tier fallback tests.
+ a.searches(async(keyword,page,limit,pool)=>{for(const track of candidates)if(!pool.trackMap.has(track.uid)){pool.trackMap.set(track.uid,track);pool.searchResults.push({...track});}});
+ a.details(async track=>{if(track.tier==='qq')Object.assign(track,{audioUrl:'https://cdn.example/broken-flac',quality:'lossless',qualityLabel:'LOSSLESS',audioOptions:[{audioUrl:'https://cdn.example/broken-flac',quality:'lossless',qualityLabel:'LOSSLESS'},{audioUrl:'https://cdn.example/qq-hq',quality:'normal',qualityLabel:'HQ',preferredAudioQuality:'hq'}]});else Object.assign(track,{audioUrl:'https://cdn.example/'+track.uid+(track.preferCompatible?'-low':''),quality:track.preferCompatible?'normal':track.tier==='lossless'?'lossless':'320k',qualityLabel:track.preferCompatible?'STD':track.tier==='lossless'?'LOSSLESS':'320K'});});
+
  // If lossless candidates fail, the best remaining playable tier wins.
  attempted.length=0;
  a.probe(async track=>{attempted.push(track.audioUrl);if(track.quality==='lossless')throw Error('decode');return {...track};});
- const fallback=await a.findImportReplacement(original('original'),new AbortController().signal,()=>{});
+ const fallback=await a.findBestImportRecording(original('original'),new AbortController().signal,()=>{});
  assert.equal(a.importQualityRank(fallback),320);assert(!fallback.audioUrl.endsWith('-low'));
  assert.equal(a.serializeTrack(fallback).preferHighestQuality,true);assert(!a.serializeTrack(fallback).audioOptions,'Do not store signed playback URLs');
 
@@ -67,7 +111,7 @@ const payload=tracks=>({version:1,favorites:[],playlists:[{id:'example-list',nam
  a.details(async track=>Object.assign(track,{audioUrl:'https://cdn.example/'+track.uid,quality:track.tier}));
  let hangingAborted=false;const raced=[];
  a.probe(async(track,{signal})=>{raced.push(track.uid);if(track.uid==='slow')return new Promise((resolve,reject)=>signal.addEventListener('abort',()=>{hangingAborted=true;reject(signal.reason);},{once:true}));return {...track};});
- const best=await a.findImportReplacement(original('original'),new AbortController().signal,()=>{});
+ const best=await a.findBestImportRecording(original('original'),new AbortController().signal,()=>{});
  assert.equal(best.uid,'fast');assert(hangingAborted,'Cancel the slower probe once a same-quality candidate passes');assert.deepEqual(raced,['slow','fast']);
 
  // A slow source must not delay the next search round of a fast source.
@@ -75,7 +119,7 @@ const payload=tracks=>({version:1,favorites:[],playlists:[{id:'example-list',nam
  const slowSearch=new Promise(resolve=>finishSlow=resolve);
  a.searches(async(keyword,page,limit,pool)=>{fastQueries.push(keyword);if(!pool.trackMap.has('found')){const track={...original('found'),tier:'lossless'};pool.trackMap.set(track.uid,track);pool.searchResults.push(track);}});
  a.qqSearch(async keyword=>{slowQueries.push(keyword);if(slowQueries.length===1)await slowSearch;});
- const pipelined=a.findImportReplacement(original('original'),new AbortController().signal,()=>{});
+ const pipelined=a.findBestImportRecording(original('original'),new AbortController().signal,()=>{});
  await new Promise(resolve=>setImmediate(resolve));assert.equal(fastQueries.length,2);assert.equal(slowQueries.length,1);
  finishSlow();assert.equal((await pipelined).uid,'found');assert.equal(slowQueries.length,2);
  a.searches(async(keyword,page,limit,pool)=>{for(const track of racing)if(!pool.trackMap.has(track.uid)){pool.trackMap.set(track.uid,track);pool.searchResults.push({...track});}});
@@ -83,32 +127,32 @@ const payload=tracks=>({version:1,favorites:[],playlists:[{id:'example-list',nam
  // Do not drop to 320K while any lossless probe is still pending.
  const failLossless=[];const stages=[];
  a.probe(async track=>{stages.push(track.uid);if(track.quality==='lossless')return new Promise((resolve,reject)=>failLossless.push(()=>reject(Error('unavailable'))));return {...track};});
- const ordered=a.findImportReplacement(original('original'),new AbortController().signal,()=>{});
+ const ordered=a.findBestImportRecording(original('original'),new AbortController().signal,()=>{});
  while(failLossless.length<2)await new Promise(resolve=>setImmediate(resolve));
  assert(!stages.includes('lower'));failLossless.forEach(fail=>fail());assert.equal((await ordered).uid,'lower');
 
  const stopReplacement=new AbortController();let pendingProbes=0;
  a.probe(async(track,{signal})=>new Promise((resolve,reject)=>{pendingProbes++;signal.addEventListener('abort',()=>{pendingProbes--;reject(signal.reason);},{once:true});}));
- const stopping=a.findImportReplacement(original('original'),stopReplacement.signal,()=>{});
+ const stopping=a.findBestImportRecording(original('original'),stopReplacement.signal,()=>{});
  while(pendingProbes<2)await new Promise(resolve=>setImmediate(resolve));
  stopReplacement.abort();await assert.rejects(stopping,error=>error.name==='AbortError');assert.equal(pendingProbes,0);
  a.probe(async()=>{const error=new Error('Blocked');error.name='NotAllowedError';throw error;});
- await assert.rejects(a.findImportReplacement(original('original'),new AbortController().signal,()=>{}),error=>error.name==='NotAllowedError');
+ await assert.rejects(a.findBestImportRecording(original('original'),new AbortController().signal,()=>{}),error=>error.name==='NotAllowedError');
 
  // Do not wait for slow candidate metadata after a lossless track has passed playback.
  let detailCanceled=false;
  a.searches(async(keyword,page,limit,pool)=>{for(const uid of ['ready-lossless','slow-details'])if(!pool.trackMap.has(uid)){const track=original(uid);pool.trackMap.set(uid,track);pool.searchResults.push(track);}});
  a.details(async(track,{signal})=>{
    if(track.uid==='slow-details')await new Promise((resolve,reject)=>signal.addEventListener('abort',()=>{detailCanceled=true;reject(signal.reason);},{once:true}));
-   else Object.assign(track,{audioUrl:'https://cdn.example/ready.flac',quality:'lossless',qualityLabel:'LOSSLESS'});
+   else Object.assign(track,{audioUrl:'https://cdn.example/'+track.uid,quality:track.uid==='ready-lossless'?'lossless':'128k',qualityLabel:track.uid==='ready-lossless'?'LOSSLESS':'STD'});
  });
  a.probe(async track=>({...track}));
- assert.equal((await a.findImportReplacement(original('original'),new AbortController().signal,()=>{})).uid,'ready-lossless');assert(detailCanceled);
+ assert.equal((await a.findBestImportRecording(original('original'),new AbortController().signal,()=>{})).uid,'ready-lossless');assert(detailCanceled);
 
  a.searches(async(keyword,page,limit,pool)=>{if(!pool.trackMap.has('low-only')){const t={...original('low-only','kuwo')};pool.trackMap.set(t.uid,t);pool.searchResults.push(t);}});
  a.details(async track=>{if(!track.preferCompatible)throw Error('Lossless endpoint unavailable');Object.assign(track,{audioUrl:'https://cdn.example/low-only',quality:'normal',qualityLabel:'STD'});});
  a.probe(async track=>({...track}));
- const lowOnly=await a.findImportReplacement(original('original'),new AbortController().signal,()=>{});
+ const lowOnly=await a.findBestImportRecording(original('original'),new AbortController().signal,()=>{});
  assert(lowOnly.preferCompatible);assert(a.serializeTrack(lowOnly).preferCompatible,'Persist a tested compatible tier instead of refreshing back to broken lossless');
 
  a.searches(async()=>{});a.probe(async()=>{throw Error('Unavailable');});
@@ -157,7 +201,7 @@ const payload=tracks=>({version:1,favorites:[],playlists:[{id:'example-list',nam
  a.importPlaylistData(payload([upgraded]));assert.equal(a.state.playlists[0].tracks[0].uid,'higher-quality');assert.equal(a.state.playlists[0].tracks.length,3);
  assert.equal(JSON.parse(storage.get('liusheng-library-v1')).playlists[0].tracks[0].importCheck,'playable');
 
- a.probe(async track=>({...track}));a.dom.playlistSelect=node('select');
+ a.searches(async()=>{});a.probe(async track=>({...track,audioUrl:'https://cdn.example/'+track.uid,quality:'320k'}));a.dom.playlistSelect=node('select');
  const observed=[];let countText='';Object.defineProperty(node('import-check-count'),'textContent',{get(){return countText;},set(value){countText=value;observed.push(value);},configurable:true});
  assert(await a.runVerifiedImport(async()=>payload([original('progress-1'),original('progress-2')]),node('status')));
  assert(observed.includes('共 2 首 · 已完成 0 首 · 剩余 2 首'));assert.equal(countText,'共 2 首 · 已完成 2 首 · 剩余 0 首');
@@ -174,5 +218,5 @@ const payload=tracks=>({version:1,favorites:[],playlists:[{id:'example-list',nam
  assert.equal(await a.runVerifiedImport(async()=>payload([original('blocked')]),node('status')),false);
  assert.equal(JSON.stringify(a.state.playlists),before);assert(node('status').textContent.includes('浏览器阻止'));
  assert(node('stop-import-check').disabled);assert(!node('import-link-submit').disabled);
- console.log('通过：网易/QQ共同检查、实际开头及中段播放、静音/取消清理、电脑12/手机8路检查、替换搜索单独限流、音质排序和高音质失败降级、版本歌手保护、总数与完成进度、同档并行取消慢地址、低档延迟查询、失败移除、停止保留未检查、重复导入替换不重复、后台搜索隔离及自动播放受阻保护。');
+ console.log('通过：原曲可播仍跨全部五源择优、取消勾选仅失败才跨源、原平台音质升级及可播原曲兜底、网易/QQ共同检查、实际开头及中段播放、静音/取消清理、电脑12/手机8路检查、替换搜索单独限流、音质排序和高音质失败降级、版本歌手保护、总数与完成进度、同档并行取消慢地址、低档延迟查询、失败移除、停止保留未检查、重复导入替换不重复、后台搜索隔离及自动播放受阻保护。');
 })().catch(error=>{console.error(error);process.exitCode=1;});
