@@ -2,12 +2,14 @@ const fs=require('fs'),vm=require('vm'),assert=require('assert/strict'),path=req
 const html=fs.readFileSync(path.join(__dirname,'../index.html'),'utf8');
 const source=[...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].at(-1)[1];
 const nodes=new Map(),readers=[];
-const node=id=>{if(!nodes.has(id))nodes.set(id,{style:{},classList:{add(){},remove(){},toggle(){}},appendChild(){},setAttribute(k,v){this[k]=v;},showModal(){this.open=true;}});return nodes.get(id);};
+const node=id=>{if(!nodes.has(id))nodes.set(id,{style:{},classList:{add(){},remove(){},toggle(){}},appendChild(){},setAttribute(k,v){this[k]=v;},removeAttribute(k){delete this[k];},showModal(){this.open=true;}});return nodes.get(id);};
 const c=vm.createContext({console,URL,URLSearchParams,AbortSignal,AbortController,location:{hostname:'dukewen04.github.io',port:''},localStorage:{getItem(){return null;}},
   document:{getElementById:node,createElement:()=>({}),addEventListener(){},querySelectorAll:()=>[]},
   FileReader:class{constructor(){readers.push(this);}readAsText(){}},setTimeout,clearTimeout});
-vm.runInContext(source.replace(/\}\)\(\);\s*$/,`globalThis.imports=[];importPlaylistData=data=>{imports.push(data);return {addedFavorites:1,addedPlaylists:0,addedPlaylistTracks:0};};renderPlaylistList=()=>{};renderPlaylistOptions=()=>{};globalThis.app={state,dom,importPlaylistLink,readPlaylistLinkData,playlistLinkInfo,importFileSummary,handleImportPlaylistFile,confirmImportFile,openImportGuide,setImportMethod};})();`),c);
+vm.runInContext(source.replace(/\}\)\(\);\s*$/,`globalThis.imports=[];importPlaylistData=data=>{imports.push(data);state.playlists=data.playlists;return {addedFavorites:1,addedPlaylists:0,addedPlaylistTracks:0};};renderPlaylistList=()=>{};renderPlaylistOptions=()=>{};verifyImportData=async data=>({data,stats:{total:data.playlists.reduce((n,p)=>n+p.tracks.length,0),checked:1,passed:1,replaced:0,failed:0,pending:0},failures:[]});globalThis.app={state,dom,importPlaylistLink,readPlaylistLinkData,playlistLinkInfo,importFileSummary,handleImportPlaylistFile,confirmImportFile,openImportGuide,setImportMethod};})();`),c);
 const a=c.app;
+a.dom.playlistSelect=node('select');
+(async()=>{
 assert.equal(a.playlistLinkInfo('分享歌单 https://music.163.com/#/my/m/music/playlist?id=123。').id,'123');
 assert.equal(a.playlistLinkInfo('https://music.163.com/playlist?id=42').source,'netease');
 const shared=a.playlistLinkInfo('分享歌单: 示例歌单 https://163cn.tv/Example (@网易云音乐)');
@@ -32,13 +34,12 @@ choose('big.json',6*1024*1024);assert.equal(readers.length,0);
 choose('broken.json');readers[0].result='{bad';readers[0].onload();assert(node('confirm-import-file').disabled);assert.equal(c.imports.length,0);
 choose('old.json');choose('new.json');readers[2].result=JSON.stringify(data);readers[2].onload();readers[1].result='{}';readers[1].onload();
 assert(!node('confirm-import-file').disabled);assert(node('import-file-status').textContent.includes('new.json'));assert.equal(c.imports.length,0,'Reading a file must not modify the library');
-a.confirmImportFile();assert.equal(c.imports.length,1);assert(node('confirm-import-file').disabled);a.confirmImportFile();assert.equal(c.imports.length,1);
+await a.confirmImportFile();assert.equal(c.imports.length,1);assert(node('confirm-import-file').disabled);await a.confirmImportFile();assert.equal(c.imports.length,1);
 assert(Object.values(a.state.enabledSources).every(Boolean));
 assert(!html.includes('id="library-import-btn"'));const footer=html.match(/<footer>([\s\S]*?)<\/footer>/)[1];assert(!footer.includes('MusicSquare'));assert(footer.includes('音乐版权归各平台及作者'));
 for(const s of ['netease','qq','kuwo','joox','kugou'])assert(new RegExp(`data-source="${s}"[^>]*checked`).test(html));
 console.log('通过：平台链接识别及错误指引、JSON格式/大小/空文件校验、文件预览不改歌单、确认去重入口、防读取竞态、音源默认全选与页面入口清理。');
 
-(async()=>{
   c.location.hostname='127.0.0.1';c.location.port='8766';
   a.dom.playlistSelect=node('select');
   node('import-link-url').value='分享歌单: 示例 https://163cn.tv/Example (@网易云音乐)';
