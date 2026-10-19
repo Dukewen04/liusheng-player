@@ -20,7 +20,7 @@ const c=vm.createContext({console,URL,URLSearchParams,AbortSignal,AbortControlle
 vm.runInContext(source.replace(/\}\)\(\);\s*$/,`
   renderMiniSearchList=()=>{};renderPlaylistList=()=>{};rebuildLibraryTrackMap=()=>{};showToast=()=>{};
   dom.searchStatus=document.getElementById('status');dom.searchCount=document.getElementById('count');dom.playerStatus=document.getElementById('player');
-  globalThis.app={state,dom,probeSearchAudio,checkSearchTrack,filterPlayableSearchTracks,searchAllSources,ensureTrackDetails,
+  globalThis.app={state,dom,probeSearchAudio,checkSearchTrack,filterPlayableSearchTracks,searchAllSources,clearSearchResults,ensureTrackDetails,
     details:fn=>ensureTrackDetails=fn,checker:fn=>checkSearchTrack=fn,provider:fn=>searchNetease=fn};
 })();`),c);
 const a=c.app,signal=()=>new AbortController().signal;
@@ -50,16 +50,23 @@ const a=c.app,signal=()=>new AbortController().signal;
 
   a.state.currentTrack={uid:'currently-playing'};a.state.enabledSources={netease:true};a.state.searchKeyword='query';
   const valid={uid:'good',source:'netease'},bad={uid:'bad',source:'netease'};let checks=0;
-  a.provider(async(kw,page,limit,pool)=>{pool.searchResults.push(valid,bad);});
+  a.provider(async(kw,page,limit,pool)=>{assert.equal(page,1);assert.equal(limit,5);pool.searchResults.push(valid,bad);});
   a.checker(async track=>{checks++;if(track.uid==='bad')throw Error('not audio');});
   await a.searchAllSources(true);
   assert.equal(a.state.searchResults.length,1);assert.equal(a.state.searchResults[0].uid,'good');assert(!a.state.trackMap.has('bad'));assert.equal(a.state.searchHiddenCount,1);
-  await a.searchAllSources(false);assert.equal(checks,2,'Load more never rechecks previously rejected IDs');assert(a.state.noMoreResults);
+  await a.searchAllSources();assert.equal(checks,4,'Each explicit new search refreshes results without appending');assert.equal(a.state.searchResults.length,1);
   let oldRelease;
   a.provider(async(kw,page,limit,pool)=>{if(kw==='old')await new Promise(resolve=>oldRelease=resolve);pool.searchResults.push({uid:kw,source:'netease'});});
   a.checker(async()=>{});
   a.state.searchKeyword='old';const old=a.searchAllSources(true);
   a.state.searchKeyword='new';await a.searchAllSources(true);oldRelease();await old;
   assert.equal(a.state.searchResults.length,1);assert.equal(a.state.searchResults[0].uid,'new');assert(!a.state.searchInProgress);
-  console.log('通过：静音音频加载检查、错误/非音频/无效时长排除、取消后释放资源、兼容音质重试、4路并发、仅显示可播放结果、加载更多去重、搜索竞态隔离、不覆盖当前播放状态。');
+  // Clearing aborts the active request and rejects results that arrive later.
+  a.state.searchKeyword='old';const clearing=a.searchAllSources();a.clearSearchResults();oldRelease();await clearing;
+  assert.equal(a.state.searchResults.length,0);assert.equal(a.dom.searchCount.textContent,'');assert(a.dom.searchCount.hidden);assert(!a.state.searchInProgress);assert.equal(a.state.currentTrack.uid,'currently-playing');
+  // Guard against a provider ignoring its requested result limit.
+  a.provider(async(kw,page,limit,pool)=>{assert.equal(limit,5);pool.searchResults.push(...Array.from({length:12},(_,i)=>({uid:'limit-'+i,source:'netease'})));});
+  a.state.searchKeyword='limit';await a.searchAllSources();assert.equal(a.state.searchResults.length,5);assert(!a.dom.searchCount.hidden);
+  assert(!html.includes('id="limit-select"'));assert(!html.includes('id="load-more-btn"'));assert(!source.includes("dom.searchMiniList.addEventListener('scroll'"));assert(!source.includes("dom.playlistMain.addEventListener('scroll'"));
+  console.log('通过：静音音频加载检查、错误/非音频/无效时长排除、取消后释放资源、兼容音质重试、4路并发、仅显示可播放结果、每源固定5首、新搜索不累加、清空取消旧请求与隐藏空计数、搜索竞态隔离、不覆盖当前播放状态。');
 })().catch(error=>{console.error(error);process.exitCode=1;});
