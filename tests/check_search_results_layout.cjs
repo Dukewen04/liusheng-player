@@ -1,0 +1,34 @@
+const fs=require('fs'),vm=require('vm'),assert=require('assert/strict'),path=require('path');
+const html=fs.readFileSync(path.join(__dirname,'../index.html'),'utf8');
+const source=[...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].at(-1)[1];
+const nodes=new Map(),storage=new Map();
+function element(){
+  const classes=new Set(),node={style:{},value:'',textContent:'',children:[],handlers:{},classList:{add(v){classes.add(v);},remove(v){classes.delete(v);},toggle(v,on){on?classes.add(v):classes.delete(v);},contains(v){return classes.has(v);}},appendChild(child){this.children.push(child);},addEventListener(e,fn){this.handlers[e]=fn;},click(){this.handlers.click?.({stopPropagation(){}});}};
+  Object.defineProperty(node,'innerHTML',{set(value){this.html=value;this.children=[];},get(){return this.html||'';}});return node;
+}
+const node=id=>{if(!nodes.has(id))nodes.set(id,element());return nodes.get(id);};
+const c=vm.createContext({console,URL,URLSearchParams,setTimeout,clearTimeout,window:{},localStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)},document:{addEventListener(){},getElementById:node,createElement:element,querySelector:()=>({dataset:{tab:'favorites'}}),querySelectorAll:()=>[]}});
+vm.runInContext(source.replace(/\}\)\(\);\s*$/,`renderPlaylistOptions=()=>{};updateMainFavButton=()=>{};showToast=()=>{};playFromList=(...args)=>globalThis.played=args;globalThis.app={state,dom,renderPlaylistList,clearSearchResults};})();`),c);
+const a=c.app;
+for(const name of ['playlistList','playlistSelect','playlistSelectRow','playlistInfo','searchMiniList','searchCount','searchStatus'])a.dom[name]=node(name);
+assert(!html.includes('data-tab="results"'),'The library has no duplicate search-result tab');
+assert.equal((html.match(/id="clear-results-btn"/g)||[]).length,1);
+assert(html.indexOf('id="clear-results-btn"')<html.indexOf('id="search-mini-list"'));
+assert(html.indexOf('id="search-mini-list"')<html.indexOf('id="music-panel-tabs"'),'Search controls and results live in the search panel');
+const qq={uid:'qq-1',source:'qq',title:'QQ Song',artist:'Singer'},net={uid:'net-1',source:'netease',title:'NetEase Song',artist:'Singer'};
+a.state.searchResults=[qq,net];a.state.favorites=[qq];a.state.currentTrack=net;a.state.searchHasRun=true;
+a.renderPlaylistList();
+assert.equal(a.dom.playlistList.children.length,1,'The library keeps displaying favorites while search results update');
+assert.equal(a.dom.searchMiniList.children.length,2);
+const rows=a.dom.searchMiniList.children;
+assert.equal(rows[0].children[1].children[0].textContent,net.title,'The full search rows retain interleaved playback order');
+assert(rows[0].classList.contains('playing'));
+rows[1].children[2].children[0].click();assert.deepEqual(Array.from(c.played),['results',1]);
+rows[0].children[2].children[1].click();
+assert.equal(a.state.favorites.length,2);assert.equal(a.dom.playlistList.children.length,2);
+assert.equal(a.dom.searchMiniList.children[0].children[2].children[1].ariaPressed,'true','Search favorite state updates immediately');
+assert.equal(a.dom.searchMiniList.children[0].children[2].children.length,2,'Search offers play and favorite, without playlist removal');
+a.clearSearchResults();assert.equal(a.state.searchResults.length,0);assert(node('clear-results-btn').disabled);
+assert.equal(a.dom.searchMiniList.children.length,1);assert(a.dom.searchMiniList.children[0].textContent.includes('输入歌名'));
+assert.equal(a.state.currentTrack.uid,net.uid);assert.equal(a.state.favorites.length,2);
+console.log('通过：完整搜索结果及清空移至歌曲搜索、移除右侧重复标签、播放顺序与高亮、收藏双侧同步、清空不打断播放和收藏。');
