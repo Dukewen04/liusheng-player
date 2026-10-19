@@ -311,7 +311,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       <button id="import-method-file" type="button" class="btn btn-ghost" aria-pressed="false">歌单文件</button>
     </div>
     <label class="import-favorite-option"><input id="import-compare-all" type="checkbox" checked /> 跨全部音源优选最高可播音质</label>
-    <p class="import-note">默认开启。开启后会增加搜索和试播，导入需要更长时间；关闭时，仅在原曲无法播放时跨源搜索。</p>
+    <p class="import-note">默认开启。开启后会增加搜索和试播，导入需要更长时间；每首都会先识别原唱；关闭音质优选时，已确认的原唱可播即保留，不再比较其他音质。原唱无法确认时会标为待确认。</p>
     <form id="import-link-form">
       <label for="import-platform">音乐平台</label>
       <select id="import-platform" aria-label="音乐平台"><option value="netease">网易云音乐</option><option value="qq">QQ 音乐</option></select>
@@ -361,7 +361,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       <p id="import-check-count" role="status" aria-live="polite">正在读取歌曲总数…</p>
       <progress id="import-check-progress" max="1" aria-label="已检查歌曲比例" style="width:100%"></progress>
       <p id="import-check-status" role="status" aria-live="polite"></p>
-      <p class="import-note">勾选跨源优选时，每首歌曲都在网易云、QQ、酷我、JOOX、酷狗中匹配同歌名、同歌手、同版本的候选，按音源标明的音质从高到低试播开头及中段；未勾选时，原曲可播即保留，不能播才跨源搜索。同版本都不能播放时，再优先查找原唱的录音室版本作为备选；没有明确原唱信息时按原歌手查找。仍无可播放替代的歌曲会移除。关闭窗口可继续检查；停止后保留已完成结果和未检查歌曲。</p>
+      <p class="import-note">勾选跨源优选时，每首歌曲都在网易云、QQ、酷我、JOOX、酷狗中匹配同歌名、同歌手、同版本的候选，按音源标明的音质从高到低试播开头及中段；每首先按歌名查找明确的原唱标注，优先选择原唱，不以导入歌手作为原唱依据；未勾选时，已确认的原唱可播即保留。原唱不明确时保留可播版本，并标为原唱待确认。仍无可播放替代的歌曲会移除。关闭窗口可继续检查；停止后保留已完成结果和未检查歌曲。</p>
       <button id="stop-import-check" class="btn btn-ghost" type="button" disabled>停止检查并保留当前结果</button>
       <details id="import-check-failures" hidden><summary id="import-check-failures-title">已移除歌曲</summary><ul id="import-check-failures-list"></ul></details>
     </section>
@@ -838,7 +838,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         'uid','source','displayIndex','keyword','songid','songMid','qqId','qqSearchKey','qqIndex',
         'kugouPage','jooxIndex','jooxSongId','jooxSongMid','title','artist','album','cover','pageUrl',
         'quality','qualityLabel','qqQualityText','jooxQualityText','pay',
-        'preferHighestQuality','preferCompatible','preferredAudioQuality','importOriginalUid','importCheck'
+        'preferHighestQuality','preferCompatible','preferredAudioQuality','importOriginalUid','importCheck','originalArtist','originalArtistStatus'
       ];
       const out={};
       keys.forEach(k=>{
@@ -1202,18 +1202,18 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
     }
     function importFallbackInfo(track){
       const title=String(track.title||'').normalize('NFKC');
-      const singer=title.match(/(?:原唱\s*[:：]|翻自|cover\s*[:：]?|原唱\s+)\s*([^()\[\]【】]+)/i)?.[1]?.trim();
+      const singer=title.match(/[(\[【]\s*(?:原唱\s*[:：]?|翻自|cover\s*[:：]?)\s*([^()\[\]【】]+)/i)?.[1]?.trim();
       const base=title.replace(/\([^)]*(?:原唱|翻自|cover|翻唱|live|现场|演唱会|remix|混音|重制|重录|版本|版)[^)]*\)|\[[^\]]*(?:原唱|翻自|cover|翻唱|live|现场|remix|版)[^\]]*\]|【[^】]*(?:原唱|翻自|cover|翻唱|live|现场|remix|版)[^】]*】/gi,'').trim();
-      return {title:base,artist:singer||track.artist};
+      return {title:base,artist:typeof track.originalArtist==='string'?track.originalArtist.trim():singer||''};
     }
     function importFallbackRank(original,candidate){
-      const target=importFallbackInfo(original),other=importFallbackInfo(candidate);
+      const info=importFallbackInfo(original),target={...info,artist:info.artist||original.artist},other=importFallbackInfo(candidate);
       // Do not mistake a cover, backing track or live version for the original singer's studio recording.
       if(/(?:[([【][^)\]】]*(?:翻自|cover|翻唱|伴奏|纯音乐|instrumental|karaoke|live|现场|演唱会|remix|混音)[^)\]】]*[)\]】]|[-—]\s*(?:live|remix|伴奏|翻唱)\s*$)/i.test(String(candidate.title||'').normalize('NFKC')))return 0;
       if(sameRecording(target,{title:other.title,artist:candidate.artist}))return 2;
       return sameRecording({...target,artist:original.artist},{title:other.title,artist:candidate.artist})?1:0;
     }
-    async function findBestImportRecording(original,parentSignal,onStage,verifiedOriginal=null,{pool:cachedPool=null,fallbackRank=0}={}){
+    async function findBestImportRecording(original,parentSignal,onStage,verifiedOriginal=null,{pool:cachedPool=null,fallbackRank=0,compareAll=true}={}){
       const lookup=new AbortController(),signal=AbortSignal.any([parentSignal,lookup.signal]);
       try{
       const seed={...(verifiedOriginal||original)};
@@ -1221,9 +1221,11 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       pool.signal=signal;
       const matchesRecording=track=>fallbackRank?importFallbackRank(original,track)===fallbackRank:sameRecording(original,track);
       const verified=verifiedOriginal?.audioUrl?{...verifiedOriginal,...verifiedOriginal.audioOptions?.find(option=>option.audioUrl===verifiedOriginal.audioUrl),preferHighestQuality:true}:null;
-      const target=fallbackRank?importFallbackInfo(original):original;
-      const keywords=fallbackRank===1?[]:[...new Set([`${target.title} ${target.artist}`.trim(),target.title])];
-      onStage(fallbackRank?'查找原唱备选':'跨音源搜索同版本');
+      const info=importFallbackInfo(original),target={...info,artist:info.artist||(fallbackRank?original.artist:'')};
+      let originalStatus='unconfirmed';
+      const mark=track=>track&&!fallbackRank?{...track,originalArtistStatus:originalStatus}:track;
+      const keywords=fallbackRank===1?[]:[...new Set([target.title,`${target.title} ${target.artist||'原唱'}`.trim()])];
+      onStage(fallbackRank?'优选原唱版本':'按歌名查找原唱');
       await Promise.allSettled([
         keyword=>searchNetease(keyword,1,20,pool),keyword=>searchQQ(keyword,20,pool),
         keyword=>searchKuwo(keyword,20,pool),keyword=>searchJoox(keyword,20,pool),keyword=>searchKugou(keyword,20,pool)
@@ -1233,6 +1235,28 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
           await search(keyword);
         }
       }));
+      if(!fallbackRank){
+        const known=info.artist;
+        const names=new Map();
+        for(const candidate of pool.searchResults){
+          const meta=importFallbackInfo(candidate);
+          if(!meta.artist||!sameRecording({title:info.title,artist:''},{title:meta.title,artist:''}))continue;
+          const key=String(meta.artist).normalize('NFKC').toLowerCase().replace(/\s/g,'');
+          names.set(key,meta.artist);
+        }
+        // Search rank and the imported performer are not evidence of original authorship.
+        const artist=known||(names.size===1?[...names.values()][0]:null);
+        if(artist){
+          const anchor={...original,title:info.title,artist,originalArtist:artist};
+          const alreadyOriginal=verified&&importFallbackRank(anchor,verified)===2?verified:null;
+          if(!compareAll&&alreadyOriginal)return {...alreadyOriginal,originalArtist:artist,originalArtistStatus:'identified'};
+          const selected=await findBestImportRecording(anchor,parentSignal,onStage,alreadyOriginal,{pool,fallbackRank:2});
+          if(selected)return {...selected,originalArtist:artist,originalArtistStatus:'identified'};
+          originalStatus='unavailable';
+          onStage('原唱版本不可播，检查其他可播版本');
+        }else onStage('原唱待确认，检查可播版本');
+        if(!compareAll&&verified)return {...verified,originalArtistStatus:artist?'unavailable':'unconfirmed'};
+      }
       const matches=pool.searchResults.filter(matchesRecording),choices=verified?[verified]:[],compatible=[],attempted=new Set();
       let next=0,best=null,probeFatal=null;
       await Promise.all(Array.from({length:Math.min(2,matches.length)},async()=>{
@@ -1259,7 +1283,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       }));
       if(probeFatal)throw probeFatal;
       if(parentSignal.aborted)throw parentSignal.reason;
-      if(best)return best;
+      if(best)return mark(best);
       if(signal.aborted)throw signal.reason;
       async function tryChoices(candidates){
         candidates.sort((a,b)=>importQualityRank(b)-importQualityRank(a));
@@ -1290,7 +1314,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         return null;
       }
       const high=await tryChoices(choices.filter(track=>importQualityRank(track)>=320));
-      if(high)return high;
+      if(high)return mark(high);
       // Compatible Kuwo addresses are a lower tier; only fetch them if higher tiers fail.
       next=0;
       await Promise.all(Array.from({length:Math.min(2,compatible.length)},async()=>{
@@ -1305,10 +1329,10 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       }));
       if(signal.aborted)throw signal.reason;
       const selected=await tryChoices(choices);
-      if(selected||fallbackRank)return selected;
+      if(selected||fallbackRank)return mark(selected);
       for(const rank of [2,1]){
         const fallback=await findBestImportRecording(original,parentSignal,onStage,null,{pool,fallbackRank:rank});
-        if(fallback)return fallback;
+        if(fallback)return mark(fallback);
       }
       return null;
       }finally{lookup.abort();}
@@ -1317,7 +1341,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
     async function verifyImportData(data,controller,onProgress,{compareAll=true}={}){
       const {signal}=controller;
       const originals=[...new Map([...(data.favorites||[]),...(data.playlists||[]).flatMap(pl=>pl.tracks)].map(track=>[track.uid,track])).values()];
-      const results=new Map(),stats={total:originals.length,checked:0,passed:0,replaced:0,failed:0,pending:originals.length};
+      const results=new Map(),stats={total:originals.length,checked:0,passed:0,replaced:0,failed:0,pending:originals.length,originalUnconfirmed:0};
       const active=new Map(),selectionQueue=[];let next=0,fatal=null,selecting=0;
       const cancelSelections=()=>selectionQueue.splice(0).forEach(waiter=>waiter.reject(signal.reason));
       signal.addEventListener('abort',cancelSelections,{once:true});
@@ -1325,7 +1349,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         if(signal.aborted)throw signal.reason;
         if(selecting>=6){stage('等待跨源音质比较');await new Promise((resolve,reject)=>selectionQueue.push({resolve,reject}));}
         else selecting++;
-        try{if(signal.aborted)throw signal.reason;return await findBestImportRecording(original,signal,stage,verifiedOriginal);}
+        try{if(signal.aborted)throw signal.reason;return await findBestImportRecording(original,signal,stage,verifiedOriginal,{compareAll});}
         finally{const waiter=selectionQueue.shift();if(waiter)waiter.resolve();else selecting--;}
       }
       const update=()=>onProgress({...stats,active:[...active.values()]});
@@ -1339,7 +1363,8 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
             let verifiedOriginal=null;
             try{verifiedOriginal=await probeRecording(original,{signal,silent:true});}
             catch(error){if(signal.aborted||error.name==='NotAllowedError')throw error;}
-            selected=!compareAll&&verifiedOriginal?verifiedOriginal:await selectBest(original,stage,verifiedOriginal);
+            selected=await selectBest(original,stage,verifiedOriginal);
+            if(selected&&selected.originalArtistStatus!=='identified'){selected={...selected,originalArtistStatus:selected.originalArtistStatus||'unconfirmed'};stats.originalUnconfirmed++;}
             replaced=Boolean(selected&&selected.uid!==original.uid);
             if(signal.aborted)break;
             const track={...(selected||original),importCheck:selected?'playable':'unavailable'};
@@ -1369,7 +1394,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       $('import-check-failures').hidden=true;
       $('stop-import-check').disabled=false;$('import-check-progress').removeAttribute('value');
       $('import-check-count').textContent='正在读取歌曲总数…';
-      $('import-check-mode').textContent=compareAll?'跨源优选模式：每首跨全部音源比较，耗时较长。':'原曲优先模式：原曲不能播放时才跨源搜索。';
+      $('import-check-mode').textContent=compareAll?'原唱优选模式：每首先识别原唱，再跨全部音源比较音质，耗时较长。':'原唱优先模式：每首先识别原唱，可播即保留，不比较其他音质。';
       $('import-check-status').textContent='第 1 步：正在读取歌单…';status.textContent='正在读取歌单…';
       let committing=false;
       try{
@@ -1379,7 +1404,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         const checked=await verifyImportData(data,controller,stats=>{
           $('import-check-count').textContent=`共 ${stats.total} 首 · 已完成 ${stats.checked} 首 · 剩余 ${stats.pending} 首`;
           const progress=$('import-check-progress');progress.max=stats.total;progress.value=stats.checked;
-          $('import-check-status').textContent=`${Math.floor(stats.checked/stats.total*100)}% · 同时检查 ${stats.active.length} 首 · 保留原曲 ${stats.passed} · 择优替换 ${stats.replaced} · 不可播 ${stats.failed}\n${stats.active.join('\n')}`;
+          $('import-check-status').textContent=`${Math.floor(stats.checked/stats.total*100)}% · 同时检查 ${stats.active.length} 首 · 保留原曲 ${stats.passed} · 择优替换 ${stats.replaced} · 不可播 ${stats.failed} · 未选原唱 ${stats.originalUnconfirmed}\n${stats.active.join('\n')}`;
         },{compareAll});
         committing=true;const removed=removeUnavailableImports(checked.failures),stat=importPlaylistData(checked.data);
         if(stat.empty&&removed){saveLibraryToStorage();updateMainFavButton();}
@@ -1392,7 +1417,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         }
         renderPlaylistList();
         const counts=checked.stats;
-        const summary=`${controller.signal.aborted?'已停止检查并保留结果':'导入检查完成'}：已检查 ${counts.checked} / ${counts.total} 首 · 保留原曲 ${counts.passed} · 择优替换 ${counts.replaced} · 已移除 ${counts.failed} · 未检查 ${counts.pending}。`;
+        const summary=`${controller.signal.aborted?'已停止检查并保留结果':'导入检查完成'}：已检查 ${counts.checked} / ${counts.total} 首 · 保留原曲 ${counts.passed} · 择优替换 ${counts.replaced} · 已移除 ${counts.failed} · 未检查 ${counts.pending} · 未选原唱 ${counts.originalUnconfirmed}。`;
         status.textContent=`已导入${playlist?'「'+playlist.name+'」':''}：读取 ${counts.total} 首，新增 ${stat.addedPlaylistTracks} 首歌单歌曲、${stat.addedFavorites} 首收藏。\n${summary}`+(data.warning?'\n'+data.warning:'');
         $('import-check-status').textContent=status.textContent;
         const list=$('import-check-failures-list');list.innerHTML='';
@@ -2749,6 +2774,11 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         const txt=document.createElement('span'); txt.textContent=t(key);
         sSpan.appendChild(dot);sSpan.appendChild(txt);
         sub.appendChild(aSpan);sub.appendChild(sSpan);
+        if(track.originalArtistStatus){
+          const original=document.createElement('span');
+          original.textContent=track.originalArtistStatus==='identified'?'原唱已识别':track.originalArtistStatus==='unavailable'?'原唱不可播，保留其他版本':'原唱待确认';
+          sub.appendChild(original);
+        }
         if(track.importCheck==='pending'){
           const check=document.createElement('span');check.textContent='未检查';sub.appendChild(check);
         }

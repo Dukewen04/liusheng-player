@@ -68,11 +68,11 @@ const payload=tracks=>({version:1,favorites:[],playlists:[{id:'example-list',nam
    assert.equal(seenSources.size,5);assert.equal(upgraded.data.playlists[0].tracks[0].source,target);assert.equal(upgraded.data.playlists[0].tracks[0].quality,'lossless');assert.equal(upgraded.stats.replaced,1);assert.equal(upgraded.stats.passed,0);assert.equal(upgraded.data.playlists[0].tracks[0].importOriginalUid,base.uid);
  }
  a.state.enabledSources=savedEnabled;
- // Opting out keeps a playable original and avoids all cross-source requests.
+ // Opting out still checks all sources for original-singer evidence, but does not compare quality if unresolved.
  let legacySearches=0;a.providers(async()=>{legacySearches++;throw Error('Unexpected cross-source search');});
  a.probe(async track=>({...track,audioUrl:'https://cdn.example/original.mp3',quality:'128k'}));
  const legacy=await a.verifyImportData(payload([original('legacy','netease')]),new AbortController(),()=>{},{compareAll:false});
- assert.equal(legacySearches,0);assert.equal(legacy.stats.passed,1);assert.equal(legacy.data.playlists[0].tracks[0].uid,'legacy');assert.equal(legacy.data.playlists[0].tracks[0].quality,'128k');
+ assert.equal(legacySearches,5);assert.equal(legacy.stats.originalUnconfirmed,1);assert.equal(legacy.stats.passed,1);assert.equal(legacy.data.playlists[0].tracks[0].uid,'legacy');assert.equal(legacy.data.playlists[0].tracks[0].quality,'128k');
  // With the option off, a failed original still falls back to all five sources.
  const rescueSources=new Set();const rescue={...original('rescue','kuwo'),tier:'lossless'};
  a.providers(async(name,keyword,pool)=>{rescueSources.add(name);if(name==='kuwo'&&!pool.trackMap.has(rescue.uid)){pool.trackMap.set(rescue.uid,rescue);pool.searchResults.push({...rescue});}});
@@ -218,5 +218,5 @@ const payload=tracks=>({version:1,favorites:[],playlists:[{id:'example-list',nam
  assert.equal(await a.runVerifiedImport(async()=>payload([original('blocked')]),node('status')),false);
  assert.equal(JSON.stringify(a.state.playlists),before);assert(node('status').textContent.includes('浏览器阻止'));
  assert(node('stop-import-check').disabled);assert(!node('import-link-submit').disabled);
- console.log('通过：原曲可播仍跨全部五源择优、取消勾选仅失败才跨源、原平台音质升级及可播原曲兜底、网易/QQ共同检查、实际开头及中段播放、静音/取消清理、电脑12/手机8路检查、替换搜索单独限流、音质排序和高音质失败降级、版本歌手保护、总数与完成进度、同档并行取消慢地址、低档延迟查询、失败移除、停止保留未检查、重复导入替换不重复、后台搜索隔离及自动播放受阻保护。');
+ console.log('通过：原曲可播仍跨全部五源择优、取消音质优选仍识别原唱、原平台音质升级及可播原曲兜底、网易/QQ共同检查、实际开头及中段播放、静音/取消清理、电脑12/手机8路检查、替换搜索单独限流、音质排序和高音质失败降级、版本歌手保护、总数与完成进度、同档并行取消慢地址、低档延迟查询、失败移除、停止保留未检查、重复导入替换不重复、后台搜索隔离及自动播放受阻保护。');
 })().catch(error=>{console.error(error);process.exitCode=1;});
