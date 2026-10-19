@@ -1036,7 +1036,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       $('import-platform-steps').textContent=qq?'QQ → 我的 → 我的收藏 → 分享到微信 → 用浏览器打开 → 复制链接':'网易云 → 我的 → 选择歌单（比如我喜欢的音乐） → 分享 → 复制链接';
       $('import-link-example').textContent=qq?'链接格式：https://i2.y.qq.com/***':'链接格式：https://163cn.tv/***';
       $('import-link-url').placeholder=qq?'https://i2.y.qq.com/…':'https://163cn.tv/…';
-      $('import-connection-note').textContent=playlistServiceConnected()?'仅支持公开可访问的歌单。':qq?'QQ 公开歌单可直接导入，无需配置代理。':'网易云短链接需连接歌单读取服务；可在“音源设置”配置，或改用“歌单文件”导入。';
+      $('import-connection-note').textContent='仅支持公开可访问的歌单，网易云短链接可直接导入，无需配置代理。';
     }
     function openImportGuide(method){
       if(importController){$('import-progress-dialog').showModal();return;}
@@ -1064,22 +1064,53 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
     function playlistServiceConnected(){
       return Boolean(localStorage.getItem('liusheng-api-base')) || (['localhost','127.0.0.1'].includes(location.hostname)&&location.port==='8766');
     }
+    const PLAYLIST_SERVICE='https://liusheng-playlist-service.ivory-hinny-7935.chatgpt.site';
     async function readPlaylistLinkData(info,signal){
-      if(info.source==='qq'&&!playlistServiceConnected()){
-        const rows=await readMusicJSON('https://api.qijieya.cn/meting/?'+new URLSearchParams({server:'tencent',type:'playlist',id:info.id}),signal);
-        if(!Array.isArray(rows)||!rows.length)throw new Error('QQ 歌单为空或未开放，请检查歌单公开设置，或稍后重试。');
-        if(rows.length>10000)throw new Error('歌单超过 10000 首，请拆分后导入。');
-        const tracks=rows.map((row,index)=>{
-          let mid;try{const url=new URL(row.url);if(url.origin==='https://api.qijieya.cn'&&url.pathname==='/meting/'&&url.searchParams.get('server')==='tencent'&&url.searchParams.get('type')==='url')mid=url.searchParams.get('id');}catch{}
-          if(!/^[A-Za-z0-9]{1,32}$/.test(mid||'')||typeof row?.name!=='string'||!row.name.trim()||typeof row.artist!=='string')throw new Error('QQ 歌曲资料不完整，请稍后重试或改用歌单文件导入。');
-          return {uid:'qq-'+mid,source:'qq',songid:mid,qqId:mid,songMid:mid,title:row.name.trim(),artist:row.artist.trim(),album:'',cover:mediaUrl(row.pic),keyword:`${row.name} ${row.artist}`.trim(),displayIndex:index+1};
-        });
-        return {version:1,favorites:[],playlists:[{id:'qq-playlist-'+info.id,name:'QQ 歌单 '+info.id,tracks}],warning:''};
+      const readSignal=AbortSignal.any([...(signal?[signal]:[]),AbortSignal.timeout(35000)]);
+      let abort;
+      const canceled=new Promise((resolve,reject)=>{
+        abort=()=>reject(readSignal.reason);
+        if(readSignal.aborted)abort();else readSignal.addEventListener('abort',abort,{once:true});
+      });
+      async function read(){
+        if(readSignal.aborted)throw readSignal.reason;
+        if(!playlistServiceConnected()&&!info.short){
+          const server=info.source==='qq'?'tencent':'netease';
+          const response=await fetch('https://api.qijieya.cn/meting/?'+new URLSearchParams({server,type:'playlist',id:info.id}),{signal:readSignal});
+          if(!response.ok)throw new Error('音乐平台歌单接口暂时不可用，请稍后重试。');
+          const rows=await response.json();
+          if(!Array.isArray(rows)||!rows.length)throw new Error('歌单为空或未开放，请检查歌单公开设置，或稍后重试。');
+          if(rows.length>10000)throw new Error('歌单超过 10000 首，请拆分后导入。');
+          const tracks=rows.map((row,index)=>{
+            let id;try{const url=new URL(row.url);if(url.origin==='https://api.qijieya.cn'&&url.pathname==='/meting/'&&url.searchParams.get('server')===server&&url.searchParams.get('type')==='url')id=url.searchParams.get('id');}catch{}
+            const valid=info.source==='qq'?/^[A-Za-z0-9]{1,32}$/.test(id||''):/^\d{1,20}$/.test(id||'');
+            if(!valid||typeof row?.name!=='string'||!row.name.trim()||typeof row.artist!=='string')throw new Error('歌曲资料不完整，请稍后重试或改用歌单文件导入。');
+            return {uid:info.source+'-'+id,source:info.source,songid:id,...(info.source==='qq'?{qqId:id,songMid:id}:{}),title:row.name.trim(),artist:row.artist.trim(),album:'',cover:mediaUrl(row.pic),keyword:`${row.name} ${row.artist}`.trim(),displayIndex:index+1};
+          });
+          return {version:1,favorites:[],playlists:[{id:info.source+'-playlist-'+info.id,name:(info.source==='qq'?'QQ':'网易云')+' 歌单 '+info.id,tracks}],warning:''};
+        }
+        const fallback=PLAYLIST_SERVICE+'/api/playlist?'+new URLSearchParams({url:info.url});
+        async function fromService(url,signal){
+          const response=await fetch(url,{signal});
+          let data;try{data=await response.json();}catch(error){if(signal.aborted)throw signal.reason;throw new Error('歌单服务返回了无效资料，请检查“音源设置”的服务地址，或稍后重试。');}
+          if(!response.ok){const error=new Error(data.error||'歌单读取失败，请稍后重试。');error.status=response.status;throw error;}
+          return data;
+        }
+        if(!playlistServiceConnected())return fromService(fallback,readSignal);
+        const local=['localhost','127.0.0.1'].includes(location.hostname)&&location.port==='8766';
+        try{return await fromService(musicApiUrl('/api/playlist',{url:info.url}),local?readSignal:AbortSignal.any([readSignal,AbortSignal.timeout(8000)]));}
+        catch(error){
+          if(local||readSignal.aborted||(error.status&&error.status<500))throw error;
+          $('import-check-status').textContent='自定义歌单服务不可用，正在尝试备用解析服务…';
+          return fromService(fallback,readSignal);
+        }
       }
-      const response=await fetch(musicApiUrl('/api/playlist',{url:info.url}),{signal:signal?AbortSignal.any([signal,AbortSignal.timeout(60000)]):AbortSignal.timeout(60000)});
-      const data=await response.json();
-      if(!response.ok)throw new Error(data.error||'导入失败，请稍后重试。');
-      return data;
+      try{return await Promise.race([read(),canceled]);}
+      catch(error){
+        if(readSignal.aborted){if(signal?.aborted)throw signal.reason;throw new Error('歌单读取超过 35 秒，已停止等待。请稍后重试；如设置过自定义代理，可在“音源设置”清空后再试。');}
+        if(error.name==='TypeError')throw new Error('无法连接歌单服务，请检查网络或“音源设置”中的代理地址后重试。');
+        throw error;
+      }finally{readSignal.removeEventListener('abort',abort);}
     }
     function importFileSummary(data){
       if(!data||typeof data!=='object'||Array.isArray(data))throw new Error('文件顶层需要是 JSON 对象。请下载格式示例。');
@@ -1138,7 +1169,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       await runVerifiedImport(async signal=>{
         const info=playlistLinkInfo($('import-link-url').value);
         $('import-platform').value=info.source;renderImportPlatform();
-        $('import-link-status').textContent=info.short?'正在展开网易云分享短链接并读取完整歌单…':'正在读取歌单…';
+        $('import-check-status').textContent=$('import-link-status').textContent=info.short?'正在连接解析服务、展开网易云短链接并读取完整歌单…（最多等待 35 秒）':'正在读取歌单…（最多等待 35 秒）';
         const data=await readPlaylistLinkData(info,signal);
         if(!Array.isArray(data?.playlists)||!data.playlists[0]?.tracks?.length)throw new Error('歌单服务没有返回有效歌曲，请检查链接或稍后重试。');
         if(favorite)data.favorites=data.playlists[0].tracks;
@@ -1300,6 +1331,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         $('import-check-failures').hidden=!checked.failures.length;
         return true;
       }catch(error){
+        if(!committing&&$('import-check-count').textContent==='正在读取歌曲总数…')$('import-check-count').textContent='尚未取得歌曲列表';
         const message=error.name==='NotAllowedError'?'浏览器阻止了后台试播。请保持页面在前台，点击导入重试；未修改歌单。':controller.signal.aborted?'已停止读取，未修改歌单。':error.userMessage||error.message||'导入检查失败，请重试。';
         status.textContent=message;$('import-check-status').textContent=message+(committing?' 导入过程中发生错误，请检查当前歌单。':'');return false;
       }finally{

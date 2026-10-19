@@ -26,6 +26,7 @@ for(const url of ['https://music.163.com.evil.test/playlist?id=1','https://y.qq.
 const song={uid:'qq-abc',source:'qq',songid:'abc',title:'Song',artist:'Singer'},data={favorites:[song],playlists:[{name:'List',tracks:[song]}]};
 assert.equal(a.importFileSummary(data).tracks,1);assert.equal(a.importFileSummary(data).favorites,1);
 for(const invalid of [[],{}, {favorites:[{title:'missing IDs'}]}, {favorites:'bad'}, {playlists:[{}]}, {favorites:[{...song,source:'fake'}]}])assert.throws(()=>a.importFileSummary(invalid));
+assert(html.includes('最多等待 35 秒'));
 a.openImportGuide('file');assert(node('import-link-form').hidden);assert(!node('import-file-panel').hidden);assert(node('import-link-dialog').open);
 node('import-platform').value='netease';a.setImportMethod('link');
 assert.equal(node('import-platform-steps').textContent,'网易云 → 我的 → 选择歌单（比如我喜欢的音乐） → 分享 → 复制链接');assert.equal(node('import-link-example').textContent,'链接格式：https://163cn.tv/***');
@@ -52,7 +53,7 @@ console.log('通过：平台链接识别及错误指引、JSON格式/大小/空�
   c.fetch=async raw=>{await reading;const u=new URL(raw,'http://127.0.0.1:8766');assert.equal(u.pathname,'/api/playlist');assert.equal(u.searchParams.get('url'),'https://163cn.tv/Example');return {ok:true,json:async()=>payload};};
   node('import-progress-dialog').close();a.openImportGuide('link');
   const linkImport=a.importPlaylistLink({preventDefault(){}});
-  assert(!node('import-link-dialog').open);assert(node('import-progress-dialog').open);assert(node('import-check-status').textContent.includes('正在读取'));
+  assert(!node('import-link-dialog').open);assert(node('import-progress-dialog').open);assert(node('import-check-status').textContent.includes('读取'));
   node('import-progress-dialog').close();a.openImportGuide('file');assert(node('import-progress-dialog').open);assert(!node('import-link-dialog').open);
   finishRead();await linkImport;assert(node('import-check-status').textContent.includes('测试读取提示'));
   assert.equal(c.imports.length,2);assert.equal(c.imports[1].favorites.length,1);assert.equal(a.state.playContext.playlistId,'test-playlist');
@@ -67,8 +68,26 @@ console.log('通过：平台链接识别及错误指引、JSON格式/大小/空�
   const qqData=await a.readPlaylistLinkData(mobile);
   assert.equal(qqData.playlists[0].tracks.length,2);assert.equal(qqData.playlists[0].tracks[0].songMid,'abc123');
   assert.equal(qqData.playlists[0].tracks[0].cover,'https://cdn.example/cover.jpg');assert(!qqData.playlists[0].tracks[0].audioUrl);
+  c.fetch=async raw=>{const u=new URL(raw);assert.equal(u.origin,'https://api.qijieya.cn');assert.equal(u.searchParams.get('server'),'netease');return {ok:true,json:async()=>[{name:'Song',artist:'Singer',url:'https://api.qijieya.cn/meting/?server=netease&type=url&id=123'}]};};
+  const direct=await a.readPlaylistLinkData(a.playlistLinkInfo('https://music.163.com/playlist?id=42'));
+  assert.equal(direct.playlists[0].tracks[0].source,'netease');assert.equal(direct.playlists[0].tracks[0].songid,'123');
+  c.fetch=async raw=>{const u=new URL(raw);assert.equal(u.hostname,'liusheng-playlist-service.ivory-hinny-7935.chatgpt.site');assert.equal(u.pathname,'/api/playlist');assert.equal(u.searchParams.get('url'),'https://163cn.tv/Example');return {ok:true,json:async()=>payload};};
+  const expanded=await a.readPlaylistLinkData(shared);assert.equal(expanded.playlists[0].tracks.length,1);
+  c.fetch=async()=>({ok:true,json:async()=>rows});
   node('import-link-url').value='https://i2.y.qq.com/n3/other/pages/details/playlist.html?hosteuin=example**&id=456';
   await a.importPlaylistLink({preventDefault(){}});assert.equal(c.imports.length,3);assert.equal(c.imports[2].playlists[0].id,'qq-playlist-456');assert(node('import-link-status').textContent.includes('读取 2 首'));
+  const originalAbortSignal=c.AbortSignal;
+  c.AbortSignal={any:AbortSignal.any,timeout(){return AbortSignal.abort(new DOMException('Deadline','TimeoutError'));}};
+  await assert.rejects(a.readPlaylistLinkData(shared),/35 秒/);c.AbortSignal=originalAbortSignal;
+  const deadline=new AbortController();c.AbortSignal={any:AbortSignal.any,timeout:()=>deadline.signal};
+  c.fetch=async()=>({ok:true,json:async()=>new Promise(()=>{})});
+  const timedImport=a.importPlaylistLink({preventDefault(){}});deadline.abort(new DOMException('Deadline','TimeoutError'));await timedImport;
+  assert(node('import-check-status').textContent.includes('35 秒'));assert.equal(node('import-check-count').textContent,'尚未取得歌曲列表');assert(!node('import-link-submit').disabled);c.AbortSignal=originalAbortSignal;
+  const stopRead=new AbortController();c.fetch=async()=>new Promise(()=>{});
+  const stoppedRead=a.readPlaylistLinkData(shared,stopRead.signal);stopRead.abort();await assert.rejects(stoppedRead,error=>error.name==='AbortError');
+  c.localStorage.getItem=()=> 'https://configured.example';
+  c.fetch=async raw=>{if(new URL(raw).hostname==='configured.example')throw new TypeError('Failed to fetch');assert.equal(new URL(raw).hostname,'liusheng-playlist-service.ivory-hinny-7935.chatgpt.site');return {ok:true,json:async()=>payload};};
+  assert.equal((await a.readPlaylistLinkData(shared)).playlists[0].tracks.length,1);c.localStorage.getItem=()=>null;
   for(const invalid of [[],{code:403},[null],[{...rows[0],url:'https://evil.test/?id=abc123'}],[{...rows[0],name:''}]]){
     c.fetch=async()=>({ok:true,json:async()=>invalid});await assert.rejects(a.readPlaylistLinkData(mobile));
   }
