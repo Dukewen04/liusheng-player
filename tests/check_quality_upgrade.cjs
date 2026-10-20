@@ -24,7 +24,7 @@ const find=()=>c.app.findHigherQualityRecording(original,new AbortController().s
  assert.equal(await c.app.findHigherQualityRecording({...original,quality:null},new AbortController().signal,()=>{}),null,'Unknown baseline is not assumed lower quality');
  catalog=[{...candidate('quick','128k'),source:'netease'},candidate('better','lossless')];c.details=[];c.probed=[];
  const imported=await c.app.findBestImportRecording(original,new AbortController().signal,()=>{},null,{compareAll:false});
- assert.equal(imported.uid,'quick');assert(!c.details.includes('better'));
+ assert.equal(imported.uid,'quick');assert(c.details.includes('quick'));
  c.probed=[];const retry=await c.app.findBestImportRecording(original,new AbortController().signal,()=>{},null,{compareAll:false,failedAudioUrl:'https://cdn.example/quick'});assert.equal(retry.uid,'better');assert(!c.probed.includes('quick'),'Failed audio URLs are not replayed by fast imports');
  const other={...original,uid:'other',title:'Other'};const playing={...original};c.app.state.currentTrack=playing;
  for(const type of ['favorites','playlist']){

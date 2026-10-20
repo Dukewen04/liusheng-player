@@ -1443,13 +1443,58 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
           return best;
         }finally{controller.abort();}
       }
-      onStage(skipQQ?'跳过 QQ 音源，按歌名和歌手搜索网易云':'按原歌名和歌手匹配网易云 / QQ');
-      const preferred=await searchAndSelect(primary,primarySources,
-        ['netease','qq'].includes(verifiedOriginal?.source)?verifiedOriginal:null);
-      if(preferred)return unchanged(preferred);
-      onStage('在其他音源保留原版本');
-      const sameVersion=await searchAndSelect(others,null,verifiedOriginal);
-      if(sameVersion)return unchanged(sameVersion);
+      const checkedCandidates=new Set();
+      async function searchFirstPlayable(keyword){
+        const controller=new AbortController(),signal=AbortSignal.any([parentSignal,controller.signal]);
+        const phase={...pool,signal},queue=[];
+        const providers=[...primary,...others];let pending=providers.length,active=0,finished=false;
+        return new Promise((resolve,reject)=>{
+          const finish=(value,error)=>{
+            if(finished)return;finished=true;
+            parentSignal.removeEventListener('abort',abort);controller.abort();
+            error?reject(error):resolve(value);
+          };
+          const abort=()=>finish(null,parentSignal.reason);
+          const pump=()=>{
+            if(finished)return;
+            while(active<2&&queue.length){
+              const candidate=queue.shift();active++;
+              void selectImportRecording(original,signal,onStage,null,{...pool,searchResults:[candidate]})
+                .then(selected=>{if(selected)finish(selected);})
+                .catch(error=>{if(error.name==='NotAllowedError'||parentSignal.aborted)finish(null,error);else if(error.retryable)pool.transientErrors.push(error);})
+                .finally(()=>{active--;pump();});
+            }
+            if(!pending&&!active&&!queue.length)finish(null);
+          };
+          parentSignal.addEventListener('abort',abort,{once:true});
+          if(parentSignal.aborted){abort();return;}
+          for(const provider of providers){
+            void Promise.resolve().then(()=>provider(keyword,phase)).then(()=>{
+              if(finished)return;
+              for(const candidate of pool.searchResults){
+                if(candidate.uid===original.uid||checkedCandidates.has(candidate.uid)||!sameImportRecording(original,candidate))continue;
+                checkedCandidates.add(candidate.uid);queue.push(candidate);
+              }
+            }).catch(error=>{if(error.retryable)pool.transientErrors.push(error);})
+              .finally(()=>{pending--;pump();});
+          }
+        });
+      }
+      if(pool.firstPlayable){
+        onStage(skipQQ?'跳过 QQ，音源并行搜索并验证':'音源并行搜索并验证');
+        for(const keyword of new Set(keywords)){
+          const selected=await searchFirstPlayable(keyword);
+          if(selected)return unchanged(selected);
+        }
+      }else{
+        onStage(skipQQ?'跳过 QQ 音源，按歌名和歌手搜索网易云':'按原歌名和歌手匹配网易云 / QQ');
+        const preferred=await searchAndSelect(primary,primarySources,
+          ['netease','qq'].includes(verifiedOriginal?.source)?verifiedOriginal:null);
+        if(preferred)return unchanged(preferred);
+        onStage('在其他音源保留原版本');
+        const sameVersion=await searchAndSelect(others,null,verifiedOriginal);
+        if(sameVersion)return unchanged(sameVersion);
+      }
       onStage('精确匹配未找到，查找同歌手相近歌名');
       let near=nearImportCandidates(original,pool.searchResults);
       if(!near.tracks.length&&!near.ambiguous){
@@ -1664,6 +1709,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       signal.addEventListener('abort',cancelSelections,{once:true});
       async function selectBest(original,stage,verifiedOriginal,failedAudioUrl){
         if(signal.aborted)throw signal.reason;
+        if(verifiedOriginal&&!compareAll)return findBestImportRecording(original,signal,stage,verifiedOriginal,{compareAll:false});
         if(selecting>=6){stage(compareAll?'等待跨源音质比较':'等待搜索可播版本');await new Promise((resolve,reject)=>selectionQueue.push({resolve,reject}));}
         else selecting++;
         try{if(signal.aborted)throw signal.reason;return await findBestImportRecording(original,signal,stage,verifiedOriginal,{compareAll,failedAudioUrl,skipQQ:original.source==='qq'});}
