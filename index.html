@@ -466,6 +466,8 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       <progress id="import-check-progress" max="1" aria-label="已处理歌曲比例" style="width:100%"></progress>
       <p id="import-check-status" role="status" aria-live="polite"></p>
       <button id="stop-import-check" class="btn btn-ghost" type="button" disabled>停止检查并保留当前结果</button>
+      <button id="copy-import-diagnostic" class="btn btn-secondary" type="button" hidden>复制耗时诊断</button>
+      <textarea id="import-diagnostic-text" class="input" aria-label="耗时诊断文本" readonly hidden style="width:100%;min-height:180px;margin-top:12px"></textarea>
       <details id="import-check-failures" hidden><summary id="import-check-failures-title">已移除歌曲</summary><ul id="import-check-failures-list"></ul></details>
     </section>
   </dialog>
@@ -1323,6 +1325,60 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
     }
 
     let importController=null;
+    let importDiagnostic=null,lastImportDiagnostic=null;
+    function updateImportDiagnostic(stats,report=importDiagnostic){
+      if(!report)return;
+      const now=Date.now();
+      for(const stage of report.activeStages)report.stages[stage]=(report.stages[stage]||0)+now-report.stageAt;
+      report.stageAt=now;if(stats!==undefined)report.activeStages=(stats?.active||[]).map(text=>text.split('：')[0]);
+      if(stats){const {active,...counts}=stats;report.counts=counts;}
+    }
+    function updateImportVisibility(){
+      const report=importDiagnostic;if(!report)return;
+      const now=Date.now();if(report.hiddenAt!==null)report.backgroundMs+=now-report.hiddenAt;
+      report.hiddenAt=document.visibilityState==='hidden'?now:null;
+    }
+    async function measureImportOperation(kind,target,operation){
+      const report=importDiagnostic;if(!report)return operation();
+      let source=target?.source;
+      if(!source){
+        try{const url=new URL(target,'https://player.local');source=url.pathname==='/api/qq'?'qq':url.hostname==='api.qijieya.cn'?'netease':url.hostname==='oiapi.net'?'kuwo':url.pathname.includes('joox')?'joox':url.pathname.includes('kugou')?'kugou':'other';}catch{source='other';}
+      }
+      const key=kind+':'+source,entry=report.operations[key]||=( {calls:0,ok:0,errors:0,canceled:0,timeouts:0,durations:[]} );
+      entry.calls++;const started=Date.now();
+      try{const result=await operation();entry.ok++;return result;}
+      catch(error){
+        if(error?.name==='AbortError')entry.canceled++;else entry.errors++;
+        if(error?.name==='TimeoutError'||/超时|timeout/i.test(error?.message||''))entry.timeouts++;
+        throw error;
+      }finally{entry.durations.push(Date.now()-started);}
+    }
+    function getImportDiagnostic(){
+      const report=importDiagnostic||lastImportDiagnostic;if(!report)return null;
+      if(importDiagnostic)updateImportDiagnostic(undefined,report);
+      const operations={};
+      for(const [key,entry] of Object.entries(report.operations)){
+        const values=[...entry.durations].sort((a,b)=>a-b),totalMs=values.reduce((a,b)=>a+b,0);
+        const {durations,...counts}=entry;
+        operations[key]={...counts,totalMs,averageMs:Math.round(totalMs/(values.length||1)),p50Ms:values[Math.floor(values.length*.5)]||0,p95Ms:values[Math.min(values.length-1,Math.floor(values.length*.95))]||0,maxMs:values.at(-1)||0};
+      }
+      return {version:1,browser:typeof navigator!=='undefined'?navigator.userAgent:'unknown',elapsedMs:(report.endedAt||Date.now())-report.startedAt,
+        backgroundMs:report.backgroundMs+(report.hiddenAt===null?0:Date.now()-report.hiddenAt),counts:report.counts,operations,workerStageMs:{...report.stages}};
+    }
+    async function copyImportDiagnostic(){
+      const report=getImportDiagnostic();if(!report)return;
+      const text=JSON.stringify(report,null,2);
+      try{await navigator.clipboard.writeText(text);showToast('已复制耗时诊断');}
+      catch{
+        const field=$('import-diagnostic-text');field.hidden=false;field.value=text;field.focus();field.select();
+        showToast('请复制下方诊断文本');
+      }
+    }
+    const originalReadMusicJSON=readMusicJSON,originalEnsureTrackDetails=ensureTrackDetails,originalProbeRecording=probeRecording;
+    readMusicJSON=(url,signal)=>measureImportOperation('api',url,()=>originalReadMusicJSON(url,signal));
+    ensureTrackDetails=(track,options)=>measureImportOperation('details',track,()=>originalEnsureTrackDetails(track,options));
+    probeRecording=(track,options)=>measureImportOperation('audio',track,()=>originalProbeRecording(track,options));
+
     function importQualityRank(track){
       if(track.quality==='lossless'||track.qualityLabel==='LOSSLESS')return 10000;
       const rate=String(track.quality||'').match(/^(\d+)k$/i);
@@ -1670,6 +1726,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       const originals=[...new Map(target.map(track=>[track.uid,track])).values()];
       const controller=new AbortController();importController=controller;
       const stats={done:0,upgraded:0,unchanged:0},active=new Map();let next=0;
+      $('copy-import-diagnostic').hidden=true;$('import-diagnostic-text').hidden=true;
       $('import-progress-title').textContent='替换最高音质';
       $('import-check-failures').hidden=true;$('stop-import-check').disabled=false;
       showImportDialog('import-progress-dialog');
@@ -1762,6 +1819,8 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
     async function runVerifiedImport(read,status){
       if(importController)return false;
       const startedAt=Date.now(),elapsed=()=>formatTime((Date.now()-startedAt)/1000);
+      const diagnostic={startedAt,stageAt:startedAt,activeStages:[],stages:{},operations:{},counts:null,backgroundMs:0,hiddenAt:document.visibilityState==='hidden'?startedAt:null};
+      importDiagnostic=diagnostic;$('copy-import-diagnostic').hidden=false;$('import-diagnostic-text').hidden=true;
       const controller=new AbortController();importController=controller;
       const compareAll=false;
       const controls=['import-link-submit','confirm-import-file','import-method-link','import-method-file','choose-import-file','import-platform','import-link-favorite','import-link-url'];
@@ -1775,10 +1834,11 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       $('import-check-status').textContent='第 1 步：正在读取歌单…';status.textContent='正在读取歌单…';
       let committing=false;
       try{
-        const data=await read(controller.signal);
+        const data=await measureImportOperation('playlist','playlist',()=>read(controller.signal));
         if(controller.signal.aborted)throw controller.signal.reason;
         importFileSummary(data);
         const checked=await verifyImportData(data,controller,stats=>{
+          updateImportDiagnostic(stats,diagnostic);
           $('import-check-count').textContent=`共 ${stats.total} 首 · 已完成 ${stats.checked} 首 · 剩余 ${stats.pending} 首 · 用时 ${elapsed()}`;
           const progress=$('import-check-progress');progress.max=stats.total;progress.value=stats.checked;
           $('import-check-status').textContent=`${Math.floor(stats.checked/stats.total*100)}% · 同时检查 ${stats.active.length} 首 · 保留原曲 ${stats.passed} · 替换可播 ${stats.replaced} · 不可播 ${stats.failed} · 暂未验证 ${stats.deferred}\n${stats.active.join('\n')}`;
@@ -1807,7 +1867,8 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         const message=error.name==='NotAllowedError'?'浏览器阻止了后台试播。请保持页面在前台，点击导入重试；未修改歌单。':controller.signal.aborted?'已停止读取，未修改歌单。':error.userMessage||error.message||'导入检查失败，请重试。';
         status.textContent=message;$('import-check-status').textContent=message+(committing?' 导入过程中发生错误，请检查当前歌单。':'');return false;
       }finally{
-        controller.abort();importController=null;$('stop-import-check').disabled=true;
+        controller.abort();updateImportDiagnostic(null,diagnostic);updateImportVisibility();diagnostic.endedAt=Date.now();diagnostic.hiddenAt=null;lastImportDiagnostic=diagnostic;importDiagnostic=null;
+        importController=null;$('stop-import-check').disabled=true;
         controls.forEach((id,index)=>$(id).disabled=disabled[index]);
       }
     }
@@ -3540,6 +3601,8 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
     }
 
     function setupEvents(){
+      $('copy-import-diagnostic').addEventListener('click',copyImportDiagnostic);
+      document.addEventListener('visibilitychange',updateImportVisibility);
       $('play-queue-btn').addEventListener('click',()=>{renderPlayQueue();showImportDialog('play-queue-dialog');});
       $('play-queue-close').addEventListener('click',()=>$('play-queue-dialog').close());
       dom.lyricsModeBtn.addEventListener('click',()=>setLyricsMode(!state.lyricsMode));
