@@ -110,6 +110,26 @@ body:not(.lyrics-mode) .lyrics-container{margin-top:18px;padding-top:16px;min-he
  .search-collapsed .search-panel .panel-title,.music-collapsed .playlist-panel .panel-title{writing-mode:horizontal-tb;font-size:21px;letter-spacing:.025em}
  footer{font-size:11px}
 }
+
+#import-link-dialog,#import-progress-dialog{box-sizing:border-box;padding:24px;border-radius:22px;width:min(580px,94vw)!important}
+#import-link-dialog .import-guide-heading,#import-progress-dialog .import-guide-heading{margin-bottom:20px}
+#import-link-dialog h2,#import-progress-dialog h2{font-size:24px}
+#import-link-dialog .import-methods{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 22px;background:var(--panel-glass-soft);padding:5px;border-radius:14px}
+#import-link-dialog .import-methods .btn{margin:0;justify-content:center}
+#import-link-form{display:grid;grid-template-columns:1fr;gap:12px}
+#import-link-form>label:not(.import-favorite-option){font-size:14px;font-weight:600;margin:0}
+#import-platform{width:100%;box-sizing:border-box}
+#import-link-form p{margin:0}
+#import-link-url{width:100%;min-width:0;box-sizing:border-box;margin:0!important}
+#import-platform-steps{padding:12px 14px;background:var(--panel-glass-soft);border-radius:12px}
+#import-link-example{overflow-wrap:anywhere}
+#import-link-form .import-favorite-option{margin-top:6px;font-size:14px}
+#import-link-form .modal-actions{margin-top:6px}
+#import-link-submit{width:100%;justify-content:center}
+#import-check-status{max-height:42dvh;overflow:auto;font-size:14px;line-height:1.8}
+#import-check-panel{margin-top:0}
+@media(max-width:650px){#import-link-dialog,#import-progress-dialog{padding:18px}.import-guide-heading .btn{padding:8px 12px}}
+
 </style>
 </head>
 <body>
@@ -354,7 +374,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
                 <option value="artist-asc">歌手升序（A–Z）</option>
                 <option value="artist-desc">歌手降序（Z–A）</option>
               </select>
-              <div class="library-actions"><button id="export-favorites-btn" class="btn btn-secondary" data-i18n="exportFavorites">导出收藏</button><button id="clear-favorites-btn" class="btn btn-ghost" data-i18n="clearFavorites">清空收藏</button></div>
+              <div class="library-actions"><button id="upgrade-favorites-btn" class="btn btn-secondary" type="button" title="检查全部收藏，仅替换音质更高且可播的同版本">替换最高音质</button><button id="export-favorites-btn" class="btn btn-secondary" data-i18n="exportFavorites">导出收藏</button><button id="clear-favorites-btn" class="btn btn-ghost" data-i18n="clearFavorites">清空收藏</button></div>
               <div id="favorites-search-count" role="status" aria-live="polite" style="margin-top:6px;font-size:14px;color:var(--text-sub);"></div>
             </div>
             <div id="playlist-select-row" class="playlist-select-row" style="display:none;">
@@ -369,6 +389,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
                 <button id="new-playlist-btn" class="btn btn-ghost ripple-target" data-i18n="newPlaylist">新建歌单</button>
                 <button id="import-playlist-btn" class="btn btn-ghost ripple-target" data-i18n="importPlaylist">导入歌单</button>
                 <button id="export-playlist-btn" class="btn btn-ghost ripple-target" data-i18n="exportPlaylist">导出歌单</button>
+                <button id="upgrade-playlist-btn" class="btn btn-secondary" type="button" title="检查当前完整歌单，仅替换音质更高且可播的同版本">替换最高音质</button>
                 <button id="sync-favorites-btn" class="btn btn-secondary ripple-target" data-i18n="syncFavorites">一键同步到我的收藏</button>
                 <input id="import-playlist-input" type="file" accept="application/json,.json" style="display:none;" />
               </div>
@@ -388,8 +409,6 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       <button id="import-method-link" type="button" class="btn btn-secondary" aria-pressed="true">网易云 / QQ 链接</button>
       <button id="import-method-file" type="button" class="btn btn-ghost" aria-pressed="false">歌单文件</button>
     </div>
-    <label class="import-favorite-option"><input id="import-compare-all" type="checkbox" checked /> 优选最高可播音质（优先网易云 / QQ）</label>
-    <p class="import-note">默认开启。开启后优先在网易云、QQ 的同歌名、同歌手版本中选择最高可播音质，导入需要更长时间；关闭时原曲可播即保留。原版本均不可播时才定位原唱，不随意修改歌名或歌手。</p>
     <form id="import-link-form">
       <label for="import-platform">音乐平台</label>
       <select id="import-platform" aria-label="音乐平台"><option value="netease">网易云音乐</option><option value="qq">QQ 音乐</option></select>
@@ -399,7 +418,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       <input id="import-link-url" class="input" type="text" required maxlength="2048" placeholder="https://music.163.com/#/playlist?id=…" />
       <p id="import-connection-note" class="import-note"></p>
       <label class="import-favorite-option"><input id="import-link-favorite" type="checkbox" /> 同时加入本站“我的收藏”</label>
-      <p class="import-note">导入到“自建歌单”，按上方所选方式检查歌曲并导入。已有收藏保留，重复歌曲不重复添加。</p>
+      <p class="import-note">导入到“自建歌单”，重复歌曲不会重复添加。</p>
       <p id="import-link-status" role="status" aria-live="polite"></p>
       <div class="modal-actions"><button id="import-link-submit" type="submit" class="btn">导入这个歌单</button></div>
     </form>
@@ -435,11 +454,9 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
   <dialog id="import-progress-dialog" aria-labelledby="import-progress-title">
     <div class="import-guide-heading"><h2 id="import-progress-title">导入进度</h2><button id="import-progress-close" class="btn btn-ghost" type="button" aria-label="关闭导入进度，后台继续检查">关闭</button></div>
     <section id="import-check-panel" aria-label="导入检查进度">
-      <p id="import-check-mode" class="import-note"></p>
       <p id="import-check-count" role="status" aria-live="polite">正在读取歌曲总数…</p>
       <progress id="import-check-progress" max="1" aria-label="已检查歌曲比例" style="width:100%"></progress>
       <p id="import-check-status" role="status" aria-live="polite"></p>
-      <p class="import-note">QQ 歌曲跳过原曲取源及试播，直接搜索网易云等其他音源；其他歌曲先按原歌名和歌手匹配网易云、QQ。有可播资源就保留原歌名、歌手及已有专辑信息；其他音源仍能匹配原版本时也优先保留。精确匹配失败时先查找同歌手的繁简、数字写法或包含关系等相近歌名，多个候选有歧义时保留原歌曲等待确认；之后才尝试定位原唱。备选仍须验证可播放性。取消音质优选时，非 QQ 原曲可播即保留；QQ 歌曲仍直接搜索其他音源。临时接口或网络错误会保留歌曲并标为暂未验证；确认无可播放替代的歌曲才会移除。关闭窗口可继续检查；停止后保留已完成结果和未检查歌曲。</p>
       <button id="stop-import-check" class="btn btn-ghost" type="button" disabled>停止检查并保留当前结果</button>
       <details id="import-check-failures" hidden><summary id="import-check-failures-title">已移除歌曲</summary><ul id="import-check-failures-list"></ul></details>
     </section>
@@ -1361,7 +1378,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       if(skipQQ)verifiedOriginal=null;
       if(verifiedOriginal&&(!compareAll||(['netease','qq'].includes(verifiedOriginal.source)&&importQualityRank(verifiedOriginal)===10000)))return unchanged(verifiedOriginal);
       const seed={...(verifiedOriginal||original)};
-      const pool={searchResults:skipQQ?[]:[seed],trackMap:new Map(skipQQ?[]:[[seed.uid,seed]]),skipQQ,sourceErrors:{},transientErrors:[],attempted:new Set(failedAudioUrl?[failedAudioUrl]:[]),signal:parentSignal};
+      const pool={searchResults:skipQQ?[]:[seed],trackMap:new Map(skipQQ?[]:[[seed.uid,seed]]),skipQQ,firstPlayable:!compareAll,sourceErrors:{},transientErrors:[],attempted:new Set(failedAudioUrl?[failedAudioUrl]:[]),signal:parentSignal};
       const unavailable=()=>{
         if(Object.keys(pool.sourceErrors).length||pool.transientErrors.length)throw temporaryMusicError('音源限流、网络或服务错误，暂未完成验证；已保留原歌曲。');
         return null;
@@ -1393,7 +1410,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
             if(done.error?.retryable)pool.transientErrors.push(done.error);
             const selected=await selectImportRecording(original,parentSignal,onStage,best,pool,{sources});
             if(selected&&(!best||importQualityRank(selected)>=importQualityRank(best)))best=selected;
-            if(best&&importQualityRank(best)===10000)return best;
+            if(best&&(pool.firstPlayable||importQualityRank(best)===10000))return best;
           }
           return best;
         }finally{controller.abort();}
@@ -1444,6 +1461,19 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         (nearTitle?nearImportTitleScore(original,track)>0:originalSinger?importFallbackRank(original,track)===2:sameImportRecording(original,track));
       const verified=verifiedOriginal?.audioUrl?{...verifiedOriginal,...verifiedOriginal.audioOptions?.find(option=>option.audioUrl===verifiedOriginal.audioUrl),preferHighestQuality:true}:null;
       const matches=pool.searchResults.filter(matchesRecording),choices=verified?[verified]:[],compatible=[],attempted=pool.attempted;
+      if(pool.firstPlayable){
+        for(const raw of matches){
+          onStage('验证可播候选');
+          try{
+            const candidate={...raw,preferHighestQuality:false};
+            await ensureTrackDetails(candidate,{silent:true,signal});
+            if(!matchesRecording(candidate)||pool.attempted.has(candidate.audioUrl))continue;
+            Object.assign(raw,candidate);pool.attempted.add(candidate.audioUrl);
+            return await probeRecording(candidate,{signal,silent:true,useLoaded:true});
+          }catch(error){if(parentSignal.aborted||error.name==='NotAllowedError')throw error;transient(error);}
+        }
+        return null;
+      }
       let next=0,best=null,probeFatal=null;
       await Promise.all(Array.from({length:Math.min(2,matches.length)},async()=>{
         while(next<matches.length&&!signal.aborted){
@@ -1518,6 +1548,84 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       return await tryChoices(choices);
       }finally{lookup.abort();}
     }
+    async function findHigherQualityRecording(original,signal,onStage){
+      const baseline={...original};
+      if(!importQualityRank(baseline)){
+        await ensureTrackDetails(baseline,{silent:true,signal});
+        if(!importQualityRank(baseline))return null;
+      }
+      if(importQualityRank(baseline)===10000)return null;
+      const anchor={...original,title:original.sourceTitle||original.title,artist:original.sourceArtist||original.artist};
+      const pool={searchResults:[],trackMap:new Map(),sourceErrors:{},transientErrors:[],attempted:new Set(),signal};
+      onStage('搜索更高音质');
+      await Promise.allSettled([
+        (k)=>searchNetease(k,1,20,pool),(k)=>searchQQ(k,20,pool),
+        (k)=>searchKuwo(k,20,pool),(k)=>searchJoox(k,20,pool),(k)=>searchKugou(k,20,pool)
+      ].map(async search=>{
+        for(const keyword of new Set([`${anchor.title} ${anchor.artist||''}`.trim(),anchor.title])){
+          if(signal.aborted)throw signal.reason;
+          await search(keyword);
+        }
+      }));
+      if(signal.aborted)throw signal.reason;
+      const candidate=await selectImportRecording(anchor,signal,onStage,null,pool);
+      if(!candidate||importQualityRank(candidate)<=importQualityRank(baseline))return null;
+      const selected={...candidate,title:original.title,artist:original.artist,album:original.album||candidate.album,cover:original.cover||candidate.cover,
+        importOriginalUid:original.importOriginalUid||original.uid,importCheck:'playable'};
+      if(candidate.title!==original.title||candidate.artist!==original.artist){
+        selected.sourceTitle=candidate.title;selected.sourceArtist=candidate.artist;selected.sourceAlbum=candidate.album;
+      }
+      if(original.importMatchType)selected.importMatchType=original.importMatchType;
+      return selected;
+    }
+    async function upgradeLibraryQuality(type){
+      if(importController){showImportDialog('import-progress-dialog');return;}
+      const playlist=type==='favorites'?null:state.playlists.find(pl=>pl.id===dom.playlistSelect.value);
+      const target=type==='favorites'?state.favorites:playlist?.tracks;
+      if(!target?.length){showToast('没有可升级的歌曲');return;}
+      const originals=[...new Map(target.map(track=>[track.uid,track])).values()];
+      const controller=new AbortController();importController=controller;
+      const stats={done:0,upgraded:0,unchanged:0},active=new Map();let next=0;
+      $('import-progress-title').textContent='替换最高音质';
+      $('import-check-failures').hidden=true;$('stop-import-check').disabled=false;
+      showImportDialog('import-progress-dialog');
+      const update=()=>{
+        $('import-check-count').textContent=`共 ${originals.length} 首 · 已完成 ${stats.done} 首 · 剩余 ${originals.length-stats.done} 首`;
+        $('import-check-progress').max=originals.length;$('import-check-progress').value=stats.done;
+        $('import-check-status').textContent=`已升级 ${stats.upgraded} 首 · 保持原样 ${stats.unchanged} 首\n${[...active.values()].join('\n')}`;
+      };
+      update();
+      try{
+        await Promise.all(Array.from({length:Math.min(4,originals.length)},async()=>{
+          while(next<originals.length&&!controller.signal.aborted){
+            const original=originals[next++];
+            const stage=text=>{active.set(original.uid,`${text}：${original.title} — ${original.artist||'未知歌手'}`);update();};
+            stage('检查当前音质');
+            try{
+              const higher=await findHigherQualityRecording(original,controller.signal,stage);
+              if(controller.signal.aborted)break;
+              const stillExists=type==='favorites'?state.favorites===target:state.playlists.includes(playlist)&&playlist.tracks===target;
+              const index=stillExists?target.indexOf(original):-1;
+              if(higher&&index>=0){
+                const duplicate=target.findIndex((track,i)=>i!==index&&track.uid===higher.uid);
+                if(duplicate>=0){
+                  if(importQualityRank(higher)>importQualityRank(target[duplicate]))target[duplicate]=higher;
+                  target.splice(index,1);
+                }else target[index]=higher;
+                stats.upgraded++;rebuildLibraryTrackMap();saveLibraryToStorage();renderPlaylistList();updateMainFavButton();
+              }else stats.unchanged++;
+              stats.done++;
+            }catch(error){
+              if(error.name==='NotAllowedError'){controller.abort();showToast('浏览器阻止试播，请允许音频播放后重试');}
+              else if(!controller.signal.aborted){stats.unchanged++;stats.done++;}
+            }finally{active.delete(original.uid);update();}
+          }
+        }));
+        $('import-check-status').textContent=`${controller.signal.aborted?'已停止':'升级完成'}：已升级 ${stats.upgraded} 首 · 保持原样 ${stats.unchanged} 首 · 未处理 ${originals.length-stats.done} 首。`;
+      }finally{
+        controller.abort();importController=null;$('stop-import-check').disabled=true;
+      }
+    }
     function importWorkerLimit(){return globalThis.matchMedia?.('(pointer:coarse)')?.matches?8:12;}
     async function verifyImportData(data,controller,onProgress,{compareAll=true}={}){
       const {signal}=controller;
@@ -1528,7 +1636,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       signal.addEventListener('abort',cancelSelections,{once:true});
       async function selectBest(original,stage,verifiedOriginal,failedAudioUrl){
         if(signal.aborted)throw signal.reason;
-        if(selecting>=6){stage('等待跨源音质比较');await new Promise((resolve,reject)=>selectionQueue.push({resolve,reject}));}
+        if(selecting>=6){stage(compareAll?'等待跨源音质比较':'等待搜索可播版本');await new Promise((resolve,reject)=>selectionQueue.push({resolve,reject}));}
         else selecting++;
         try{if(signal.aborted)throw signal.reason;return await findBestImportRecording(original,signal,stage,verifiedOriginal,{compareAll,failedAudioUrl,skipQQ:original.source==='qq'});}
         finally{const waiter=selectionQueue.shift();if(waiter)waiter.resolve();else selecting--;}
@@ -1569,15 +1677,15 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
     async function runVerifiedImport(read,status){
       if(importController)return false;
       const controller=new AbortController();importController=controller;
-      const compareAll=$('import-compare-all').checked;
-      const controls=['import-compare-all','import-link-submit','confirm-import-file','import-method-link','import-method-file','choose-import-file','import-platform','import-link-favorite','import-link-url'];
+      const compareAll=false;
+      const controls=['import-link-submit','confirm-import-file','import-method-link','import-method-file','choose-import-file','import-platform','import-link-favorite','import-link-url'];
       const disabled=controls.map(id=>$(id).disabled);
       controls.forEach(id=>$(id).disabled=true);
+      $('import-progress-title').textContent='导入进度';
       $('import-link-dialog').close();showImportDialog('import-progress-dialog');$('import-progress-dialog').scrollTop=0;
       $('import-check-failures').hidden=true;
       $('stop-import-check').disabled=false;$('import-check-progress').removeAttribute('value');
       $('import-check-count').textContent='正在读取歌曲总数…';
-      $('import-check-mode').textContent=compareAll?'原版本优先：QQ 歌曲直接跨源搜索，其他歌曲先检查原曲；再比较可播音质，无资源才定位原唱。':'原曲优先：QQ 歌曲直接跨源搜索，其他原曲可播即保留；无资源才定位原唱。';
       $('import-check-status').textContent='第 1 步：正在读取歌单…';status.textContent='正在读取歌单…';
       let committing=false;
       try{
@@ -1587,7 +1695,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         const checked=await verifyImportData(data,controller,stats=>{
           $('import-check-count').textContent=`共 ${stats.total} 首 · 已完成 ${stats.checked} 首 · 剩余 ${stats.pending} 首`;
           const progress=$('import-check-progress');progress.max=stats.total;progress.value=stats.checked;
-          $('import-check-status').textContent=`${Math.floor(stats.checked/stats.total*100)}% · 同时检查 ${stats.active.length} 首 · 保留原曲 ${stats.passed} · 择优替换 ${stats.replaced} · 不可播 ${stats.failed} · 暂未验证 ${stats.deferred}\n${stats.active.join('\n')}`;
+          $('import-check-status').textContent=`${Math.floor(stats.checked/stats.total*100)}% · 同时检查 ${stats.active.length} 首 · 保留原曲 ${stats.passed} · 替换可播 ${stats.replaced} · 不可播 ${stats.failed} · 暂未验证 ${stats.deferred}\n${stats.active.join('\n')}`;
         },{compareAll});
         committing=true;const removed=removeUnavailableImports(checked.failures),stat=importPlaylistData(checked.data);
         if(stat.empty&&removed){saveLibraryToStorage();updateMainFavButton();}
@@ -1600,7 +1708,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         }
         renderPlaylistList();
         const counts=checked.stats;
-        const summary=`${controller.signal.aborted?'已停止检查并保留结果':'导入检查完成'}：已检查 ${counts.checked} / ${counts.total} 首 · 保留原曲 ${counts.passed} · 择优替换 ${counts.replaced} · 已移除 ${counts.failed} · 未检查 ${counts.pending} · 暂未验证 ${counts.deferred}（已保留）。`;
+        const summary=`${controller.signal.aborted?'已停止检查并保留结果':'导入检查完成'}：已检查 ${counts.checked} / ${counts.total} 首 · 保留原曲 ${counts.passed} · 替换可播 ${counts.replaced} · 已移除 ${counts.failed} · 未检查 ${counts.pending} · 暂未验证 ${counts.deferred}（已保留）。`;
         status.textContent=`已导入${playlist?'「'+playlist.name+'」':''}：读取 ${counts.total} 首，新增 ${stat.addedPlaylistTracks} 首歌单歌曲、${stat.addedFavorites} 首收藏。\n${summary}`+(data.warning?'\n'+data.warning:'');
         $('import-check-status').textContent=status.textContent;
         const list=$('import-check-failures-list');list.innerHTML='';
@@ -3267,6 +3375,8 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         }else localStorage.removeItem('liusheng-api-base');
         $('audio-settings-dialog').close();showToast('音源设置已保存');
       });
+      $('upgrade-favorites-btn').addEventListener('click',()=>upgradeLibraryQuality('favorites'));
+      $('upgrade-playlist-btn').addEventListener('click',()=>upgradeLibraryQuality('playlist'));
       $('clear-favorites-btn').addEventListener('click',clearFavorites);
       $('clear-results-btn').addEventListener('click',clearSearchResults);
       $('playlist-search-input').addEventListener('input',event=>{state.playlistSearch=event.target.value;renderPlaylistList();dom.playlistMain.scrollTop=0;});

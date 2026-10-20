@@ -7,8 +7,8 @@ const c=vm.createContext({console,URL,URLSearchParams,AbortSignal,AbortControlle
   window:{scrollX:0,scrollY:240,scrollTo(x,y){this.scrollX=x;this.scrollY=y;}},document:{body:{style:{position:'',top:'',left:'',width:'',overflow:''}},documentElement:{style:{overflow:''}},getElementById:node,createElement:()=>({}),addEventListener(){},querySelectorAll:()=>[]},
   FileReader:class{constructor(){readers.push(this);}readAsText(){}},setTimeout,clearTimeout});
 vm.runInContext(source.replace(/\}\)\(\);\s*$/,`globalThis.imports=[];globalThis.importModes=[];importPlaylistData=data=>{imports.push(data);state.playlists=data.playlists;return {addedFavorites:1,addedPlaylists:0,addedPlaylistTracks:0};};renderPlaylistList=()=>{};renderPlaylistOptions=()=>{};verifyImportData=async(data,controller,progress,options)=>(importModes.push(options.compareAll),{data,stats:{total:data.playlists.reduce((n,p)=>n+p.tracks.length,0),checked:1,passed:1,replaced:0,failed:0,pending:0,deferred:0},failures:[]});globalThis.app={state,dom,importPlaylistLink,readPlaylistLinkData,playlistLinkInfo,importFileSummary,handleImportPlaylistFile,confirmImportFile,openImportGuide,setImportMethod};})();`),c);
-const a=c.app;node('import-compare-all').checked=true;
-assert(/id="import-compare-all"[^>]*checked/.test(html));assert(html.includes('导入需要更长时间'));assert(html.includes('关闭时原曲可播即保留'));
+const a=c.app;
+assert(!html.includes('id="import-compare-all"'));assert(!html.includes('id="import-check-mode"'));
 a.dom.playlistSelect=node('select');
 (async()=>{
 assert.equal(a.playlistLinkInfo('分享歌单 https://music.163.com/#/my/m/music/playlist?id=123。').id,'123');
@@ -39,7 +39,7 @@ choose('big.json',6*1024*1024);assert.equal(readers.length,0);
 choose('broken.json');readers[0].result='{bad';readers[0].onload();assert(node('confirm-import-file').disabled);assert.equal(c.imports.length,0);
 choose('old.json');choose('new.json');readers[2].result=JSON.stringify(data);readers[2].onload();readers[1].result='{}';readers[1].onload();
 assert(!node('confirm-import-file').disabled);assert(node('import-file-status').textContent.includes('new.json'));assert.equal(c.imports.length,0,'Reading a file must not modify the library');
-const fileImport=a.confirmImportFile();assert(node('import-compare-all').disabled);assert(!node('import-link-dialog').open);assert(node('import-progress-dialog').open);await fileImport;assert.equal(c.importModes[0],true);assert(!node('import-compare-all').disabled);assert.equal(c.imports.length,1);assert(node('confirm-import-file').disabled);await a.confirmImportFile();assert.equal(c.imports.length,1);
+const fileImport=a.confirmImportFile();assert(node('import-link-submit').disabled);assert(!node('import-link-dialog').open);assert(node('import-progress-dialog').open);await fileImport;assert.equal(c.importModes[0],false);assert(!node('import-link-submit').disabled);assert.equal(c.imports.length,1);assert(node('confirm-import-file').disabled);await a.confirmImportFile();assert.equal(c.imports.length,1);
 assert(Object.values(a.state.enabledSources).every(Boolean));
 assert(!html.includes('id="library-import-btn"'));const footer=html.match(/<footer>([\s\S]*?)<\/footer>/)[1];assert.equal(footer.replace(/<[^>]+>/g,'').trim(),'音乐版权归各平台及作者');
 for(const s of ['netease','qq','kuwo','joox','kugou'])assert(new RegExp(`data-source="${s}"[^>]*checked`).test(html));
@@ -53,11 +53,10 @@ console.log('通过：平台链接识别及错误指引、JSON格式/大小/空�
   let finishRead;const reading=new Promise(resolve=>finishRead=resolve);
   c.fetch=async raw=>{await reading;const u=new URL(raw,'http://127.0.0.1:8766');assert.equal(u.pathname,'/api/playlist');assert.equal(u.searchParams.get('url'),'https://163cn.tv/Example');return {ok:true,json:async()=>payload};};
   node('import-progress-dialog').close();a.openImportGuide('link');
-  node('import-compare-all').checked=false;
-  const linkImport=a.importPlaylistLink({preventDefault(){}});assert(node('import-compare-all').disabled);assert(node('import-check-mode').textContent.includes('原曲优先'));node('import-compare-all').checked=true;
+  const linkImport=a.importPlaylistLink({preventDefault(){}});assert(node('import-link-submit').disabled);assert.equal(node('import-progress-title').textContent,'导入进度');
   assert(!node('import-link-dialog').open);assert(node('import-progress-dialog').open);assert(node('import-check-status').textContent.includes('读取'));
   node('import-progress-dialog').close();a.openImportGuide('file');assert(node('import-progress-dialog').open);assert(!node('import-link-dialog').open);
-  finishRead();await linkImport;assert.equal(c.importModes.at(-1),false,'The job uses the option captured at the start');assert(!node('import-compare-all').disabled);assert(node('import-check-status').textContent.includes('测试读取提示'));
+  finishRead();await linkImport;assert.equal(c.importModes.at(-1),false,'Imports always skip cross-source quality comparison');assert(!node('import-link-submit').disabled);assert(node('import-check-status').textContent.includes('测试读取提示'));
   assert.equal(c.imports.length,2);assert.equal(c.imports[1].favorites.length,1);assert.equal(a.state.playContext.playlistId,'test-playlist');
   assert(node('import-link-status').textContent.includes('已导入'));assert(!node('import-link-submit').disabled);
   c.fetch=async()=>({ok:false,json:async()=>({error:'短链接失效'})});
