@@ -216,7 +216,13 @@ select,select.input{
 }
 select:hover{border-color:#a8bfa8}select:focus-visible{border-color:#789d83}
 select:disabled{opacity:.6;cursor:not-allowed}select option{background:#fff;color:var(--text-main)}
-#playback-quality{max-width:170px!important}
+.playback-quality-control{display:inline-flex;align-items:center;gap:5px;padding:0 8px 0 10px;border:1px solid #dbe6d5;border-radius:999px;background:#eef4e9;color:#52704f;flex-shrink:0}
+.playback-quality-control>.ui-icon{width:15px;height:15px;flex-shrink:0;pointer-events:none}
+.playback-quality-control #playback-quality{width:auto;max-width:138px;min-height:34px;padding:5px 22px 5px 1px!important;border:0;border-radius:999px;background-color:transparent;background-position:right 1px center;color:inherit;font-size:12px;line-height:1.4;box-shadow:none}
+.playback-quality-control:focus-within{border-color:#7e9d7b;background:#e8f0e2}
+.playback-quality-control:has(select:disabled){background:#f3f5ef;border-color:#e4eadf;color:#8a9684}
+@media(pointer:coarse){.playback-quality-control #playback-quality{min-height:42px}}
+@media(forced-colors:active){.playback-quality-control{border-color:ButtonText}}
 @media(forced-colors:active){select,select.input{appearance:auto;background-image:none}}
 </style>
 </head>
@@ -410,7 +416,10 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
                   <button aria-label="下一首 (N)" id="next-btn" class="btn btn-secondary btn-icon ripple-target" title="下一首 (N)"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="skip-forward"><use href="#icon-skip-forward"></use></svg></button>
                 </div>
                 <div class="control-secondary">
-                  <select id="playback-quality" class="input" aria-label="播放音质" title="播放音质" disabled style="max-width:130px;width:auto"><option>音质</option></select>
+                  <label class="playback-quality-control">
+                    <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-headphones"></use></svg>
+                    <select id="playback-quality" aria-label="播放音质" title="播放音质" disabled><option>音质</option></select>
+                  </label>
                   <span><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="volume-2"><use href="#icon-volume-2"></use></svg></span>
                   <input id="volume-slider" class="volume-slider" type="range" min="0" max="1" step="0.01" value="0.8" />
                 </div>
@@ -1154,9 +1163,14 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
               tracks:Array.isArray(pl.tracks) ? pl.tracks.map(deserializeTrack).filter(Boolean) : []
             }))
           : [];
+        let renamed=false;
+        for(const playlist of state.playlists){
+          const name=formatImportedPlaylistName(playlist);
+          if(name!==playlist.name){playlist.name=name;renamed=true;}
+        }
         const removed=removeUnavailableImports();
         rebuildLibraryTrackMap();
-        if(removed)saveLibraryToStorage();
+        if(removed||renamed)saveLibraryToStorage();
       }catch(e){
         console.warn('load library failed', e);
       }
@@ -1220,11 +1234,22 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       const [,source,id]=match;
       return {source,id,url:source==='qq'?`https://y.qq.com/n/ryqq/playlist/${id}`:`https://music.163.com/playlist?id=${id}`};
     }
+    function formatImportedPlaylistName(playlist){
+      const info=importedPlaylistInfo(playlist);
+      if(!info||playlist.nameEdited===true)return playlist.name;
+      const prefix=info.source==='qq'?'QQ':'网易云';
+      let name=String(playlist.name||'').trim();
+      while(name.startsWith(prefix+'-'))name=name.slice(prefix.length+1).trim();
+      const compact=name.replace(/\s/g,'');
+      if(compact===prefix+'歌单'+info.id||compact===prefix+'歌单')name='歌单 '+info.id;
+      return prefix+'-'+(name||'歌单 '+info.id);
+    }
     function hasDefaultPlaylistName(playlist){
       const info=importedPlaylistInfo(playlist);if(!info||playlist.nameEdited===true)return false;
-      const name=String(playlist.name||'').replace(/\s/g,'');
       const prefix=info.source==='qq'?'QQ':'网易云';
-      return name===prefix+'歌单'+info.id||name===prefix+'歌单';
+      let name=String(playlist.name||'').replace(/\s/g,'');
+      while(name.startsWith(prefix+'-'))name=name.slice(prefix.length+1);
+      return [prefix+'歌单'+info.id,prefix+'歌单','歌单'+info.id,'歌单'].includes(name);
     }
     async function restoreImportedPlaylistNames(){
       const playlists=state.playlists.filter(hasDefaultPlaylistName);let next=0;
@@ -1233,7 +1258,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
           const playlist=playlists[next++],before=playlist.name;
           const name=await readOriginalPlaylistName(importedPlaylistInfo(playlist),AbortSignal.timeout(5000));
           if(!name||name===before||!state.playlists.includes(playlist)||playlist.name!==before||playlist.nameEdited===true)continue;
-          playlist.name=name;saveLibraryToStorage();renderPlaylistOptions();updatePlaylistInfoLabel();
+          playlist.name=formatImportedPlaylistName({...playlist,name});saveLibraryToStorage();renderPlaylistOptions();updatePlaylistInfoLabel();
         }
       }));
     }
@@ -1252,8 +1277,8 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         if(!pl || typeof pl!=='object') return;
 
         const fallbackName=state.language==='zh' ? '导入歌单' : 'Imported Playlist';
-        const name=(pl.name || fallbackName).toString().trim() || fallbackName;
         const rawId=(pl.id || '').toString().trim();
+        const name=formatImportedPlaylistName({id:rawId,name:(pl.name || fallbackName).toString().trim() || fallbackName,nameEdited:pl.nameEdited});
 
         let target=rawId ? state.playlists.find(item=>item.id===rawId) : null;
         if(!target) target=state.playlists.find(item=>item.name===name);
@@ -1271,6 +1296,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         if(pl.name&&name!==fallbackName&&target.id===rawId&&hasDefaultPlaylistName(target)&&(pl.nameEdited===true||!hasDefaultPlaylistName({id:rawId,name}))){
           target.name=name;if(pl.nameEdited===true)target.nameEdited=true;
         }
+        target.name=formatImportedPlaylistName(target);
         addedPlaylistTracks += mergeImportedTracks(target.tracks, pl.tracks);
       });
 
@@ -1401,7 +1427,10 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       }
       try{
         const data=await Promise.race([read(),canceled]);
-        if(info.name)for(const playlist of data.playlists||[])if(hasDefaultPlaylistName(playlist))playlist.name=info.name;
+        for(const playlist of data.playlists||[]){
+          if(info.name&&hasDefaultPlaylistName(playlist))playlist.name=info.name;
+          playlist.name=formatImportedPlaylistName(playlist);
+        }
         return data;
       }
       catch(error){
@@ -3438,13 +3467,13 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       if(!['qq','joox'].includes(track.source))return [];
       const seen=new Set();
       return (track.audioOptions||[]).filter(option=>mediaUrl(option.audioUrl)&&!seen.has(option.audioUrl)&&seen.add(option.audioUrl))
-        .map(option=>({...option,label:qualityBadge(option.qualityLabel).text}));
+        .map(option=>({...option,label:qualityBadge(option.qualityLabel).text.replace(/^(?:音质|Quality) · /,'')}));
     }
     function renderPlaybackQuality(){
       const field=$('playback-quality'),track=state.currentTrack,options=playbackQualityOptions(track);
       field.innerHTML='';
       if(!options.length){
-        const option=document.createElement('option');option.textContent=track?.qualityLabel?qualityBadge(track.qualityLabel).text:'音质';field.appendChild(option);
+        const option=document.createElement('option');option.textContent=track?.qualityLabel?qualityBadge(track.qualityLabel).text.replace(/^(?:音质|Quality) · /,''):'音质';field.appendChild(option);
       }
       for(const item of options){
         const option=document.createElement('option');option.value=item.preferredAudioQuality;option.textContent=item.label;

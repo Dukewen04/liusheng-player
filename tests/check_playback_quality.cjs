@@ -23,6 +23,8 @@ c.options=options;
 const a=c.app,track={uid:'qq-1',source:'qq',title:'Song',artist:'Singer',audioUrl:options[0].audioUrl,audioOptions:options,qualityLabel:'STD'};
 a.state.currentTrack=track;a.state.favorites=[{...track}];
 (async()=>{
+ assert.equal(a.playbackQualityOptions(track)[0].label,'标准','Compact labels omit the repeated quality prefix');
+ assert(html.includes('class="playback-quality-control"'));assert(html.includes('min-height:42px'));
  await a.switchPlaybackQuality('flac');assert.equal(track.audioUrl,options[1].audioUrl);assert.equal(track.preferredAudioQuality,'flac');assert.equal(audio.currentTime,42);assert.equal(audio.paused,false);assert.equal(a.state.favorites[0].preferredAudioQuality,'flac');
  audio.paused=true;audio.currentTime=71;await a.switchPlaybackQuality('std');assert.equal(audio.currentTime,71);assert(audio.paused,'A paused track stays paused');
  const normalPlay=audio.play;audio.play=async function(){if(this.src.endsWith('.flac'))throw Error('play failed');return normalPlay.call(this);};
