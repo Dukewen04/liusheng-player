@@ -1103,6 +1103,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         playlists:state.playlists.map(pl=>({
           id:pl.id,
           name:pl.name,
+          ...(pl.nameEdited===true?{nameEdited:true}:{}),
           tracks:(pl.tracks||[]).map(serializeTrack).filter(Boolean)
         }))
       };
@@ -1149,6 +1150,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
           ? data.playlists.map((pl,idx)=>({
               id:pl.id || ('pl-cached-'+idx+'-'+Date.now()),
               name:pl.name || (state.language==='zh'?'未命名歌单':'Untitled Playlist'),
+              ...(pl.nameEdited===true?{nameEdited:true}:{}),
               tracks:Array.isArray(pl.tracks) ? pl.tracks.map(deserializeTrack).filter(Boolean) : []
             }))
           : [];
@@ -1212,6 +1214,30 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       return added;
     }
 
+    function importedPlaylistInfo(playlist){
+      const match=String(playlist.id||'').match(/^(qq|netease)-playlist-(\d{1,20})$/);
+      if(!match)return null;
+      const [,source,id]=match;
+      return {source,id,url:source==='qq'?`https://y.qq.com/n/ryqq/playlist/${id}`:`https://music.163.com/playlist?id=${id}`};
+    }
+    function hasDefaultPlaylistName(playlist){
+      const info=importedPlaylistInfo(playlist);if(!info||playlist.nameEdited===true)return false;
+      const name=String(playlist.name||'').replace(/\s/g,'');
+      const prefix=info.source==='qq'?'QQ':'网易云';
+      return name===prefix+'歌单'+info.id||name===prefix+'歌单';
+    }
+    async function restoreImportedPlaylistNames(){
+      const playlists=state.playlists.filter(hasDefaultPlaylistName);let next=0;
+      await Promise.all(Array.from({length:Math.min(2,playlists.length)},async()=>{
+        while(next<playlists.length){
+          const playlist=playlists[next++],before=playlist.name;
+          const name=await readOriginalPlaylistName(importedPlaylistInfo(playlist),AbortSignal.timeout(5000));
+          if(!name||name===before||!state.playlists.includes(playlist)||playlist.name!==before||playlist.nameEdited===true)continue;
+          playlist.name=name;saveLibraryToStorage();renderPlaylistOptions();updatePlaylistInfoLabel();
+        }
+      }));
+    }
+
     function importPlaylistData(data){
       if(!data || typeof data!=='object') throw new Error('invalid import data');
 
@@ -1237,11 +1263,14 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
           if(state.playlists.some(item=>item.id===id)){
             id='pl-import-'+Date.now()+'-'+idx+'-'+Math.random().toString(16).slice(2);
           }
-          target={id,name,tracks:[]};
+          target={id,name,tracks:[],...(pl.nameEdited===true?{nameEdited:true}:{})};
           state.playlists.push(target);
           addedPlaylists++;
         }
 
+        if(pl.name&&name!==fallbackName&&target.id===rawId&&hasDefaultPlaylistName(target)&&(pl.nameEdited===true||!hasDefaultPlaylistName({id:rawId,name}))){
+          target.name=name;if(pl.nameEdited===true)target.nameEdited=true;
+        }
         addedPlaylistTracks += mergeImportedTracks(target.tracks, pl.tracks);
       });
 
@@ -1299,10 +1328,14 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       const candidate=String(value).match(/https?:\/\/[^\s<>"']+/i)?.[0]?.replace(/[，。；！）)]+$/,'');
       let url;try{url=new URL(candidate);}catch{throw new Error('请粘贴完整的网易云或 QQ 音乐歌单链接，也可以粘贴包含链接的分享文字。');}
       if(!['http:','https:'].includes(url.protocol)||url.username||url.password||url.port)throw new Error('歌单地址格式无效。');
+      const textName=String(value).match(/(?:分享歌单|歌单)\s*[:：]\s*(.*?)\s*https?:\/\//)?.[1]||String(value).match(/歌单[「《“"]([^」》”"\n]{1,200})[」》”"]/)?.[1];
+      const rawName=textName||['dissname','playlistName','title','name'].map(key=>url.searchParams.get(key)).find(Boolean)||'';
+      const name=rawName.trim().replace(/^["“「《](.*)["”」》]$/,'$1').trim();
+      const named=name&&name.length<=300?{name}:{};
       let source,id;
       if(url.hostname==='163cn.tv'){
         if(!/^\/[A-Za-z0-9_-]{1,64}\/?$/.test(url.pathname))throw new Error('网易云分享短链接格式无效。');
-        return {source:'netease',id:null,short:true,url:url.href};
+        return {source:'netease',id:null,short:true,url:url.href,...named};
       }
       if(url.hostname==='music.163.com'){
         source='netease';const fragment=new URL(url.hash.slice(1)||url.pathname+url.search,'https://music.163.com');
@@ -1311,7 +1344,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         source='qq';if(/playlist|taoge/.test(url.pathname))id=url.searchParams.get('id')||url.searchParams.get('disstid')||url.pathname.match(/playlist\/(\d+)/)?.[1];
       }
       if(!source||!/^\d{1,20}$/.test(id||''))throw new Error('没有找到歌单 ID。网易云支持 163cn.tv 分享短链接；其他短链接请先在浏览器打开后复制具体歌单网址。个人主页不能直接导入。');
-      return {source,id,url:source==='qq'?`https://y.qq.com/n/ryqq/playlist/${id}`:url.href};
+      return {source,id,url:source==='qq'?`https://y.qq.com/n/ryqq/playlist/${id}`:url.href,...named};
     }
     function playlistServiceConnected(){
       return Boolean(localStorage.getItem('liusheng-api-base')) || (['localhost','127.0.0.1'].includes(location.hostname)&&location.port==='8766');
@@ -1335,7 +1368,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       async function read(){
         if(readSignal.aborted)throw readSignal.reason;
         if(!playlistServiceConnected()&&!info.short){
-          const originalName=readOriginalPlaylistName(info,readSignal);
+          const originalName=info.name?Promise.resolve(info.name):readOriginalPlaylistName(info,readSignal);
           const server=info.source==='qq'?'tencent':'netease';
           const response=await fetch('https://api.qijieya.cn/meting/?'+new URLSearchParams({server,type:'playlist',id:info.id}),{signal:readSignal});
           if(!response.ok)throw new Error('音乐平台歌单接口暂时不可用，请稍后重试。');
@@ -1366,7 +1399,11 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
           return fromService(fallback,readSignal);
         }
       }
-      try{return await Promise.race([read(),canceled]);}
+      try{
+        const data=await Promise.race([read(),canceled]);
+        if(info.name)for(const playlist of data.playlists||[])if(hasDefaultPlaylistName(playlist))playlist.name=info.name;
+        return data;
+      }
       catch(error){
         if(readSignal.aborted){if(signal?.aborted)throw signal.reason;throw new Error('歌单读取超过 35 秒，已停止等待。请稍后重试；如设置过自定义代理，可在“音源设置”清空后再试。');}
         if(error.name==='TypeError')throw new Error('无法连接歌单服务，请检查网络或“音源设置”中的代理地址后重试。');
@@ -2077,6 +2114,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         progressUI.flush();
         diagnostic.initialElapsedMs=Date.now()-startedAt;
         committing=true;const removed=removeUnavailableImports(checked.failures),stat=importPlaylistData(checked.data);
+        void restoreImportedPlaylistNames();
         if(stat.empty&&removed){saveLibraryToStorage();updateMainFavButton();}
         const playlist=checked.data.playlists[0];
         document.querySelectorAll('.playlist-tab').forEach(tab=>tab.classList.toggle('active',tab.dataset.tab===(playlist?'playlists':'favorites')));
@@ -3884,7 +3922,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         const playlist=state.playlists.find(pl=>pl.id===editingPlaylistId);
         if(!playlist){closePlaylistModal();showToast(t('toastNeedPlaylistSelected'));return;}
         if(!name){showToast(t('playlistNameRequired'));dom.playlistNameInput.focus();return;}
-        playlist.name=name;
+        playlist.name=name;playlist.nameEdited=true;
         renderPlaylistOptions();dom.playlistSelect.value=playlist.id;
         saveLibraryToStorage();closePlaylistModal();renderPlaylistList();
         showToast(t('toastPlaylistRenamed'));return;
@@ -4270,6 +4308,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       try{lyricsMode=localStorage.getItem('liusheng-lyrics-mode')==='1';}catch{}
       setLyricsMode(lyricsMode);
       restorePlaybackState();
+      void restoreImportedPlaylistNames();
     }
 
     document.addEventListener('DOMContentLoaded',init);
