@@ -130,6 +130,9 @@ body:not(.lyrics-mode) .lyrics-container{margin-top:18px;padding-top:16px;min-he
 #import-check-panel{margin-top:0}
 @media(max-width:650px){#import-link-dialog,#import-progress-dialog{padding:18px}.import-guide-heading .btn{padding:8px 12px}}
 
+#replacement-dialog{box-sizing:border-box;width:min(680px,94vw);max-height:88dvh;overflow:auto;overscroll-behavior:contain;padding:24px;border-radius:22px}
+#replacement-dialog h2{font-size:24px;margin:0}#replacement-original,#replacement-status{font-size:14px;color:var(--text-sub);line-height:1.7}
+.replacement-row{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--border-subtle)}.replacement-row>div{flex:1;min-width:0}.replacement-row strong,.replacement-row span{display:block;overflow-wrap:anywhere}.replacement-row span{font-size:13px;color:var(--text-sub);margin-top:6px}.replacement-row button{flex-shrink:0}
 </style>
 </head>
 <body>
@@ -460,6 +463,13 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       <button id="stop-import-check" class="btn btn-ghost" type="button" disabled>停止检查并保留当前结果</button>
       <details id="import-check-failures" hidden><summary id="import-check-failures-title">已移除歌曲</summary><ul id="import-check-failures-list"></ul></details>
     </section>
+  </dialog>
+
+  <dialog id="replacement-dialog" aria-labelledby="replacement-title">
+    <div class="import-guide-heading"><h2 id="replacement-title">选择替代版本</h2><button id="replacement-close" type="button" class="btn btn-ghost">取消</button></div>
+    <p id="replacement-original"></p>
+    <p id="replacement-status" role="status" aria-live="polite"></p>
+    <div id="replacement-list"></div>
   </dialog>
 
   <dialog id="audio-settings-dialog">
@@ -1150,7 +1160,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       $(id).showModal();
     }
     function restoreImportScroll(){
-      if(!importScrollLock||$('import-link-dialog').open||$('import-progress-dialog').open)return;
+      if(!importScrollLock||$('import-link-dialog').open||$('import-progress-dialog').open||$('replacement-dialog').open)return;
       const saved=importScrollLock;importScrollLock=null;
       Object.assign(document.body.style,saved.body);document.documentElement.style.overflow=saved.htmlOverflow;
       window.scrollTo(saved.x,saved.y);
@@ -2716,10 +2726,90 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       dom.favBtn.ariaLabel=state.language==='zh' ? (active?'取消收藏 (F)':'收藏 (F)') : (active?'Unfavorite (F)':'Favorite (F)');
     }
 
-    let playbackRequest = 0, lyricsController;
+    async function chooseDeferredReplacement(original,signal){
+      const dialog=$('replacement-dialog'),list=$('replacement-list'),status=$('replacement-status');
+      list.innerHTML='';$('replacement-original').textContent=`${original.title} — ${original.artist||'未知歌手'}`;
+      status.textContent='正在搜索，请选择要替换的版本…';
+      showImportDialog('replacement-dialog');
+      return new Promise(resolve=>{
+        let settled=false,busy=false;
+        const finish=value=>{
+          if(settled)return;settled=true;
+          signal.removeEventListener('abort',cancel);dialog.removeEventListener('close',cancel);dialog.removeEventListener('cancel',cancel);
+          $('replacement-close').removeEventListener('click',cancel);
+          dialog.close();resolve(value);
+        };
+        const cancel=()=>finish(null);
+        signal.addEventListener('abort',cancel,{once:true});dialog.addEventListener('close',cancel);dialog.addEventListener('cancel',cancel);
+        $('replacement-close').addEventListener('click',cancel);
+        const pool={searchResults:[],trackMap:new Map(),sourceErrors:{},signal};
+        const shown=new Set();
+        const render=()=>{
+          if(settled||signal.aborted)return;
+          for(const candidate of pool.searchResults){
+            if(shown.has(candidate.uid))continue;shown.add(candidate.uid);
+            const row=document.createElement('div');row.className='replacement-row';
+            const info=document.createElement('div'),title=document.createElement('strong'),meta=document.createElement('span');
+            title.textContent=candidate.title||'未知歌名';meta.textContent=`${candidate.artist||'未知歌手'} · ${{netease:'网易云',qq:'QQ',kuwo:'酷我',joox:'JOOX',kugou:'酷狗'}[candidate.source]||candidate.source}${candidate.album?' · '+candidate.album:''}`;
+            info.appendChild(title);info.appendChild(meta);
+            const button=document.createElement('button');button.type='button';button.className='btn btn-secondary';button.textContent='选择替换';
+            button.addEventListener('click',async()=>{
+              if(busy||settled||signal.aborted)return;busy=true;
+              list.querySelectorAll('button').forEach(el=>el.disabled=true);status.textContent=`正在验证：${candidate.title} — ${candidate.artist||'未知歌手'}`;
+              try{
+                const selected=await probeRecording({...candidate},{signal,silent:true});
+                if(settled||signal.aborted)return;
+                finish({...selected,importCheck:'playable',importOriginalUid:original.importOriginalUid||original.uid});
+              }catch(error){
+                if(!settled&&!signal.aborted)status.textContent=error.name==='NotAllowedError'?'浏览器阻止试播，请允许音频播放后重试。':'这个版本暂时无法播放，请选择其他版本。';
+              }finally{
+                busy=false;if(!settled)list.querySelectorAll('button').forEach(el=>el.disabled=false);
+              }
+            });
+            button.disabled=busy;row.appendChild(info);row.appendChild(button);list.appendChild(row);
+          }
+        };
+        const providers=[k=>searchNetease(k,1,10,pool),k=>searchKuwo(k,10,pool),k=>searchJoox(k,10,pool),k=>searchKugou(k,10,pool)];
+        if(original.source!=='qq')providers.push(k=>searchQQ(k,10,pool));
+        void Promise.allSettled(providers.map(async search=>{
+          for(const keyword of new Set([`${original.title} ${original.artist||''}`.trim(),original.title])){
+            if(settled||signal.aborted)return;await search(keyword);render();
+          }
+        })).then(()=>{
+          if(settled||signal.aborted||busy)return;
+          status.textContent=shown.size?`找到 ${shown.size} 个候选，请选择后验证并替换。`:
+            Object.keys(pool.sourceErrors).length?'音源暂时无法完成搜索，请关闭后重试；原歌曲已保留。':'未找到候选，原歌曲已保留。';
+        });
+        if(signal.aborted)cancel();
+      });
+    }
+    function replaceDeferredLibraryTrack(original,selected){
+      const replace=list=>{
+        const ids=new Set(),next=list.map(track=>track.uid===original.uid?selected:track).filter(track=>!ids.has(track.uid)&&ids.add(track.uid));
+        list.splice(0,list.length,...next);
+      };
+      replace(state.favorites);state.playlists.forEach(pl=>replace(pl.tracks));replace(state.searchResults);
+      state.trackMap.delete(original.uid);state.trackMap.set(selected.uid,selected);
+      saveLibraryToStorage();renderPlaylistList();updateMainFavButton();
+    }
+    let playbackRequest = 0, lyricsController, deferredController;
     async function playTrack(track,context,startTime=0){
       if(!track)return;
       const request = ++playbackRequest;
+      deferredController?.abort();deferredController=null;
+      if(track.importCheck==='deferred'){
+        const controller=new AbortController();deferredController=controller;
+        try{
+          const selected=await chooseDeferredReplacement(track,controller.signal);
+          if(!selected||controller.signal.aborted||request!==playbackRequest)return;
+          replaceDeferredLibraryTrack(track,selected);track=selected;
+          const list=context?.type==='favorites'?getSortedFavorites():context?.type==='playlist'?state.playlists.find(pl=>pl.id===context.playlistId)?.tracks:state.searchResults;
+          if(context&&list)context={...context,index:list.findIndex(item=>item.uid===selected.uid)};
+        }finally{
+          if(deferredController===controller)deferredController=null;
+          controller.abort();
+        }
+      }
       lyricsController?.abort();
       lyricsController=new AbortController();
       const lyricsSignal=lyricsController.signal;
@@ -2855,8 +2945,8 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       }
       if(index<0)index=list.length-1;
       if(index>=list.length)index=0;
-      state.playContext={type,index,playlistId:plId||null};
-      playTrack(list[index],state.playContext);
+      const context={type,index,playlistId:plId||null};
+      playTrack(list[index],context);
     }
 
     function playNext(direction){
@@ -3402,7 +3492,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       $('download-import-example').addEventListener('click',downloadImportExample);
       $('import-link-close').addEventListener('click',()=>$('import-link-dialog').close());
       $('import-progress-close').addEventListener('click',()=>$('import-progress-dialog').close());
-      ['import-link-dialog','import-progress-dialog'].forEach(id=>$(id).addEventListener('close',restoreImportScroll));
+      ['import-link-dialog','import-progress-dialog','replacement-dialog'].forEach(id=>$(id).addEventListener('close',restoreImportScroll));
       $('import-link-form').addEventListener('submit',importPlaylistLink);
       document.querySelectorAll('.lang-btn').forEach(btn=>{
         btn.addEventListener('click',()=>setLanguage(btn.dataset.lang));
