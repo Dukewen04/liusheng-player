@@ -5,7 +5,7 @@ const nodes=new Map();const node=id=>{if(!nodes.has(id))nodes.set(id,{hidden:tru
 let copied='';const c=vm.createContext({Date:Clock,console,URL,URLSearchParams,AbortSignal,AbortController,setTimeout,clearTimeout,document:{getElementById:node,visibilityState:'visible',addEventListener(){}},navigator:{userAgent:'Chrome Test',clipboard:{async writeText(v){copied=v;}}},localStorage:{getItem(){return null;}},fetch:async()=>{now+=100;return {ok:true,status:200,text:async()=>'[]'};}});
 vm.runInContext(source.replace(/\}\)\(\);\s*$/,`
  showToast=()=>{};
- globalThis.app={measureImportOperation,getImportDiagnostic,copyImportDiagnostic,updateImportDiagnostic,updateImportVisibility,readMusicJSON,
+ globalThis.app={measureImportOperation,getImportDiagnostic,updateImportDiagnostic,updateImportVisibility,readMusicJSON,
  begin:()=>{importController=new AbortController();return importDiagnostic={startedAt:Date.now(),stageAt:Date.now(),activeStages:[],stages:{},operations:{},counts:null,backgroundMs:0,hiddenAt:null};}};
 })();`),c);
 (async()=>{
@@ -26,8 +26,8 @@ vm.runInContext(source.replace(/\}\)\(\);\s*$/,`
  await assert.rejects(a.readMusicJSON('https://example.com/api/kugou?msg=secret'));
  await assert.rejects(a.readMusicJSON('https://example.com/api/kugou?msg=another'));
  assert.equal(a.getImportDiagnostic().operations['network:kugou'].calls,1);assert.equal(a.getImportDiagnostic().operations['cooldown:kugou'].calls,1,'Cooldown skips do not inflate real network request counts');
- await a.copyImportDiagnostic();assert(copied);assert(!copied.includes('私密歌名')&&!copied.includes('私密歌手')&&!copied.includes('secret'));assert.equal(JSON.parse(copied).browser,'Chrome Test');
- c.navigator.clipboard.writeText=async()=>{throw Error('permission');};await a.copyImportDiagnostic();assert(!node('import-diagnostic-text').hidden&&node('import-diagnostic-text').selected);assert(node('import-diagnostic-text').value.includes('elapsedMs'));
+ assert(!html.includes('copy-import-diagnostic')&&!html.includes('import-diagnostic-text'),'Diagnostic copy UI is removed');
+ const text=JSON.stringify(snapshot);assert(!text.includes('私密歌名')&&!text.includes('secret'));
  const old=report;const fresh=a.begin();await a.measureImportOperation('audio',{source:'qq'},async()=>{now+=10;});assert.equal(Object.keys(fresh.operations).length,1);assert.equal(old.operations['audio:kuwo'].calls,2);
- console.log('通过：浏览器诊断保持返回值和错误、汇总真实请求/试播/超时/取消、记录后台和排队时间、运行中复制不丢计时、无歌名或链接、剪贴板失败可手动复制、任务隔离。');
+ console.log('通过：浏览器诊断保持返回值和错误、汇总真实请求/试播/超时/取消、记录后台和排队时间、运行中读取不丢计时、无歌名或链接、移除诊断复制入口、任务隔离。');
 })().catch(e=>{console.error(e);process.exitCode=1;});
