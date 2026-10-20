@@ -31,6 +31,10 @@ const find=track=>c.app.findBestImportRecording(track,new AbortController().sign
  catalog=[choice('qqgirl','你的姑娘','隔壁老樊')];artistOnly=true;queries.length=0;
  const girl=await find(original('姑娘','隔壁老樊'));
  assert.equal(girl.uid,'qqgirl');assert.equal(girl.title,'姑娘');assert.equal(girl.sourceTitle,'你的姑娘');assert.equal(girl.album,'Imported Album');assert(queries.includes('隔壁老樊'),'Only broaden to artist catalog after exact matching fails');
+ catalog=[choice('late-exact','姑娘','隔壁老樊','kuwo')];artistOnly=true;queries.length=0;
+ const lateExact=await find(original('姑娘','隔壁老樊'));
+ assert.equal(lateExact.uid,'late-exact','An exact recording discovered by the artist catalog must still be verified');assert(!lateExact.importMatchType,'A late exact hit is not a fuzzy replacement');
+ const fastLateExact=await c.app.findBestImportRecording(original('姑娘','隔壁老樊'),new AbortController().signal,()=>{},null,{compareAll:false,skipQQ:true});assert.equal(fastLateExact.uid,'late-exact','QQ fast imports also verify exact hits from the later artist search');
  artistOnly=false;catalog=[choice('exact','姑娘','隔壁老樊','qq','128k'),choice('near','你的姑娘','隔壁老樊')];queries.length=0;
  assert.equal((await find(original('姑娘','隔壁老樊'))).uid,'exact','Playable exact recording always outranks fuzzy alternatives');assert(!queries.includes('隔壁老樊'));
  catalog=[choice('one','你的姑娘','隔壁老樊','kuwo'),choice('two','老姑娘','隔壁老樊','kuwo')];

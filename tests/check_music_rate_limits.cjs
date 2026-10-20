@@ -8,6 +8,16 @@ function boot(fetch){
   return c;
 }
 (async()=>{
+  for(const [api,message,empty] of [['kugou.music',"未找到与'No song'相关的歌曲",'歌曲列表'],['joox_music','未搜索到相关歌曲','songs']]){
+    let requests=0;const missing=boot(async raw=>{requests++;return new URL(raw).searchParams.get('name')==='valid'||new URL(raw).searchParams.get('msg')==='valid'?response({code:200,data:{[empty]:[]}}):response({code:500,message},500);});
+    missing.app.begin();const query=api==='kugou.music'?'name':'msg',base='https://apicx.asia/api/'+api;
+    const noMatch=await missing.app.readMusicJSON(base+'?'+query+'=missing');assert.equal(noMatch.data[empty].length,0);
+    await missing.app.readMusicJSON(base+'?'+query+'=missing');assert.equal(requests,1,'Explicit no-results responses are cached as empty searches');
+    await missing.app.readMusicJSON(base+'?'+query+'=valid');assert.equal(requests,2,'A missing song must not cool down the entire source');
+    const positive=boot(async()=>response({code:500,message}));assert.equal((await positive.app.readMusicJSON(base+'?'+query+'=missing')).data[empty].length,0);
+    const outage=boot(async()=>response({code:500,message:'数据库暂时不可用'},500));outage.app.begin();await assert.rejects(outage.app.readMusicJSON(base+'?'+query+'=missing'),e=>e.retryable,'Real server failures still defer');
+    const detail=boot(async()=>response({code:500,message},500));detail.app.begin();await assert.rejects(detail.app.readMusicJSON(base+'?'+query+'=missing&n=1'),e=>e.retryable,'A detail failure must not become a successful empty search');
+  }
   let reusedQueries=0;const reuse=boot(async url=>{reusedQueries++;const q=new URL(url).searchParams;return response({data:q.has('n')?{rid:'123',song:'Song',singer:'Singer',url:'https://cdn.example/song.mp3'}:[{rid:'123',song:'Song',singer:'Singer'}]});});
   reuse.app.begin();await reuse.app.searchKuwo('Original Alias Singer',20);
   await reuse.app.fetchKuwoDetails({uid:'kuwo-123',source:'kuwo',songid:'123',title:'Song',artist:'Singer',keyword:'Original Alias Singer',preferCompatible:true});

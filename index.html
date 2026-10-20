@@ -1568,6 +1568,8 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       if(!near.tracks.length&&!near.ambiguous){
         const singer=simplifyImportText(original.artist),alternate=spellImportNumbers(original.title);
         await search([...primary,...others],[`${alternate} ${singer}`.trim(),singer].filter(Boolean));
+        const exact=await selectImportRecording(original,parentSignal,onStage,null,pool);
+        if(exact)return unchanged(exact);
         near=nearImportCandidates(original,pool.searchResults);
       }
       if(near.ambiguous)throw temporaryMusicError('同一歌手有多个相近歌名，未自动替换；原歌曲已保留，需确认。');
@@ -1990,6 +1992,14 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       });
     }
 
+    function emptyMusicSearch(data,url){
+      if(url.hostname!=='apicx.asia'||url.searchParams.has('n')||Number(data?.code)!==500)return null;
+      if(!/^(?:未搜索到相关歌曲|未找到与[\s\S]+相关的歌曲)[。！!]?$/u.test(String(data.message||data.msg||'').trim()))return null;
+      if(url.pathname==='/api/joox_music')return {code:200,data:{songs:[]}};
+      if(url.pathname==='/api/kugou.music')return {code:200,data:{'歌曲列表':[]}};
+      return null;
+    }
+
     async function readMusicJSON(url,signal){
       const serviceURL=new URL(url,'https://player.local');serviceURL.searchParams.sort();
       const cacheKey=serviceURL.href,cached=importController&&importRequestCache.get(cacheKey);
@@ -2025,20 +2035,28 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
             if(qq)qqBlockedUntil=Date.now()+15000;
             throw qq?limited():temporaryMusicError('音乐接口限流，请稍后重试。');
           }
+          let emptySearch=null;
           if(!response.ok){
-            if(response.status>=500 && attempt+1<attempts)continue;
-            throw musicError('musicServiceError');
+            try{
+              const data=typeof response.text==='function'?JSON.parse(await response.text()):await response.json();
+              emptySearch=emptyMusicSearch(data,serviceURL);
+            }catch{}
+            if(!emptySearch){
+              if(response.status>=500 && attempt+1<attempts)continue;
+              throw musicError('musicServiceError');
+            }
           }
           try{
-            let data;
-            if(typeof response.text==='function'){
+            let data=emptySearch;
+            if(!data&&typeof response.text==='function'){
               const text=await response.text();
               if(!/^[{\[]/.test(text.trim())&&/请求过于频繁|请求频繁|too many requests|rate.?limit/i.test(text)){
                 if(qq)qqBlockedUntil=Date.now()+15000;
                 throw qq?limited():temporaryMusicError('音乐接口限流，请稍后重试。');
               }
               data=JSON.parse(text);
-            }else data=await response.json();
+            }else if(!data)data=await response.json();
+            data=emptyMusicSearch(data,serviceURL)||data;
             if(Number(data?.code)===429||/请求过于频繁|请求频繁|too many requests|rate.?limit/i.test(data?.message||data?.msg||'')){
               if(qq)qqBlockedUntil=Date.now()+15000;
               throw qq?limited():temporaryMusicError('音乐接口限流，请稍后重试。');
