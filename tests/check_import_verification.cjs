@@ -178,8 +178,8 @@ const payload=tracks=>({version:1,favorites:[],playlists:[{id:'example-list',nam
  while(searching<6)await new Promise(resolve=>setImmediate(resolve));
  assert.equal(maxSearching,6);repairingController.abort();const stoppedRepairs=await repairing;assert.equal(searching,0);assert.equal(stoppedRepairs.stats.pending,24);
 
- // Fast imports allow eight desktop searches, keeping touch devices at six.
- for(const [coarse,limit] of [[false,8],[true,6]]){
+ // Fast imports allow twelve desktop searches, keeping touch devices at six.
+ for(const [coarse,limit] of [[false,12],[true,6]]){
   c.matchMedia=()=>({matches:coarse});searching=0;maxSearching=0;
   const fastController=new AbortController();
   const fastRepairs=a.verifyImportData(payload(Array.from({length:24},(_,i)=>original('fast-'+i))),fastController,()=>{},{compareAll:false});
