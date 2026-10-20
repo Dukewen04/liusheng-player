@@ -3,7 +3,7 @@ const html=fs.readFileSync(path.join(__dirname,'../index.html'),'utf8');
 const source=[...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].at(-1)[1];
 const nodes=new Map(),storage=new Map();
 function element(){
-  const classes=new Set(),node={style:{},value:'',textContent:'',children:[],handlers:{},classList:{add(v){classes.add(v);},remove(v){classes.delete(v);},toggle(v,on){on?classes.add(v):classes.delete(v);},contains(v){return classes.has(v);}},appendChild(child){this.children.push(child);},addEventListener(e,fn){this.handlers[e]=fn;},click(){this.handlers.click?.({stopPropagation(){}});}};
+  const classes=new Set(),node={dataset:{},style:{},value:'',textContent:'',children:[],handlers:{},classList:{add(v){classes.add(v);},remove(v){classes.delete(v);},toggle(v,on){on?classes.add(v):classes.delete(v);},contains(v){return classes.has(v);}},appendChild(child){this.children.push(child);},addEventListener(e,fn){this.handlers[e]=fn;},click(){this.handlers.click?.({stopPropagation(){}});}};
   Object.defineProperty(node,'innerHTML',{set(value){this.html=value;this.children=[];},get(){return this.html||'';}});return node;
 }
 const node=id=>{if(!nodes.has(id))nodes.set(id,element());return nodes.get(id);};

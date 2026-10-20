@@ -14,7 +14,7 @@ function boot(fetch,storage=new Map()){
   })();`);
   const node=()=>({style:{},classList:{add(){},remove(){},toggle(){}},appendChild(){},addEventListener(){}});
   const context=vm.createContext({console,URL,URLSearchParams,AbortSignal,AbortController,setTimeout,clearTimeout,fetch,location:{hostname:'dukewen04.github.io',port:''},
-    document:{addEventListener(){},getElementById:node,createElement:node,querySelector:()=>null},
+    document:{addEventListener(){},getElementById:node,createElement:node,querySelector:()=>null,querySelectorAll:()=>[]},
     localStorage:{getItem:key=>storage.get(key),setItem:(key,value)=>storage.set(key,value)}});
   vm.runInContext(script,context);
   return {app:context.app,context,node,storage};

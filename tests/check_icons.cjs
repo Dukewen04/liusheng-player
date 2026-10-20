@@ -1,7 +1,7 @@
 const fs=require('fs'),vm=require('vm'),assert=require('assert/strict'),path=require('path');
 const html=fs.readFileSync(path.join(__dirname,'../index.html'),'utf8');
 const source=[...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].at(-1)[1];
-const context=vm.createContext({console,AbortSignal,AbortController,URLSearchParams,document:{addEventListener(){}}});
+const context=vm.createContext({console,AbortSignal,AbortController,URLSearchParams,document:{addEventListener(){},querySelectorAll:()=>[]}});
 vm.runInContext(source.replace(/\}\)\(\);\s*$/,`globalThis.app={state,dom,icon,setPlaybackIcon,inferQualityFromUrl,qualityBadge};})();`),context);
 const app=context.app,symbols=[...html.matchAll(/<symbol id="([^"]+)"/g)].map(m=>m[1]);
 assert.equal(symbols.length,new Set(symbols).size);

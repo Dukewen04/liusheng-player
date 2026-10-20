@@ -133,6 +133,10 @@ body:not(.lyrics-mode) .lyrics-container{margin-top:18px;padding-top:16px;min-he
 #replacement-dialog{box-sizing:border-box;width:min(680px,94vw);max-height:88dvh;overflow:auto;overscroll-behavior:contain;padding:24px;border-radius:22px}
 #replacement-dialog h2{font-size:24px;margin:0}#replacement-original,#replacement-status{font-size:14px;color:var(--text-sub);line-height:1.7}
 .replacement-row{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--border-subtle)}.replacement-row>div{flex:1;min-width:0}.replacement-row strong,.replacement-row span{display:block;overflow-wrap:anywhere}.replacement-row span{font-size:13px;color:var(--text-sub);margin-top:6px}.replacement-row button{flex-shrink:0}
+#play-queue-btn{display:none}.lyrics-mode #play-queue-btn{display:inline-flex}
+#play-queue-dialog{box-sizing:border-box;width:min(680px,94vw);max-height:85dvh;overflow:auto;overscroll-behavior:contain;padding:24px;border-radius:22px}
+#play-queue-dialog h2{font-size:24px;margin:0}#play-queue-count{font-size:14px;color:var(--text-sub)}#play-queue-list{overflow:visible;min-height:0}
+@media(max-width:650px){#play-queue-dialog{padding:18px}.lyrics-mode .player-view-actions{gap:6px}.lyrics-mode .player-view-actions .btn{padding:6px 8px}}
 </style>
 </head>
 <body>
@@ -277,6 +281,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
           </div>
           <div class="player-view-actions">
             <span class="chip" data-i18n="playerSubtitle">一首歌，一段好时光</span>
+            <button id="play-queue-btn" class="btn btn-ghost lyrics-mode-btn" type="button" aria-haspopup="dialog">播放列表</button>
             <button id="lyrics-mode-btn" class="btn btn-ghost lyrics-mode-btn" type="button" aria-pressed="false">纯净模式</button>
           </div>
         </div>
@@ -463,6 +468,12 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       <button id="stop-import-check" class="btn btn-ghost" type="button" disabled>停止检查并保留当前结果</button>
       <details id="import-check-failures" hidden><summary id="import-check-failures-title">已移除歌曲</summary><ul id="import-check-failures-list"></ul></details>
     </section>
+  </dialog>
+
+  <dialog id="play-queue-dialog" aria-labelledby="play-queue-title">
+    <div class="import-guide-heading"><h2 id="play-queue-title">播放列表</h2><button id="play-queue-close" type="button" class="btn btn-ghost">关闭</button></div>
+    <p id="play-queue-count" role="status" aria-live="polite"></p>
+    <div id="play-queue-list" class="playlist-list"></div>
   </dialog>
 
   <dialog id="replacement-dialog" aria-labelledby="replacement-title">
@@ -915,6 +926,13 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       dom.playBtn.innerHTML=icon(playing?'pause':'play');
       dom.playBtn.ariaLabel=state.language==='zh' ? (playing?'暂停 (Space)':'播放 (Space)') : (playing?'Pause (Space)':'Play (Space)');
       dom.playBtn.title=dom.playBtn.ariaLabel;
+      document.querySelectorAll('.track-play-button').forEach(updateTrackPlaybackButton);
+    }
+    function updateTrackPlaybackButton(button){
+      const playing=state.isPlaying&&state.currentTrack?.uid===button.dataset.playTrackUid;
+      button.innerHTML=icon(playing?'pause':'play');
+      button.ariaLabel=(state.language==='zh'?(playing?'暂停 ':'播放 '):(playing?'Pause ':'Play '))+(button.dataset.playTrackTitle||'');
+      button.title=button.ariaLabel;
     }
     function qualityBadge(label){
       const zh=state.language==='zh';
@@ -1160,7 +1178,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       $(id).showModal();
     }
     function restoreImportScroll(){
-      if(!importScrollLock||$('import-link-dialog').open||$('import-progress-dialog').open||$('replacement-dialog').open)return;
+      if(!importScrollLock||$('import-link-dialog').open||$('import-progress-dialog').open||$('replacement-dialog').open||$('play-queue-dialog').open)return;
       const saved=importScrollLock;importScrollLock=null;
       Object.assign(document.body.style,saved.body);document.documentElement.style.overflow=saved.htmlOverflow;
       window.scrollTo(saved.x,saved.y);
@@ -3150,6 +3168,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
     function resetPlaylistSearch(){state.playlistSearch='';$('playlist-search-input').value='';}
 
     function renderPlaylistList(){
+      if($('play-queue-dialog').open)renderPlayQueue();
       const wrap=dom.playlistList;
       wrap.innerHTML='';
       renderMiniSearchList();
@@ -3188,7 +3207,14 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       renderTrackRows(wrap,list,activeTab);
     }
 
-    function renderTrackRows(wrap,list,activeTab){
+    function renderPlayQueue(){
+      const list=getActiveList(),context={...state.playContext};
+      const wrap=$('play-queue-list');wrap.innerHTML='';
+      $('play-queue-count').textContent=`共 ${list.length} 首`;
+      if(!list.length){const empty=document.createElement('p');empty.className='empty-library';empty.textContent='播放列表为空，请先在收藏或歌单中选择歌曲。';wrap.appendChild(empty);}
+      renderTrackRows(wrap,list,'queue',context);
+    }
+    function renderTrackRows(wrap,list,activeTab,queueContext=null){
       list.forEach((track,idx)=>{
         const item=document.createElement('div');
         item.className='track-item ripple-target';
@@ -3230,8 +3256,9 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         const act=document.createElement('div');
         act.className='track-actions';
         const pBtn=document.createElement('button');
-        pBtn.className='btn btn-secondary btn-icon ripple-target'; pBtn.innerHTML=icon('play');
-        pBtn.ariaLabel=(state.language==='zh'?'播放 ':'Play ')+track.title;pBtn.title=pBtn.ariaLabel;
+        pBtn.className='btn btn-secondary btn-icon ripple-target track-play-button';
+        pBtn.dataset.playTrackUid=track.uid;pBtn.dataset.playTrackTitle=track.title||'';
+        updateTrackPlaybackButton(pBtn);
         const fBtn=document.createElement('button');
         fBtn.className='btn btn-secondary btn-icon ripple-target'; fBtn.innerHTML=icon('heart');
         fBtn.ariaLabel=(state.language==='zh'?'收藏 / 取消收藏 ':'Favorite / unfavorite ')+track.title;fBtn.title=fBtn.ariaLabel;
@@ -3244,6 +3271,8 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
         pBtn.addEventListener('click',ev=>{
           ev.stopPropagation();
+          if(state.currentTrack?.uid===track.uid&&track.importCheck!=='deferred'){togglePlayPause();return;}
+          if(activeTab==='queue'){void playTrack(track,{...queueContext,index:idx});return;}
           if(activeTab==='results'){
             const visible=getInterleavedSearchList();
             const i=visible.findIndex(x=>x.uid===track.uid);
@@ -3448,6 +3477,8 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
     }
 
     function setupEvents(){
+      $('play-queue-btn').addEventListener('click',()=>{renderPlayQueue();showImportDialog('play-queue-dialog');});
+      $('play-queue-close').addEventListener('click',()=>$('play-queue-dialog').close());
       dom.lyricsModeBtn.addEventListener('click',()=>setLyricsMode(!state.lyricsMode));
       $('audio-settings-btn').addEventListener('click',()=>{
         $('audio-api-base').value=localStorage.getItem('liusheng-api-base')||'';
@@ -3492,7 +3523,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       $('download-import-example').addEventListener('click',downloadImportExample);
       $('import-link-close').addEventListener('click',()=>$('import-link-dialog').close());
       $('import-progress-close').addEventListener('click',()=>$('import-progress-dialog').close());
-      ['import-link-dialog','import-progress-dialog','replacement-dialog'].forEach(id=>$(id).addEventListener('close',restoreImportScroll));
+      ['import-link-dialog','import-progress-dialog','replacement-dialog','play-queue-dialog'].forEach(id=>$(id).addEventListener('close',restoreImportScroll));
       $('import-link-form').addEventListener('submit',importPlaylistLink);
       document.querySelectorAll('.lang-btn').forEach(btn=>{
         btn.addEventListener('click',()=>setLanguage(btn.dataset.lang));
@@ -3624,6 +3655,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         const playlistOpen=dom.playlistModal.classList.contains('show');
         const shortcutOpen=dom.shortcutModal.classList.contains('show');
 
+        if(document.querySelectorAll('dialog[open]').length)return;
         if(e.key==='Escape'){
           if(playlistOpen)closePlaylistModal();
           if(shortcutOpen)dom.shortcutModal.classList.remove('show');
