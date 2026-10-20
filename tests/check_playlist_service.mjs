@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { resolvePlaylist, loadPlaylist, handlePlaylist } from '../services/playlist-service.mjs';
+import { resolvePlaylist, loadPlaylist, loadPlaylistName, handlePlaylist } from '../services/playlist-service.mjs';
 const song = id => ({id,name:'Song '+id,ar:[{name:'Singer'}]});
 
 test('short links resolve server-side and never forward account parameters',async()=>{
@@ -32,4 +32,29 @@ test('CORS only permits the player and local development; no data in preflight',
  const blocked=await handlePlaylist(new Request(endpoint,{headers:{Origin:'https://evil.test'}}),fetcher);assert.equal(blocked.status,403);assert.equal(calls,0);
  const preflight=await handlePlaylist(new Request(endpoint,{method:'OPTIONS',headers:{Origin:'https://dukewen04.github.io'}}),fetcher);assert.equal(preflight.status,204);assert.equal(calls,0);
  const ok=await handlePlaylist(new Request(endpoint,{headers:{Origin:'https://dukewen04.github.io'}}),fetcher);assert.equal(ok.status,200);assert.equal(ok.headers.get('Access-Control-Allow-Origin'),'https://dukewen04.github.io');assert.equal((await ok.json()).playlists[0].tracks.length,1);
+});
+
+test('metadata reads original platform names without fetching the song proxy',async()=>{
+ const qq=await loadPlaylistName('https://y.qq.com/n/ryqq/playlist/123',new AbortController().signal,async(raw,options)=>{
+  assert.equal(new URL(raw).hostname,'c.y.qq.com');assert.equal(options.headers.Referer,'https://y.qq.com/');
+  return Response.json({code:0,cdlist:[{dissname:'我喜欢'}]});
+ });
+ assert.equal(qq.name,'我喜欢');assert(!('tracks' in qq));
+ const netease=await loadPlaylistName('https://music.163.com/playlist?id=123',new AbortController().signal,async()=>Response.json({code:200,playlist:{name:'私人歌单 2026-10-20'}}));
+ assert.equal(netease.name,'私人歌单 2026-10-20','Do not strip dates that are part of the real platform name');
+});
+test('QQ playlist preserves the original name and survives optional name failures',async()=>{
+ const rows=[{name:'Song',artist:'Singer',url:'https://api.qijieya.cn/meting/?server=tencent&type=url&id=abc'}];
+ for(const fail of [false,true]){
+  const data=await loadPlaylist('https://y.qq.com/n/ryqq/playlist/123',new AbortController().signal,async raw=>{
+   if(new URL(raw).hostname==='c.y.qq.com'){if(fail)throw Error('metadata offline');return Response.json({code:0,cdlist:[{dissname:'我喜欢'}]});}
+   return Response.json(rows);
+  });
+  assert.equal(data.playlists[0].name,fail?'QQ 歌单 123':'我喜欢');assert.equal(data.playlists[0].tracks.length,1);
+ }
+});
+test('metadata endpoint returns a name only and retains origin protection',async()=>{
+ const url='https://service.example/api/playlist?meta=1&url='+encodeURIComponent('https://music.163.com/playlist?id=123');
+ const response=await handlePlaylist(new Request(url,{headers:{Origin:'https://dukewen04.github.io'}}),async()=>Response.json({code:200,playlist:{name:'Original'}}));
+ assert.equal(response.status,200);const data=await response.json();assert.equal(data.name,'Original');assert(!('playlists' in data));
 });

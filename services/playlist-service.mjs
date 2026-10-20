@@ -7,7 +7,7 @@ function checkedURL(raw) {
   return url;
 }
 async function request(url, signal, fetcher, extra = {}) {
-  const response = await fetcher(url, {signal, redirect:'manual', headers:{'User-Agent':'Mozilla/5.0', Referer:'https://music.163.com/'}, ...extra});
+  const response = await fetcher(url, {signal, redirect:'manual', headers:{'User-Agent':'Mozilla/5.0', Referer:new URL(url).hostname.endsWith('qq.com')?'https://y.qq.com/':'https://music.163.com/'}, ...extra});
   if (!response.ok) throw Error('音乐平台暂时无法连接，请稍后重试。');
   return response;
 }
@@ -43,6 +43,22 @@ export async function resolvePlaylist(raw, signal, fetcher = fetch) {
   if (!/^\d{1,20}$/.test(id || '')) throw Error('没有找到歌单 ID，请分享具体歌单。');
   return {source:netease?'netease':'qq', id};
 }
+async function playlistName(source, id, signal, fetcher) {
+  let name;
+  if (source === 'netease') {
+    const detail = await json('https://music.163.com/api/v6/playlist/detail?' + new URLSearchParams({id,n:'0'}), signal, fetcher);
+    if (detail.code === 200) name = detail.playlist?.name;
+  } else {
+    const detail = await json('https://c.y.qq.com/qzone/fcg-bin/fcg_ucc_getcdinfo_byids_cp.fcg?' + new URLSearchParams({type:'1',json:'1',utf8:'1',onlysong:'0',new_format:'1',disstid:id,format:'json',song_begin:'0',song_num:'1'}), signal, fetcher);
+    if (detail.code === 0) name = detail.cdlist?.[0]?.dissname;
+  }
+  if (typeof name !== 'string' || !name.trim()) throw Error('未能读取原歌单名称。');
+  return name.trim();
+}
+export async function loadPlaylistName(raw, signal, fetcher = fetch) {
+  const {source,id} = await resolvePlaylist(raw, signal, fetcher);
+  return {source,id,name:await playlistName(source,id,signal,fetcher)};
+}
 export async function loadPlaylist(raw, signal, fetcher = fetch) {
   const {source,id} = await resolvePlaylist(raw, signal, fetcher);
   let name, tracks;
@@ -68,6 +84,7 @@ export async function loadPlaylist(raw, signal, fetcher = fetch) {
     if (ordered.some(song => !song) || Number(list.trackCount || 0) > ordered.length) throw Error('网易云歌曲资料读取不完整，未导入部分歌单，请稍后重试。');
     tracks = ordered.map((song,index) => ({uid:'netease-'+song.id, source, songid:String(song.id), title:song.name, artist:(song.ar || song.artists || []).map(a => a.name).join('/'), album:(song.al || song.album)?.name || '', displayIndex:index+1}));
   } else {
+    const originalName = playlistName(source,id,AbortSignal.any([signal,AbortSignal.timeout(4000)]),fetcher).catch(() => null);
     const rows = await json('https://api.qijieya.cn/meting/?' + new URLSearchParams({server:'tencent',type:'playlist',id}), signal, fetcher);
     if (!Array.isArray(rows) || !rows.length || rows.length > 10000) throw Error('QQ 歌单为空或未开放，请检查公开设置。');
     tracks = rows.map((row,index) => {
@@ -77,7 +94,7 @@ export async function loadPlaylist(raw, signal, fetcher = fetch) {
       if (!/^[A-Za-z0-9]{1,32}$/.test(mid || '')) throw Error('QQ 歌曲标识无效。');
       return {uid:'qq-'+mid,source,songid:mid,qqId:mid,songMid:mid,title:row.name,artist:row.artist,displayIndex:index+1};
     });
-    name = 'QQ 歌单 ' + id;
+    name = await originalName || 'QQ 歌单 ' + id;
   }
   if (!tracks.length || tracks.some(song => typeof song.title !== 'string' || !song.title.trim() || typeof song.artist !== 'string')) throw Error('歌单歌曲资料不完整，请稍后重试。');
   return {version:1,favorites:[],playlists:[{id:source+'-playlist-'+id,name:name || '网易云歌单 '+id,tracks}],warning:''};
@@ -90,8 +107,9 @@ export async function handlePlaylist(request, fetcher = fetch) {
   if (request.method === 'OPTIONS') return new Response(null,{status:204,headers:{...headers,'Access-Control-Allow-Methods':'GET, OPTIONS'}});
   if (request.method !== 'GET') return new Response(null,{status:405,headers});
   try {
-    const signal = AbortSignal.any([request.signal,AbortSignal.timeout(25000)]);
-    const data = await loadPlaylist(new URL(request.url).searchParams.get('url') || '', signal, fetcher);
+    const params = new URL(request.url).searchParams, metadata = params.get('meta') === '1';
+    const signal = AbortSignal.any([request.signal,AbortSignal.timeout(metadata ? 4000 : 25000)]);
+    const data = await (metadata ? loadPlaylistName : loadPlaylist)(params.get('url') || '', signal, fetcher);
     return new Response(JSON.stringify(data),{headers});
   } catch (error) {
     const message = ['TimeoutError','AbortError'].includes(error.name) ? '歌单读取超时，请稍后重试。' : error.message || '歌单读取失败，请稍后重试。';

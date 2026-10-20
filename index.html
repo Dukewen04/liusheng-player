@@ -206,6 +206,18 @@ body:not(.lyrics-mode) .lyrics-container{margin-top:18px;padding-top:16px;min-he
  .playlist-panel .mobile-library-actions.mobile-open{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
  .playlist-panel .track-item,.playlist-panel .track-item.playing{min-height:64px;padding:8px;margin:3px 0}
 }
+
+select,select.input{
+ appearance:none;-webkit-appearance:none;background-color:#fff;
+ background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b806f' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+ background-repeat:no-repeat;background-position:right 10px center;
+ padding-right:34px!important;border:1px solid #d9e3d5;border-radius:10px;min-height:40px;
+ color:var(--text-main);text-overflow:ellipsis;box-shadow:0 2px 6px #263a3005;
+}
+select:hover{border-color:#a8bfa8}select:focus-visible{border-color:#789d83}
+select:disabled{opacity:.6;cursor:not-allowed}select option{background:#fff;color:var(--text-main)}
+#playback-quality{max-width:170px!important}
+@media(forced-colors:active){select,select.input{appearance:auto;background-image:none}}
 </style>
 </head>
 <body>
@@ -462,7 +474,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
             </div>
             <div id="playlist-select-row" class="playlist-select-row" style="display:none;">
               <div class="playlist-select-tools">
-                <select id="playlist-select"></select>
+                <select id="playlist-select" aria-label="选择歌单"></select>
                 <button aria-label="把当前歌曲加入歌单" id="add-current-btn" class="btn btn-secondary btn-icon ripple-target" title="把当前歌曲加入歌单"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="plus"><use href="#icon-plus"></use></svg></button>
                 <button id="delete-playlist-btn" class="btn btn-ghost ripple-target" data-i18n="deletePlaylist">删除歌单</button>
               </div>
@@ -472,6 +484,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
                 <button id="playlist-actions-toggle" class="btn btn-ghost mobile-library-toggle" type="button" aria-expanded="false" aria-controls="playlist-more-actions" data-i18n="moreLibraryActions">更多操作</button>
               </div>
               <div id="playlist-more-actions" class="playlist-file-actions mobile-library-actions">
+                <button id="rename-playlist-btn" class="btn btn-ghost" type="button" data-i18n="renamePlaylist">重命名歌单</button>
                 <button id="new-playlist-btn" class="btn btn-ghost ripple-target" data-i18n="newPlaylist">新建歌单</button>
                 <button id="import-playlist-btn" class="btn btn-ghost ripple-target" data-i18n="importPlaylist">导入歌单</button>
                 <button id="export-playlist-btn" class="btn btn-ghost ripple-target" data-i18n="exportPlaylist">导出歌单</button>
@@ -592,11 +605,11 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       <div class="modal-header">
         <div class="modal-title-wrap">
           <div class="modal-title-icon"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="music"><use href="#icon-music"></use></svg></div>
-          <span data-i18n="modalNewPlaylistTitle">新建歌单</span>
+          <span id="playlist-modal-title" data-i18n="modalNewPlaylistTitle">新建歌单</span>
         </div>
         <button id="playlist-close" class="modal-close-btn" aria-label="关闭" title="关闭"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="x"><use href="#icon-x"></use></svg></button>
       </div>
-      <p class="modal-desc" data-i18n="modalNewPlaylistDesc">为喜欢的声音，留一个位置。</p>
+      <p id="playlist-modal-desc" class="modal-desc" data-i18n="modalNewPlaylistDesc">为喜欢的声音，留一个位置。</p>
       <input id="playlist-name-input" type="text" placeholder="例如：通勤歌单 / 宝可梦歌单" />
       <div class="modal-actions">
         <button id="playlist-cancel-btn" class="btn btn-ghost ripple-target" data-i18n="modalCancel">取消</button>
@@ -674,7 +687,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         shortcutMute:"静音 / 取消静音",
         shortcutFocusSearch:"聚焦搜索框",
         shortcutCloseModal:"提示：按 Esc 可以关闭弹窗。",
-        moreLibraryActions:"更多操作",mobileSearch:"搜索",mobilePlayer:"播放",mobileMusic:"我的音乐",
+        renamePlaylist:"重命名歌单",renamePlaylistDesc:"修改歌单名称，歌曲和播放进度保持不变。",toastPlaylistRenamed:"歌单已重命名",playlistNameRequired:"请输入歌单名称",moreLibraryActions:"更多操作",mobileSearch:"搜索",mobilePlayer:"播放",mobileMusic:"我的音乐",
         searchTitle:"歌曲搜索",
         searchSubtitle:"搜一首想听的歌",
         librarySubtitle:"收藏喜欢的声音，整理自己的歌单",
@@ -770,7 +783,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         shortcutMute:"Mute / unmute",
         shortcutFocusSearch:"Focus on search box",
         shortcutCloseModal:"Tip: press Esc to close dialogs.",
-        moreLibraryActions:"More actions",mobileSearch:"Search",mobilePlayer:"Player",mobileMusic:"My music",
+        renamePlaylist:"Rename playlist",renamePlaylistDesc:"Rename this playlist while keeping its songs and playback position.",toastPlaylistRenamed:"Playlist renamed",playlistNameRequired:"Enter a playlist name",moreLibraryActions:"More actions",mobileSearch:"Search",mobilePlayer:"Player",mobileMusic:"My music",
         searchTitle:"Search",
         searchSubtitle:"Find your next favorite",
         librarySubtitle:"Your favorites, your playlists",
@@ -1304,6 +1317,14 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       return Boolean(localStorage.getItem('liusheng-api-base')) || (['localhost','127.0.0.1'].includes(location.hostname)&&location.port==='8766');
     }
     const PLAYLIST_SERVICE='https://liusheng-playlist-service.ivory-hinny-7935.chatgpt.site';
+    async function readOriginalPlaylistName(info,signal){
+      try{
+        const response=await fetch(PLAYLIST_SERVICE+'/api/playlist?'+new URLSearchParams({url:info.url,meta:'1'}),{signal:AbortSignal.any([signal,AbortSignal.timeout(4500)])});
+        if(!response.ok)return null;
+        const data=await response.json();
+        return typeof data.name==='string'&&data.name.trim()?data.name.trim():null;
+      }catch{return null;}
+    }
     async function readPlaylistLinkData(info,signal){
       const readSignal=AbortSignal.any([...(signal?[signal]:[]),AbortSignal.timeout(35000)]);
       let abort;
@@ -1314,6 +1335,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       async function read(){
         if(readSignal.aborted)throw readSignal.reason;
         if(!playlistServiceConnected()&&!info.short){
+          const originalName=readOriginalPlaylistName(info,readSignal);
           const server=info.source==='qq'?'tencent':'netease';
           const response=await fetch('https://api.qijieya.cn/meting/?'+new URLSearchParams({server,type:'playlist',id:info.id}),{signal:readSignal});
           if(!response.ok)throw new Error('音乐平台歌单接口暂时不可用，请稍后重试。');
@@ -1326,7 +1348,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
             if(!valid||typeof row?.name!=='string'||!row.name.trim()||typeof row.artist!=='string')throw new Error('歌曲资料不完整，请稍后重试或改用歌单文件导入。');
             return {uid:info.source+'-'+id,source:info.source,songid:id,...(info.source==='qq'?{qqId:id,songMid:id}:{}),title:row.name.trim(),artist:row.artist.trim(),album:'',cover:mediaUrl(row.pic),keyword:`${row.name} ${row.artist}`.trim(),displayIndex:index+1};
           });
-          return {version:1,favorites:[],playlists:[{id:info.source+'-playlist-'+info.id,name:(info.source==='qq'?'QQ':'网易云')+' 歌单 '+info.id,tracks}],warning:''};
+          return {version:1,favorites:[],playlists:[{id:info.source+'-playlist-'+info.id,name:await originalName||(info.source==='qq'?'QQ':'网易云')+' 歌单 '+info.id,tracks}],warning:''};
         }
         const fallback=PLAYLIST_SERVICE+'/api/playlist?'+new URLSearchParams({url:info.url});
         async function fromService(url,signal){
@@ -3842,16 +3864,31 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
     // ===================== 歌单弹窗 =====================
 
-    function openPlaylistModal(){
+    let editingPlaylistId=null;
+    function openPlaylistModal(id=null){
+      const playlist=state.playlists.find(pl=>pl.id===id);
+      editingPlaylistId=playlist?.id||null;
+      for(const [node,key] of [['playlist-modal-title',playlist?'renamePlaylist':'modalNewPlaylistTitle'],['playlist-modal-desc',playlist?'renamePlaylistDesc':'modalNewPlaylistDesc']]){
+        $(node).setAttribute('data-i18n',key);$(node).textContent=t(key);
+      }
       dom.playlistModal.classList.add('show');
-      dom.playlistNameInput.value='';
+      dom.playlistNameInput.value=playlist?.name||'';
       setTimeout(()=>dom.playlistNameInput.focus(),50);
     }
     function closePlaylistModal(){
-      dom.playlistModal.classList.remove('show');
+      dom.playlistModal.classList.remove('show');editingPlaylistId=null;
     }
     function createPlaylist(){
       let name=dom.playlistNameInput.value.trim();
+      if(editingPlaylistId){
+        const playlist=state.playlists.find(pl=>pl.id===editingPlaylistId);
+        if(!playlist){closePlaylistModal();showToast(t('toastNeedPlaylistSelected'));return;}
+        if(!name){showToast(t('playlistNameRequired'));dom.playlistNameInput.focus();return;}
+        playlist.name=name;
+        renderPlaylistOptions();dom.playlistSelect.value=playlist.id;
+        saveLibraryToStorage();closePlaylistModal();renderPlaylistList();
+        showToast(t('toastPlaylistRenamed'));return;
+      }
       if(!name)name=state.language==='zh'?'未命名歌单':'Untitled Playlist';
       const id='pl-'+Date.now()+'-'+Math.random().toString(16).slice(2);
       const pl={id,name,tracks:[]};
@@ -4148,7 +4185,8 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       });
 
       dom.deletePlaylistBtn.addEventListener('click',deleteSelectedPlaylist);
-      dom.newPlaylistBtn.addEventListener('click',openPlaylistModal);
+      dom.newPlaylistBtn.addEventListener('click',()=>openPlaylistModal());
+      $('rename-playlist-btn').addEventListener('click',()=>{if(state.playlists.some(pl=>pl.id===dom.playlistSelect.value))openPlaylistModal(dom.playlistSelect.value);else showToast(t('toastNeedPlaylistSelected'));});
       dom.importPlaylistBtn.addEventListener('click',()=>openImportGuide('file'));
       dom.importPlaylistInput.addEventListener('change',handleImportPlaylistFile);
       dom.exportPlaylistBtn.addEventListener('click',()=>exportPlaylistData());
