@@ -183,6 +183,29 @@ body:not(.lyrics-mode) .lyrics-container{margin-top:18px;padding-top:16px;min-he
  #mobile-current-artist{color:var(--text-sub);font-size:12px!important}
  @media(max-height:650px){body:not(.lyrics-mode) .player-top{flex-direction:row;gap:12px}body:not(.lyrics-mode) .cover-wrapper{width:80px;flex:0 0 80px}body:not(.lyrics-mode) .track-title{font-size:18px}body:not(.lyrics-mode) .track-title-row{flex-wrap:wrap;gap:6px}body:not(.lyrics-mode) .player-actions{flex-direction:row;align-items:center}body:not(.lyrics-mode) .player-btn-row .btn{height:30px;min-height:30px;min-width:30px}body:not(.lyrics-mode) .status-pill{display:none}}
 }
+
+.mobile-library-toggle{display:none}
+@media(max-width:650px){
+ body:not(.lyrics-mode) .playlist-panel>.panel-header{flex-direction:row;align-items:center;gap:10px;padding:10px 12px}
+ body:not(.lyrics-mode) .playlist-panel>.panel-header>.chip{display:none}
+ body:not(.lyrics-mode) .playlist-panel .panel-heading-row{width:auto;flex:none}
+ body:not(.lyrics-mode) .playlist-panel .panel-title{font-size:16px;white-space:nowrap}
+ body:not(.lyrics-mode) .playlist-panel .playlist-tabs{flex:1;width:auto;min-width:0;margin:0;padding:3px;gap:2px;flex-wrap:nowrap}
+ body:not(.lyrics-mode) .playlist-panel .playlist-tab{font-size:13px;min-height:34px;padding:5px 7px}
+ body:not(.lyrics-mode) .playlist-panel>#import-link-btn{margin:0 14px 8px!important;min-height:34px;font-size:13px;padding:5px 10px}
+ body:not(.lyrics-mode) .playlist-panel .playlist-bar{position:static;padding:10px;margin-bottom:8px}
+ .favorites-search-controls{display:grid;grid-template-columns:minmax(0,1fr) minmax(100px,.6fr);gap:8px;align-items:center}
+ .favorites-search-controls #favorites-sort{margin-top:0!important;width:100%!important}
+ .playlist-panel .input,.playlist-select-tools select{padding:7px 8px;min-height:40px}
+ .playlist-select-row{gap:7px;margin-top:6px}
+ .mobile-library-tools-footer{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:6px;min-height:32px}
+ .mobile-library-tools-footer #favorites-search-count{margin-top:0!important;min-width:0}
+ .mobile-library-toggle{display:inline-flex;align-items:center;min-height:32px;padding:4px 8px;font-size:12px;flex-shrink:0}
+ .mobile-library-toggle[aria-expanded="true"]{background:#eaf1e5}
+ .playlist-panel .mobile-library-actions:not(.mobile-open){display:none}
+ .playlist-panel .mobile-library-actions.mobile-open{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+ .playlist-panel .track-item,.playlist-panel .track-item.playing{min-height:64px;padding:8px;margin:3px 0}
+}
 </style>
 </head>
 <body>
@@ -421,16 +444,21 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
               </div>
             </div>
             <div id="favorites-search-row" style="display:none;margin-top:8px;">
-              <input id="favorites-search-input" class="input" type="search" aria-label="搜索我的收藏" placeholder="搜索收藏中的歌名、歌手或专辑…" style="width:100%;" />
-              <select id="favorites-sort" class="input" aria-label="收藏排序" style="margin-top:8px;width:100%;">
-                <option value="original">收藏顺序</option>
-                <option value="title-asc">歌名升序（A–Z）</option>
-                <option value="title-desc">歌名降序（Z–A）</option>
-                <option value="artist-asc">歌手升序（A–Z）</option>
-                <option value="artist-desc">歌手降序（Z–A）</option>
-              </select>
-              <div class="library-actions"><button id="retry-favorites-btn" class="btn btn-secondary" type="button">补查暂未验证</button><button id="upgrade-favorites-btn" class="btn btn-secondary" type="button" title="检查全部收藏，仅替换音质更高且可播的同版本">替换最高音质</button><button id="export-favorites-btn" class="btn btn-secondary" data-i18n="exportFavorites">导出收藏</button><button id="clear-favorites-btn" class="btn btn-ghost" data-i18n="clearFavorites">清空收藏</button></div>
-              <div id="favorites-search-count" role="status" aria-live="polite" style="margin-top:6px;font-size:14px;color:var(--text-sub);"></div>
+              <div class="favorites-search-controls">
+                <input id="favorites-search-input" class="input" type="search" aria-label="搜索我的收藏" placeholder="搜索收藏中的歌名、歌手或专辑…" style="width:100%;" />
+                <select id="favorites-sort" class="input" aria-label="收藏排序" style="margin-top:8px;width:100%;">
+                  <option value="original">收藏顺序</option>
+                  <option value="title-asc">歌名升序（A–Z）</option>
+                  <option value="title-desc">歌名降序（Z–A）</option>
+                  <option value="artist-asc">歌手升序（A–Z）</option>
+                  <option value="artist-desc">歌手降序（Z–A）</option>
+                </select>
+              </div>
+              <div class="mobile-library-tools-footer">
+                <div id="favorites-search-count" role="status" aria-live="polite" style="margin-top:6px;font-size:14px;color:var(--text-sub);"></div>
+                <button id="favorites-actions-toggle" class="btn btn-ghost mobile-library-toggle" type="button" aria-expanded="false" aria-controls="favorites-more-actions" data-i18n="moreLibraryActions">更多操作</button>
+              </div>
+              <div id="favorites-more-actions" class="library-actions mobile-library-actions"><button id="retry-favorites-btn" class="btn btn-secondary" type="button">补查暂未验证</button><button id="upgrade-favorites-btn" class="btn btn-secondary" type="button" title="检查全部收藏，仅替换音质更高且可播的同版本">替换最高音质</button><button id="export-favorites-btn" class="btn btn-secondary" data-i18n="exportFavorites">导出收藏</button><button id="clear-favorites-btn" class="btn btn-ghost" data-i18n="clearFavorites">清空收藏</button></div>
             </div>
             <div id="playlist-select-row" class="playlist-select-row" style="display:none;">
               <div class="playlist-select-tools">
@@ -439,8 +467,11 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
                 <button id="delete-playlist-btn" class="btn btn-ghost ripple-target" data-i18n="deletePlaylist">删除歌单</button>
               </div>
               <input id="playlist-search-input" class="input" type="search" aria-label="搜索当前歌单" placeholder="搜索当前歌单中的歌名、歌手或专辑…" />
-              <div id="playlist-search-count" role="status" aria-live="polite"></div>
-              <div class="playlist-file-actions">
+              <div class="mobile-library-tools-footer">
+                <div id="playlist-search-count" role="status" aria-live="polite"></div>
+                <button id="playlist-actions-toggle" class="btn btn-ghost mobile-library-toggle" type="button" aria-expanded="false" aria-controls="playlist-more-actions" data-i18n="moreLibraryActions">更多操作</button>
+              </div>
+              <div id="playlist-more-actions" class="playlist-file-actions mobile-library-actions">
                 <button id="new-playlist-btn" class="btn btn-ghost ripple-target" data-i18n="newPlaylist">新建歌单</button>
                 <button id="import-playlist-btn" class="btn btn-ghost ripple-target" data-i18n="importPlaylist">导入歌单</button>
                 <button id="export-playlist-btn" class="btn btn-ghost ripple-target" data-i18n="exportPlaylist">导出歌单</button>
@@ -643,7 +674,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         shortcutMute:"静音 / 取消静音",
         shortcutFocusSearch:"聚焦搜索框",
         shortcutCloseModal:"提示：按 Esc 可以关闭弹窗。",
-        mobileSearch:"搜索",mobilePlayer:"播放",mobileMusic:"我的音乐",
+        moreLibraryActions:"更多操作",mobileSearch:"搜索",mobilePlayer:"播放",mobileMusic:"我的音乐",
         searchTitle:"歌曲搜索",
         searchSubtitle:"搜一首想听的歌",
         librarySubtitle:"收藏喜欢的声音，整理自己的歌单",
@@ -739,7 +770,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         shortcutMute:"Mute / unmute",
         shortcutFocusSearch:"Focus on search box",
         shortcutCloseModal:"Tip: press Esc to close dialogs.",
-        mobileSearch:"Search",mobilePlayer:"Player",mobileMusic:"My music",
+        moreLibraryActions:"More actions",mobileSearch:"Search",mobilePlayer:"Player",mobileMusic:"My music",
         searchTitle:"Search",
         searchSubtitle:"Find your next favorite",
         librarySubtitle:"Your favorites, your playlists",
@@ -3065,6 +3096,11 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       }
     }
 
+    function toggleLibraryActions(type){
+      if(!['favorites','playlist'].includes(type))return;
+      const open=$(type+'-more-actions').classList.toggle('mobile-open');
+      $(type+'-actions-toggle').setAttribute('aria-expanded',String(open));
+    }
     function setMobileView(view){
       if(!['search','player','music'].includes(view))return;
       document.body.dataset.mobileView=view;
@@ -3967,6 +4003,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
     }
 
     function setupEvents(){
+      for(const type of ['favorites','playlist'])$(type+'-actions-toggle').addEventListener('click',()=>toggleLibraryActions(type));
       $('playback-quality').addEventListener('change',event=>void switchPlaybackQuality(event.target.value));
       $('retry-favorites-btn').addEventListener('click',()=>retryDeferredLibrary('favorites'));
       $('retry-playlist-btn').addEventListener('click',()=>retryDeferredLibrary('playlist'));
