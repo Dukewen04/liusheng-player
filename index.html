@@ -1435,6 +1435,35 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       const titles=new Set(matches.map(track=>normalizeImportTitle(track.title)));
       return {tracks:titles.size===1?matches:[],ambiguous:titles.size>1};
     }
+    function similarImportTitleScore(original,candidate){
+      if(!String(original.artist||'').trim()||!String(candidate.artist||'').trim())return 0;
+      if(!sameRecording({title:'',artist:simplifyImportText(original.artist)},{title:'',artist:simplifyImportText(candidate.artist)}))return 0;
+      const instrumental=/instrumental|karaoke|伴奏|纯音乐/i;
+      if(instrumental.test(`${candidate.title} ${candidate.album||''}`)&&!instrumental.test(`${original.title} ${original.album||''}`))return 0;
+      const version=/\br\s*&?\s*b\b|\blive\b|\bremix\b|\bacoustic\b|\bversion\b|\bedit\b|\bDJ\b|现场|演唱会|清唱|改编|版|重录|重制|TV\s*size|^[LR]$|\d+(?:\.\d+)?\s*x|x\s*\d+(?:\.\d+)?/i;
+      const base=title=>normalizeImportTitle(simplifyImportText(title).replace(/[([【]([^()\[\]【】]*)[)\]】]/g,(full,note)=>version.test(note)?'':full)
+        .replace(/(?:\s*[-—]\s*|\s+)(?:r\s*&?\s*b\b|live\b|remix\b|acoustic\b|DJ\b|现场|演唱会).*$/i,''));
+      const a=Array.from(base(original.title)),b=Array.from(base(candidate.title));
+      if(!a.length||!b.length||a.length>160||b.length>160)return 0;
+      let score=0;
+      if(a.join('')===b.join(''))score=1000;
+      else{
+        const shorter=a.length<b.length?a:b,longer=a.length<b.length?b:a;
+        if(shorter.length>=2&&longer.length<=shorter.length+3&&shorter.length/longer.length>=0.5&&longer.join('').includes(shorter.join('')))score=900-Math.round((1-shorter.length/longer.length)*100);
+        else if(shorter.length>=6&&shorter.length/longer.length>=0.9){
+          let row=Array.from({length:b.length+1},(_,i)=>i);
+          for(let i=0;i<a.length;i++){
+            const next=[i+1];
+            for(let j=0;j<b.length;j++)next.push(Math.min(next[j]+1,row[j+1]+1,row[j]+(a[i]===b[j]?0:1)));
+            row=next;
+          }
+          const similarity=1-row[b.length]/longer.length;
+          if(similarity>=0.9)score=900+Math.round(similarity*50);
+        }
+      }
+      const extra=Math.max(0,Array.from(normalizeImportTitle(candidate.title)).length-b.length);
+      return score?score-Math.min(extra,50):0;
+    }
     function importFallbackInfo(track){
       const title=String(track.title||'').normalize('NFKC');
       const singer=title.match(/[(\[【]\s*(?:原唱\s*[:：]?|翻自|cover\s*[:：]?)\s*([^()\[\]【】]+)/i)?.[1]?.trim();
@@ -1577,13 +1606,20 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         if(exact)return unchanged(exact);
         near=nearImportCandidates(original,pool.searchResults);
       }
-      if(near.ambiguous)throw temporaryMusicError('同一歌手有多个相近歌名，未自动替换；原歌曲已保留，需确认。');
       if(near.tracks.length){
         const candidates={...pool,searchResults:near.tracks};
         const matched=await selectImportRecording(original,parentSignal,onStage,null,candidates,{sources:primarySources,nearTitle:true})||
           await selectImportRecording(original,parentSignal,onStage,null,candidates,{nearTitle:true});
         if(matched)return {...unchanged(matched),importMatchType:'same-artist-near-title'};
       }
+      const similar=pool.searchResults.filter(track=>track.uid!==original.uid&&!sameImportRecording(original,track))
+        .map(track=>({track,score:similarImportTitleScore(original,track)})).filter(item=>item.score>0).sort((a,b)=>b.score-a.score).map(item=>item.track);
+      if(similar.length){
+        onStage('原版本未找到，验证同歌手相似版本');
+        const matched=await selectImportRecording(original,parentSignal,onStage,null,{...pool,firstPlayable:true,searchResults:similar},{similarVersion:true});
+        if(matched)return {...unchanged(matched),importMatchType:'same-artist-similar-version'};
+      }
+      if(near.ambiguous)throw temporaryMusicError('同一歌手有多个相近歌名，未自动替换；原歌曲已保留，需确认。');
       if(Object.keys(pool.sourceErrors).length||pool.transientErrors.length)return unavailable();
       onStage('原版本不可播，定位原唱');
       const info=importFallbackInfo(original);
@@ -1601,12 +1637,12 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       const selected=await selectImportRecording(anchor,parentSignal,onStage,null,pool,{originalSinger:true});
       return selected?{...selected,originalArtist:artist,originalArtistStatus:'identified'}:unavailable();
     }
-    async function selectImportRecording(original,parentSignal,onStage,verifiedOriginal,pool,{sources=null,originalSinger=false,nearTitle=false}={}){
+    async function selectImportRecording(original,parentSignal,onStage,verifiedOriginal,pool,{sources=null,originalSinger=false,nearTitle=false,similarVersion=false}={}){
       const lookup=new AbortController(),signal=AbortSignal.any([parentSignal,lookup.signal]);
       try{
       const transient=error=>{if(error?.retryable||error?.name==='TimeoutError')pool.transientErrors.push(error);};
       const matchesRecording=track=>!(pool.skipQQ&&track.source==='qq')&&(!sources||sources.includes(track.source))&&
-        (nearTitle?nearImportTitleScore(original,track)>0:originalSinger?importFallbackRank(original,track)===2:sameImportRecording(original,track));
+        (similarVersion?similarImportTitleScore(original,track)>0:nearTitle?nearImportTitleScore(original,track)>0:originalSinger?importFallbackRank(original,track)===2:sameImportRecording(original,track));
       const verified=verifiedOriginal?.audioUrl?{...verifiedOriginal,...verifiedOriginal.audioOptions?.find(option=>option.audioUrl===verifiedOriginal.audioUrl),preferHighestQuality:true}:null;
       const matches=pool.searchResults.filter(matchesRecording),choices=verified?[verified]:[],compatible=[],attempted=pool.attempted;
       if(pool.firstPlayable){
@@ -1851,7 +1887,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       return changed;
     }
     async function repairDeferredTracks(tracks,controller,onProgress){
-      const originals=[...new Map(tracks.filter(track=>track.importCheck==='deferred'&&!track.importCheckReason?.includes('多个相近歌名')).map(track=>[track.uid,track])).values()];
+      const originals=[...new Map(tracks.filter(track=>track.importCheck==='deferred').map(track=>[track.uid,track])).values()];
       const recovered={passed:0,replaced:0};
       const progress=stats=>onProgress({...stats,recovered:recovered.passed+recovered.replaced,recoveredPassed:recovered.passed,recoveredReplaced:recovered.replaced});
       progress({total:originals.length,checked:0,pending:originals.length,active:[]});
@@ -1864,7 +1900,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
     async function retryDeferredLibrary(type){
       if(importController){showImportDialog('import-progress-dialog');return;}
       const tracks=type==='favorites'?state.favorites:state.playlists.find(pl=>pl.id===dom.playlistSelect.value)?.tracks||[];
-      if(!tracks.some(track=>track.importCheck==='deferred'&&!track.importCheckReason?.includes('多个相近歌名'))){showToast('没有可自动补查的歌曲；有歧义的版本请点击歌曲自行选择');return;}
+      if(!tracks.some(track=>track.importCheck==='deferred')){showToast('没有暂未验证的歌曲');return;}
       const controller=new AbortController();importController=controller;
       const startedAt=Date.now(),diagnostic={startedAt,stageAt:startedAt,activeStages:[],stages:{},operations:{},counts:null,backgroundMs:0,hiddenAt:document.visibilityState==='hidden'?startedAt:null};
       importDiagnostic=diagnostic;$('copy-import-diagnostic').hidden=false;$('import-diagnostic-text').hidden=true;
@@ -1931,7 +1967,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         $('import-check-failures').hidden=!checked.failures.length;
         const deferredIds=new Set([...(checked.data.favorites||[]),...checked.data.playlists.flatMap(pl=>pl.tracks)].filter(track=>track.importCheck==='deferred').map(track=>track.uid));
         const deferred=[state.favorites,...state.playlists.map(pl=>pl.tracks)].flat().filter(track=>deferredIds.has(track.uid)&&track.importCheck==='deferred');
-        if(!controller.signal.aborted&&deferred.some(track=>!track.importCheckReason?.includes('多个相近歌名'))){
+        if(!controller.signal.aborted&&deferred.length){
           const initialStatus=status.textContent;
           $('import-progress-title').textContent='已导入 · 补查暂未验证';
           try{
@@ -2737,7 +2773,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       track.audioUrl=null;
       const display={title:track.title,artist:track.artist,...(track.album?{album:track.album}:{})};
       const target=track.sourceTitle?{...track,title:track.sourceTitle,artist:track.sourceArtist||track.artist,album:track.sourceAlbum||track.album}:track;
-      if(!sameImportRecording(track,target)&&!(track.importMatchType==='same-artist-near-title'&&nearImportTitleScore(track,target)>0))throw musicError('musicMismatch');
+      if(!sameImportRecording(track,target)&&!(track.importMatchType==='same-artist-near-title'&&nearImportTitleScore(track,target)>0)&&!(track.importMatchType==='same-artist-similar-version'&&similarImportTitleScore(track,target)>0))throw musicError('musicMismatch');
       if(!silent)dom.playerStatus.textContent=t('playerStatusLoading');
       if(track.source==='netease') await fetchNeteaseDetails(target,false);
       else if(track.source==='kuwo') await fetchKuwoDetails(target,signal);
@@ -2880,7 +2916,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       track.lyricsLoading=!parseLRC(track.lrc).length;
       renderLyrics();
       try{
-        const lookup=track.importMatchType==='same-artist-near-title'?{...track,title:track.sourceTitle||track.title,artist:track.sourceArtist||track.artist}:track;
+        const lookup=['same-artist-near-title','same-artist-similar-version'].includes(track.importMatchType)?{...track,title:track.sourceTitle||track.title,artist:track.sourceArtist||track.artist}:track;
         await ensureTrackLyrics(lookup,lookupSignal);
         if(lookup!==track)Object.assign(track,{lrc:lookup.lrc,lyricSource:lookup.lyricSource});
       }
@@ -3496,8 +3532,8 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         const txt=document.createElement('span'); txt.textContent=t(key);
         sSpan.appendChild(dot);sSpan.appendChild(txt);
         sub.appendChild(aSpan);sub.appendChild(sSpan);
-        if(track.importMatchType==='same-artist-near-title'){
-          const match=document.createElement('span');match.textContent='近似匹配：'+(track.sourceTitle||track.title);sub.appendChild(match);
+        if(['same-artist-near-title','same-artist-similar-version'].includes(track.importMatchType)){
+          const match=document.createElement('span');match.textContent=(track.importMatchType==='same-artist-similar-version'?'相似版本：':'近似匹配：')+(track.sourceTitle||track.title);sub.appendChild(match);
         }
         if(track.originalArtistStatus){
           const original=document.createElement('span');

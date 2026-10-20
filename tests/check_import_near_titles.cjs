@@ -39,7 +39,7 @@ const find=track=>c.app.findBestImportRecording(track,new AbortController().sign
  assert.equal((await find(original('姑娘','隔壁老樊'))).uid,'exact','Playable exact recording always outranks fuzzy alternatives');assert(!queries.includes('隔壁老樊'));
  catalog=[choice('one','你的姑娘','隔壁老樊','kuwo'),choice('two','老姑娘','隔壁老樊','kuwo')];
  const result=await c.app.verifyImportData({playlists:[{id:'list',name:'Example',tracks:[original('姑娘','隔壁老樊')]}]},new AbortController(),()=>{});
- assert.equal(result.stats.deferred,1);assert.equal(result.stats.failed,0);assert.equal(result.data.playlists[0].tracks[0].uid,'imported');assert(result.data.playlists[0].tracks[0].importCheckReason.includes('多个相近歌名'));
+ assert.equal(result.stats.replaced,1);assert.equal(result.stats.deferred,0);assert.equal(result.stats.failed,0);assert.equal(result.data.playlists[0].tracks[0].uid,'two');assert.equal(result.data.playlists[0].tracks[0].importMatchType,'same-artist-similar-version','The new same-singer containment fallback chooses the closest verified title');
  for(const bad of [choice('other','你的姑娘','另一歌手'),choice('live','你的姑娘 (Live)','隔壁老樊'),choice('dj','你的姑娘 (DJ版)','隔壁老樊'),{...choice('inst','你的姑娘','隔壁老樊'),album:'Instrumental Edition'}])assert.equal(c.app.nearImportTitleScore(original('姑娘','隔壁老樊'),bad),0);
  assert.equal(c.app.nearImportTitleScore(original('爱','Singer'),choice('long','你的爱','Singer')),0,'One-character containment is too ambiguous');
  assert.equal(c.app.nearImportTitleScore(original('姑娘',''),choice('unknown','你的姑娘','')),0,'An unknown singer cannot qualify');
@@ -50,5 +50,5 @@ const find=track=>c.app.findBestImportRecording(track,new AbortController().sign
  assert.equal(restored.title,'姑娘');assert.equal(restored.sourceTitle,'你的姑娘');assert(restored.audioUrl);
  await assert.rejects(c.app.realEnsure({...restored,sourceTitle:'完全不同的歌',detailsLoaded:false},{silent:true}),e=>e.message==='musicMismatch');
  await c.app.refreshTrackLyrics(restored,0,new AbortController().signal);assert.equal(c.lyricTitle,'你的姑娘');assert(restored.lrc.includes('Matched lyrics'));
- console.log('通过：17岁/十七歲及繁简歌手匹配、同歌手姑娘/你的姑娘、缺失时才查歌手、精确结果优先、歧义保留、版本和歌手保护、可播验证、原始信息与来源名称持久化、地址刷新及歌词跟随实际录音。');
+ console.log('通过：17岁/十七歲及繁简歌手匹配、同歌手姑娘/你的姑娘、缺失时才查歌手、精确结果优先、同歌手包含候选择优、严格近似阶段版本和歌手保护、可播验证、原始信息与来源名称持久化、地址刷新及歌词跟随实际录音。');
 })().catch(e=>{console.error(e);process.exitCode=1;});

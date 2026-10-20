@@ -28,7 +28,7 @@ const find=async original=>{queries=[];probed=[];return c.find(original,new Abor
   const noLabel=track('imported','Song','Cover Singer');
   assert.equal((await find(noLabel)).uid,'cover','Keep the imported performer if that exact song is available');
   candidates=[track('studio','Song','Singer','128k'),track('hq','Song (重制版)','Singer','lossless'),track('live','Song (Live)','Singer','lossless')];
-  assert.equal(await find(track('imported','Song (现场版)','Singer')),null,'Do not silently change versions without original-singer evidence');
+  const alternative=await find(track('imported','Song (现场版)','Singer'));assert.equal(alternative.uid,'studio','Same-performer alternatives are now allowed after the original version fails');assert.equal(alternative.importMatchType,'same-artist-similar-version');assert.equal(alternative.artist,'Singer');
   assert(!probed.includes('live'));
   candidates=[track('wrong','Song','Someone Else','lossless'),track('karaoke','Song (伴奏)','Singer','lossless')];
   assert.equal(await find(track('imported','Song (Live)','Singer')),null,'Unknown original singer must not be guessed from same title');
@@ -57,5 +57,5 @@ const find=async original=>{queries=[];probed=[];return c.find(original,new Abor
   assert.equal(c.rank(track('a','Live Forever (现场版)','Singer'),track('b','Live Forever','Singer')),2,'Live in a real song title is not a version tag');
   const stop=new AbortController();stop.abort();
   await assert.rejects(c.find(imported,stop.signal,()=>{}),error=>error.name==='AbortError');
-  console.log('通过：原歌名歌手资源优先、仅原版本不可用才查原唱、原唱标注提取与搜索、原唱优先于翻唱歌手、原歌手兜底、高音质及实际可播验证、不猜同名原唱、不选现场伴奏、取消清理。');
+  console.log('通过：原歌名歌手资源优先、仅原版本不可用才查原唱、原唱标注提取与搜索、原唱优先于翻唱歌手、原歌手兜底、高音质及实际可播验证、不猜同名原唱、允许同歌手相似版本且排除伴奏、取消清理。');
 })().catch(error=>{console.error(error);process.exitCode=1;});

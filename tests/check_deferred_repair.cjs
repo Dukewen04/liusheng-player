@@ -20,7 +20,7 @@ const tick=()=>new Promise(setImmediate);
  let active=0,max=0;const searched=[];
  x.c.find=async(track,signal,options)=>{assert.equal(options.compareAll,false);assert(options.skipQQ);searched.push(track.uid);active++;max=Math.max(max,active);await new Promise(r=>setTimeout(r,5));active--;return replacement(track);};
  const updates=[];await x.a.repairDeferredTracks(x.a.state.favorites,new AbortController(),s=>updates.push(s));
- assert.equal(max,2);assert.equal(searched.length,6);assert.equal(updates.at(-1).recovered,6);assert.equal(updates.at(-1).total,6);assert.equal(x.a.state.favorites[6],good);assert.equal(x.a.state.favorites[7],ambiguous);assert.equal(x.a.state.currentTrack,playing);
+ assert.equal(max,2);assert.equal(searched.length,7);assert.equal(updates.at(-1).recovered,7);assert.equal(updates.at(-1).total,7);assert.equal(x.a.state.favorites[6],good);assert.equal(x.a.state.favorites[7].uid,'kuwo-amb','Previously ambiguous rows are eligible for the newly authorized similar-version fallback');assert.equal(x.a.state.currentTrack,playing);
  assert.equal(x.a.state.playlists[0].tracks[0].uid,'kuwo-old0');assert(!x.a.state.favorites[0].importCheckReason,'Successful verification clears the old failure reason');assert(x.storage.get('liusheng-library-v1').includes('kuwo-old0'));
 
  const failed=boot(),unavailable=old('none'),temporary=old('temp');failed.a.state.favorites=[unavailable,temporary];failed.c.find=async t=>{if(t.uid==='temp')throw Object.assign(Error('retry later'),{retryable:true});return null;};
@@ -45,5 +45,5 @@ const tick=()=>new Promise(setImmediate);
  const scoped=boot();scoped.a.state.favorites=[old('fav')];scoped.a.state.playlists=[{id:'other',tracks:[old('other')]}];scoped.c.find=async t=>replacement(t);scoped.a.cool();await scoped.a.retryDeferredLibrary('favorites');assert(scoped.c.delays[0]>0&&scoped.c.delays[0]<=5000);assert.equal(scoped.a.state.favorites[0].importCheck,'playable');assert.equal(scoped.a.state.playlists[0].tracks[0].importCheck,'deferred');
  const blocked=boot();blocked.a.state.favorites=[old('blocked')];blocked.c.find=async()=>{throw Object.assign(Error('Autoplay blocked'),{name:'NotAllowedError'});};await blocked.a.retryDeferredLibrary('favorites');assert(blocked.node('import-check-status').textContent.includes('浏览器阻止'));assert.equal(blocked.a.state.favorites[0].importCheck,'deferred');
  assert(html.includes('id="retry-favorites-btn"')&&html.includes('id="retry-playlist-btn"'));
- console.log('通过：暂未验证2路补查、跳过已通过与歧义、仅验证成功替换并保存、失败保留、删除不复活、手动选择不覆盖、重复不降级、停止保留已恢复、首轮先保存、诊断总数不变、手动按收藏/歌单范围补查及冷却等待。');
+ console.log('通过：暂未验证2路补查、跳过已通过、重查旧歧义、仅验证成功替换并保存、失败保留、删除不复活、手动选择不覆盖、重复不降级、停止保留已恢复、首轮先保存、诊断总数不变、手动按收藏/歌单范围补查及冷却等待。');
 })().catch(e=>{console.error(e);process.exitCode=1;});
