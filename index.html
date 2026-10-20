@@ -3098,7 +3098,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
     async function playTrack(track,context,startTime=0){
       if(!track)return;
       const request = ++playbackRequest;
-      qualityController?.abort();qualityController=null;
+      qualityController?.abort();qualityController=null;renderPlaybackQuality();
       deferredController?.abort();deferredController=null;
       if(track.importCheck==='deferred'){
         const controller=new AbortController();deferredController=controller;
@@ -3373,7 +3373,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       if(dom.playerStatus.textContent===t('playerStatusError') && !track.detailsLoaded)return;
       const position=loadedTrackUid===track.uid ? dom.audio.currentTime : pendingSeek;
       if([3,4].includes(dom.audio.error?.code))track.preferCompatible=true;
-      track.detailsLoaded=false;track.audioUrl=null;
+      track.detailsLoaded=false;track.audioUrl=null;renderPlaybackQuality();
       pendingSeek=Number.isFinite(position) ? position : 0;
       loadedTrackUid=null;
       dom.audio.pause();state.isPlaying=false;setPlaybackIcon(false);
