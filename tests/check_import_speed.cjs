@@ -50,5 +50,16 @@ function add(pool,source,quality){const t={...original,source,uid:source+'-'+qua
  await assert.rejects(outage.app.readMusicJSON(url+'2'),e=>e.retryable);assert.equal(requests,1,'A failing service is skipped briefly for later tracks');
  outage.app.resetHealth();outage.fetch=async()=>{requests++;return {ok:true,status:200,text:async()=>'[]'};};
  await outage.app.readMusicJSON(url);assert.equal(requests,2,'Failed responses are never cached as valid results');
+ const canonical=boot();canonical.app.begin();let canonicalCalls=0;
+ canonical.fetch=async()=>{canonicalCalls++;return {ok:true,status:200,text:async()=>'[]'};};
+ await canonical.app.readMusicJSON('https://api.example/search?msg=Song%20Singer&a=1');
+ await canonical.app.readMusicJSON('https://api.example/search?a=1&msg=Song+Singer');
+ assert.equal(canonicalCalls,1,'Equivalent query encodings and parameter order reuse the import cache');
+ const scoped=boot();scoped.app.begin();let scopedCalls=0;
+ scoped.fetch=async url=>{scopedCalls++;return {ok:true,status:200,text:async()=>JSON.stringify(new URL(url).searchParams.get('msg')==='bad'?{code:-500,message:'实例化失败: Unsupported operand types: string + int line 76in api.php'}:{code:1,data:[]})};};
+ const bad='https://oiapi.net/api/Kuwo?msg=bad',good='https://oiapi.net/api/Kuwo?msg=good';
+ await assert.rejects(scoped.app.readMusicJSON(bad),e=>e.retryable&&e.queryScoped);
+ await scoped.app.readMusicJSON(good);assert.equal(scopedCalls,2,'A query-specific backend bug must not disable other Kuwo songs');
+ await assert.rejects(scoped.app.readMusicJSON(bad),e=>e.retryable);assert.equal(scopedCalls,2,'The broken keyword itself stays in cooldown');
  console.log('通过：慢源未结束即验证并取消、已验证无损不重复搜索、保留更高音质比较、候选详情复用、导入查询缓存与取消、故障音源短暂跳过、错误不缓存。');
 })().catch(e=>{console.error(e);process.exitCode=1;});

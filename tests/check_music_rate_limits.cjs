@@ -4,10 +4,14 @@ const source=[...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].at(-1)[1];
 const response=(value,status=200)=>({ok:status>=200&&status<300,status,text:async()=>typeof value==='string'?value:JSON.stringify(value)});
 function boot(fetch){
   const c=vm.createContext({console,URL,URLSearchParams,AbortSignal,AbortController,setTimeout,clearTimeout,fetch,document:{addEventListener(){}},localStorage:{getItem(){return null;}}});
-  vm.runInContext(source.replace(/\}\)\(\);\s*$/,`globalThis.app={readMusicJSON,searchKuwo,fetchKuwoDetails,ensureTrackDetails,sameImportRecording,serializeTrack,state};})();`),c);
+  vm.runInContext(source.replace(/\}\)\(\);\s*$/,`globalThis.app={readMusicJSON,searchKuwo,fetchKuwoDetails,ensureTrackDetails,sameImportRecording,serializeTrack,state,begin:()=>importController=new AbortController()};})();`),c);
   return c;
 }
 (async()=>{
+  let reusedQueries=0;const reuse=boot(async url=>{reusedQueries++;const q=new URL(url).searchParams;return response({data:q.has('n')?{rid:'123',song:'Song',singer:'Singer',url:'https://cdn.example/song.mp3'}:[{rid:'123',song:'Song',singer:'Singer'}]});});
+  reuse.app.begin();await reuse.app.searchKuwo('Original Alias Singer',20);
+  await reuse.app.fetchKuwoDetails({uid:'kuwo-123',source:'kuwo',songid:'123',title:'Song',artist:'Singer',keyword:'Original Alias Singer',preferCompatible:true});
+  assert.equal(reusedQueries,2,'Kuwo details reuse the exact original search instead of searching the returned title again');
   let calls=0;
   const rate=boot(async()=>{calls++;return response('请求过于频繁');});
   const url='https://tang.api.s01s.cn/music_open_api.php?msg=example';

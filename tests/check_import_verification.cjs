@@ -76,13 +76,13 @@ const payload=tracks=>({version:1,favorites:[],playlists:[{id:'example-list',nam
  a.probe(async track=>({...track,audioUrl:'https://cdn.example/original.mp3',quality:'128k'}));
  const legacy=await a.verifyImportData(payload([original('legacy','netease')]),new AbortController(),()=>{},{compareAll:false});
  assert.equal(legacySearches,0);assert.equal(legacy.stats.passed,1);assert.equal(legacy.data.playlists[0].tracks[0].uid,'legacy');assert.equal(legacy.data.playlists[0].tracks[0].quality,'128k');
- // With the option off, a failed original still falls back to all five sources.
+ // A failed original searches the fast sources first and skips unnecessary slow-source requests.
  const rescueSources=new Set();const rescue={...original('rescue','kuwo'),tier:'lossless'};
  a.providers(async(name,keyword,pool)=>{rescueSources.add(name);if(name==='kuwo'&&!pool.trackMap.has(rescue.uid)){pool.trackMap.set(rescue.uid,rescue);pool.searchResults.push({...rescue});}});
  a.details(async track=>{if(track.uid==='broken')throw Error('Original unavailable');Object.assign(track,{audioUrl:'https://cdn.example/'+track.uid,quality:track.tier==='lossless'?'lossless':'128k'});});
  a.probe(async(track,options)=>{if(!options.useLoaded)throw Error('Original unavailable');return {...track};});
  const rescued=await a.verifyImportData(payload([original('broken','netease')]),new AbortController(),()=>{},{compareAll:false});
- assert.equal(rescueSources.size,5);assert.equal(rescued.stats.replaced,1);assert.equal(rescued.data.playlists[0].tracks[0].source,'kuwo');
+ assert.equal(rescueSources.size,3);assert.equal(rescued.stats.replaced,1);assert.equal(rescued.data.playlists[0].tracks[0].source,'kuwo');
 
  // Bulk quality selection checks the highest tier first, ignoring an old compatible preference.
  a.searches(async()=>{});let refreshed=false;
@@ -178,6 +178,16 @@ const payload=tracks=>({version:1,favorites:[],playlists:[{id:'example-list',nam
  while(searching<6)await new Promise(resolve=>setImmediate(resolve));
  assert.equal(maxSearching,6);repairingController.abort();const stoppedRepairs=await repairing;assert.equal(searching,0);assert.equal(stoppedRepairs.stats.pending,24);
 
+ // Fast imports allow eight desktop searches, keeping touch devices at six.
+ for(const [coarse,limit] of [[false,8],[true,6]]){
+  c.matchMedia=()=>({matches:coarse});searching=0;maxSearching=0;
+  const fastController=new AbortController();
+  const fastRepairs=a.verifyImportData(payload(Array.from({length:24},(_,i)=>original('fast-'+i))),fastController,()=>{},{compareAll:false});
+  while(searching<limit)await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(maxSearching,limit);fastController.abort();await fastRepairs;assert.equal(searching,0);
+ }
+ delete c.matchMedia;
+
  // Failed imported rows and old tagged rows are removed; untested rows survive migration.
  const tagged={...original('tagged'),importCheck:'unavailable'},untested={...original('untested'),importCheck:'pending'};
  a.state.favorites=[tagged,untested];a.state.playlists=[{id:'remove-test',name:'Remove',tracks:[tagged,untested]}];
@@ -207,7 +217,7 @@ const payload=tracks=>({version:1,favorites:[],playlists:[{id:'example-list',nam
  a.searches(async()=>{});a.probe(async track=>({...track,audioUrl:'https://cdn.example/'+track.uid,quality:'320k'}));a.dom.playlistSelect=node('select');
  const observed=[];let countText='';Object.defineProperty(node('import-check-count'),'textContent',{get(){return countText;},set(value){countText=value;observed.push(value);},configurable:true});
  assert(await a.runVerifiedImport(async()=>payload([original('progress-1'),original('progress-2')]),node('status')));
- assert(observed.includes('共 2 首 · 已完成 0 首 · 剩余 2 首'));assert.equal(countText,'共 2 首 · 已完成 2 首 · 剩余 0 首');
+ assert(observed.some(text=>text.startsWith('共 2 首 · 已完成 0 首 · 剩余 2 首 · 用时 ')));assert(countText.startsWith('共 2 首 · 已完成 2 首 · 剩余 0 首 · 用时 '));
  assert.equal(node('import-check-progress').max,2);assert.equal(node('import-check-progress').value,2);
 
  // Removing all failed favorites still persists deletion when no playlist is imported.

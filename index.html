@@ -463,7 +463,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
     <div class="import-guide-heading"><h2 id="import-progress-title">导入进度</h2><button id="import-progress-close" class="btn btn-ghost" type="button" aria-label="关闭导入进度，后台继续检查">关闭</button></div>
     <section id="import-check-panel" aria-label="导入检查进度">
       <p id="import-check-count" role="status" aria-live="polite">正在读取歌曲总数…</p>
-      <progress id="import-check-progress" max="1" aria-label="已检查歌曲比例" style="width:100%"></progress>
+      <progress id="import-check-progress" max="1" aria-label="已处理歌曲比例" style="width:100%"></progress>
       <p id="import-check-status" role="status" aria-live="polite"></p>
       <button id="stop-import-check" class="btn btn-ghost" type="button" disabled>停止检查并保留当前结果</button>
       <details id="import-check-failures" hidden><summary id="import-check-failures-title">已移除歌曲</summary><ul id="import-check-failures-list"></ul></details>
@@ -1446,15 +1446,20 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       const checkedCandidates=new Set();
       async function searchFirstPlayable(keyword){
         const controller=new AbortController(),signal=AbortSignal.any([parentSignal,controller.signal]);
-        const phase={...pool,signal},queue=[];
-        const providers=[...primary,...others];let pending=providers.length,active=0,finished=false;
+        const phase={...pool,signal},queue=[],fastProviders=[...primary,others[0]],fallbackProviders=others.slice(1);
+        let pending=fastProviders.length+fallbackProviders.length,fastPending=fastProviders.length,active=0,finished=false,secondaryStarted=false,secondaryTimer;
         return new Promise((resolve,reject)=>{
           const finish=(value,error)=>{
-            if(finished)return;finished=true;
+            if(finished)return;finished=true;clearTimeout(secondaryTimer);
             parentSignal.removeEventListener('abort',abort);controller.abort();
             error?reject(error):resolve(value);
           };
           const abort=()=>finish(null,parentSignal.reason);
+          const startSecondary=()=>{
+            if(finished||secondaryStarted)return;
+            secondaryStarted=true;clearTimeout(secondaryTimer);
+            fallbackProviders.forEach(provider=>startProvider(provider,false));
+          };
           const pump=()=>{
             if(finished)return;
             while(active<2&&queue.length){
@@ -1464,11 +1469,10 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
                 .catch(error=>{if(error.name==='NotAllowedError'||parentSignal.aborted)finish(null,error);else if(error.retryable)pool.transientErrors.push(error);})
                 .finally(()=>{active--;pump();});
             }
+            if(!fastPending&&!active&&!queue.length)startSecondary();
             if(!pending&&!active&&!queue.length)finish(null);
           };
-          parentSignal.addEventListener('abort',abort,{once:true});
-          if(parentSignal.aborted){abort();return;}
-          for(const provider of providers){
+          function startProvider(provider,fast){
             void Promise.resolve().then(()=>provider(keyword,phase)).then(()=>{
               if(finished)return;
               for(const candidate of pool.searchResults){
@@ -1476,8 +1480,12 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
                 checkedCandidates.add(candidate.uid);queue.push(candidate);
               }
             }).catch(error=>{if(error.retryable)pool.transientErrors.push(error);})
-              .finally(()=>{pending--;pump();});
+              .finally(()=>{pending--;if(fast)fastPending--;pump();});
           }
+          parentSignal.addEventListener('abort',abort,{once:true});
+          if(parentSignal.aborted){abort();return;}
+          secondaryTimer=setTimeout(startSecondary,1800);
+          fastProviders.forEach(provider=>startProvider(provider,true));
         });
       }
       if(pool.firstPlayable){
@@ -1536,14 +1544,17 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       const matches=pool.searchResults.filter(matchesRecording),choices=verified?[verified]:[],compatible=[],attempted=pool.attempted;
       if(pool.firstPlayable){
         for(const raw of matches){
-          onStage('验证可播候选');
-          try{
-            const candidate={...raw,preferHighestQuality:false};
-            await ensureTrackDetails(candidate,{silent:true,signal});
-            if(!matchesRecording(candidate)||pool.attempted.has(candidate.audioUrl))continue;
-            Object.assign(raw,candidate);pool.attempted.add(candidate.audioUrl);
-            return await probeRecording(candidate,{signal,silent:true,useLoaded:true});
-          }catch(error){if(parentSignal.aborted||error.name==='NotAllowedError')throw error;transient(error);}
+          const modes=raw.source==='kuwo'?[true,false]:[raw.preferCompatible];
+          for(const preferCompatible of modes){
+            onStage('验证可播候选');
+            try{
+              const candidate={...raw,preferHighestQuality:false,preferCompatible,...(raw.source==='kuwo'?{detailsLoaded:false,audioUrl:null}:{})};
+              await ensureTrackDetails(candidate,{silent:true,signal});
+              if(!matchesRecording(candidate)||pool.attempted.has(candidate.audioUrl))continue;
+              Object.assign(raw,candidate);pool.attempted.add(candidate.audioUrl);
+              return await probeRecording(candidate,{signal,silent:true,useLoaded:true});
+            }catch(error){if(parentSignal.aborted||error.name==='NotAllowedError')throw error;transient(error);}
+          }
         }
         return null;
       }
@@ -1704,13 +1715,13 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       const {signal}=controller;
       const originals=[...new Map([...(data.favorites||[]),...(data.playlists||[]).flatMap(pl=>pl.tracks)].map(track=>[track.uid,track])).values()];
       const results=new Map(),stats={total:originals.length,checked:0,passed:0,replaced:0,failed:0,deferred:0,pending:originals.length};
-      const active=new Map(),selectionQueue=[];let next=0,fatal=null,selecting=0;
+      const active=new Map(),selectionQueue=[],selectionLimit=compareAll?6:Math.min(8,importWorkerLimit()-2);let next=0,fatal=null,selecting=0;
       const cancelSelections=()=>selectionQueue.splice(0).forEach(waiter=>waiter.reject(signal.reason));
       signal.addEventListener('abort',cancelSelections,{once:true});
       async function selectBest(original,stage,verifiedOriginal,failedAudioUrl){
         if(signal.aborted)throw signal.reason;
         if(verifiedOriginal&&!compareAll)return findBestImportRecording(original,signal,stage,verifiedOriginal,{compareAll:false});
-        if(selecting>=6){stage(compareAll?'等待跨源音质比较':'等待搜索可播版本');await new Promise((resolve,reject)=>selectionQueue.push({resolve,reject}));}
+        if(selecting>=selectionLimit){stage(compareAll?'等待跨源音质比较':'等待搜索可播版本');await new Promise((resolve,reject)=>selectionQueue.push({resolve,reject}));}
         else selecting++;
         try{if(signal.aborted)throw signal.reason;return await findBestImportRecording(original,signal,stage,verifiedOriginal,{compareAll,failedAudioUrl,skipQQ:original.source==='qq'});}
         finally{const waiter=selectionQueue.shift();if(waiter)waiter.resolve();else selecting--;}
@@ -1750,6 +1761,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
     }
     async function runVerifiedImport(read,status){
       if(importController)return false;
+      const startedAt=Date.now(),elapsed=()=>formatTime((Date.now()-startedAt)/1000);
       const controller=new AbortController();importController=controller;
       const compareAll=false;
       const controls=['import-link-submit','confirm-import-file','import-method-link','import-method-file','choose-import-file','import-platform','import-link-favorite','import-link-url'];
@@ -1767,7 +1779,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         if(controller.signal.aborted)throw controller.signal.reason;
         importFileSummary(data);
         const checked=await verifyImportData(data,controller,stats=>{
-          $('import-check-count').textContent=`共 ${stats.total} 首 · 已完成 ${stats.checked} 首 · 剩余 ${stats.pending} 首`;
+          $('import-check-count').textContent=`共 ${stats.total} 首 · 已完成 ${stats.checked} 首 · 剩余 ${stats.pending} 首 · 用时 ${elapsed()}`;
           const progress=$('import-check-progress');progress.max=stats.total;progress.value=stats.checked;
           $('import-check-status').textContent=`${Math.floor(stats.checked/stats.total*100)}% · 同时检查 ${stats.active.length} 首 · 保留原曲 ${stats.passed} · 替换可播 ${stats.replaced} · 不可播 ${stats.failed} · 暂未验证 ${stats.deferred}\n${stats.active.join('\n')}`;
         },{compareAll});
@@ -1782,7 +1794,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         }
         renderPlaylistList();
         const counts=checked.stats;
-        const summary=`${controller.signal.aborted?'已停止检查并保留结果':'导入检查完成'}：已检查 ${counts.checked} / ${counts.total} 首 · 保留原曲 ${counts.passed} · 替换可播 ${counts.replaced} · 已移除 ${counts.failed} · 未检查 ${counts.pending} · 暂未验证 ${counts.deferred}（已保留）。`;
+        const summary=`${controller.signal.aborted?'已停止检查并保留结果':'导入检查完成'}：已处理 ${counts.checked} / ${counts.total} 首 · 保留原曲 ${counts.passed} · 替换可播 ${counts.replaced} · 已移除 ${counts.failed} · 未检查 ${counts.pending} · 暂未验证 ${counts.deferred}（已保留） · 用时 ${elapsed()}。`;
         status.textContent=`已导入${playlist?'「'+playlist.name+'」':''}：读取 ${counts.total} 首，新增 ${stat.addedPlaylistTracks} 首歌单歌曲、${stat.addedFavorites} 首收藏。\n${summary}`+(data.warning?'\n'+data.warning:'');
         $('import-check-status').textContent=status.textContent;
         const list=$('import-check-failures-list');list.innerHTML='';
@@ -1906,11 +1918,12 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
     }
 
     async function readMusicJSON(url,signal){
-      const cacheKey=String(url),cached=importController&&importRequestCache.get(cacheKey);
+      const serviceURL=new URL(url,'https://player.local');serviceURL.searchParams.sort();
+      const cacheKey=serviceURL.href,cached=importController&&importRequestCache.get(cacheKey);
       if(signal?.aborted)throw signal.reason;
       if(cached&&cached.expires>Date.now())return JSON.parse(cached.json);
-      const serviceURL=new URL(url,'https://player.local'),serviceKey=serviceURL.origin+serviceURL.pathname;
-      if(importController&&Date.now()<(musicServiceCooldowns.get(serviceKey)||0))throw temporaryMusicError('音源暂时不可用，正在使用其他音源。');
+      const serviceKey=serviceURL.origin+serviceURL.pathname;
+      if(importController&&Date.now()<Math.max(musicServiceCooldowns.get(serviceKey)||0,musicServiceCooldowns.get(cacheKey)||0))throw temporaryMusicError('音源暂时不可用，正在使用其他音源。');
       const attempts=importController?1:2;
       const qq=/tang\.api\.s01s\.cn\/music_open_api\.php|\/api\/qq(?:\?|$)/.test(String(url));
       if(signal?.aborted)throw signal.reason;
@@ -1927,7 +1940,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       try{
         if(qq){
           if(Date.now()<qqBlockedUntil)throw limited();
-          if(importController&&Date.now()<(musicServiceCooldowns.get(serviceKey)||0))throw temporaryMusicError('音源暂时不可用，正在使用其他音源。');
+          if(importController&&Date.now()<Math.max(musicServiceCooldowns.get(serviceKey)||0,musicServiceCooldowns.get(cacheKey)||0))throw temporaryMusicError('音源暂时不可用，正在使用其他音源。');
           await musicDelay(Math.max(0,qqNextRequest-Date.now()),signal);
           qqNextRequest=Date.now()+450;
         }
@@ -1957,18 +1970,22 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
               if(qq)qqBlockedUntil=Date.now()+15000;
               throw qq?limited():temporaryMusicError('音乐接口限流，请稍后重试。');
             }
+            if(Number(data?.code)===-500&&serviceURL.hostname==='oiapi.net'&&/Unsupported operand types.*string.*int/i.test(data?.message||data?.msg||'')){
+              throw Object.assign(temporaryMusicError('此关键词查询暂不可用，继续检查其他歌曲。'),{queryScoped:true});
+            }
             if(Number(data?.code)<0)throw musicError('musicServiceError');
             if(importController){
               importRequestCache.delete(cacheKey);
               importRequestCache.set(cacheKey,{json:JSON.stringify(data),expires:Date.now()+60000});
               if(importRequestCache.size>256)importRequestCache.delete(importRequestCache.keys().next().value);
-              musicServiceCooldowns.delete(serviceKey);
+              musicServiceCooldowns.delete(serviceKey);musicServiceCooldowns.delete(cacheKey);
             }
             return data;
           }catch(error){if(signal?.aborted)throw signal.reason;if(error.retryable)throw error;throw musicError('musicServiceError');}
         }
       }catch(error){
-        if(importController&&error.retryable&&!signal?.aborted&&Date.now()>=(musicServiceCooldowns.get(serviceKey)||0))musicServiceCooldowns.set(serviceKey,Date.now()+(qq?15000:30000));
+        const cooldownKey=error.queryScoped?cacheKey:serviceKey;
+        if(importController&&error.retryable&&!signal?.aborted&&Date.now()>=(musicServiceCooldowns.get(cooldownKey)||0))musicServiceCooldowns.set(cooldownKey,Date.now()+(qq?15000:30000));
         throw error;
       }finally{
         if(qq){const next=qqWaiters.shift();if(next)next.resolve();else qqBusy=false;}
@@ -2396,7 +2413,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
     async function fetchKuwoDetails(track,signal){
       const rid=value=>String(value||'').replace(/^MUSIC_/i,'');
       const originalRid=rid(track.songid);
-      for(const query of [...new Set([`${track.title} ${String(track.artist||'').replace(/[/&,、，]/g,' ')}`.trim(),track.title])]){
+      for(const query of [...new Set([importController?track.keyword:null,`${track.title} ${String(track.artist||'').replace(/[/&,、，]/g,' ')}`.trim(),track.title].filter(Boolean))]){
         const list=await readMusicJSON('https://oiapi.net/api/Kuwo?'+new URLSearchParams({msg:query}),signal);
         if(!Array.isArray(list?.data))throw musicError('musicServiceError');
         const matches=list.data.filter(song=>sameRecording(track,{title:song.song,artist:song.singer}));
