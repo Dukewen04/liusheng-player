@@ -2,7 +2,7 @@ const fs=require('fs'),vm=require('vm'),assert=require('assert/strict'),path=req
 const html=fs.readFileSync(path.join(__dirname,'../index.html'),'utf8');
 const source=[...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].at(-1)[1];
 const nodes=new Map();const node=id=>{if(!nodes.has(id))nodes.set(id,{textContent:'',value:'',hidden:false,disabled:false});return nodes.get(id);};
-const c=vm.createContext({URL,URLSearchParams,AbortSignal,AbortController,setTimeout,clearTimeout,console,document:{getElementById:node,addEventListener(){}},localStorage:{getItem(){return null;}}});
+const c=vm.createContext({URL,URLSearchParams,AbortSignal,AbortController,setTimeout,clearTimeout,setInterval,clearInterval,console,document:{getElementById:node,addEventListener(){}},localStorage:{getItem(){return null;}}});
 vm.runInContext(source.replace(/\}\)\(\);\s*$/,`
  searchNetease=(k,p,n,pool)=>globalThis.search('netease',k,pool);searchQQ=(k,n,pool)=>globalThis.search('qq',k,pool);
  searchKuwo=(k,n,pool)=>globalThis.search('kuwo',k,pool);searchJoox=(k,n,pool)=>globalThis.search('joox',k,pool);searchKugou=(k,n,pool)=>globalThis.search('kugou',k,pool);

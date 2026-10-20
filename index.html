@@ -137,6 +137,52 @@ body:not(.lyrics-mode) .lyrics-container{margin-top:18px;padding-top:16px;min-he
 #play-queue-dialog{box-sizing:border-box;width:min(680px,94vw);max-height:85dvh;overflow:auto;overscroll-behavior:contain;padding:24px;border-radius:22px}
 #play-queue-dialog h2{font-size:24px;margin:0}#play-queue-count{font-size:14px;color:var(--text-sub)}#play-queue-list{overflow:visible;min-height:0}
 @media(max-width:650px){#play-queue-dialog{padding:18px}.lyrics-mode .player-view-actions{gap:6px}.lyrics-mode .player-view-actions .btn{padding:6px 8px}}
+
+.mobile-dock{display:none}
+#import-progress-heading{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+#import-progress-heading #import-check-count{margin:0;flex:1;min-width:180px}
+#import-elapsed-clock{font-size:13px;color:var(--text-sub);font-variant-numeric:tabular-nums;white-space:nowrap}
+@media(max-width:650px){
+ body:not(.lyrics-mode){height:100dvh;overflow:hidden}
+ body:not(.lyrics-mode) .app{height:100dvh;min-height:0;padding:10px 12px max(8px,env(safe-area-inset-bottom));gap:10px}
+ body:not(.lyrics-mode) .app>header{flex-shrink:0}.title-text p{display:none}
+ body:not(.lyrics-mode) .layout{flex:1;min-height:0;gap:0;overflow:hidden}
+ body:not(.lyrics-mode) .layout>.panel{display:none;height:100%;min-height:0;max-height:none;width:100%;flex:1;align-self:stretch;overflow:hidden}
+ body:not(.lyrics-mode):not([data-mobile-view]) .layout>.player-panel,
+ body:not(.lyrics-mode)[data-mobile-view="player"] .layout>.player-panel,
+ body:not(.lyrics-mode)[data-mobile-view="search"] .layout>.search-panel,
+ body:not(.lyrics-mode)[data-mobile-view="music"] .layout>.playlist-panel{display:flex}
+ body:not(.lyrics-mode) .panel-toggle{display:none}
+ body:not(.lyrics-mode) .search-panel-content{display:flex;min-height:0;padding:0 14px 12px}
+ body:not(.lyrics-mode) .playlist-tabs{display:flex}
+ body:not(.lyrics-mode) .playlist-main{display:block;overflow:auto;padding:0 14px 12px}
+ body:not(.lyrics-mode) .playlist-panel>#import-link-btn{display:block}
+ body:not(.lyrics-mode) .panel-header{padding:12px 14px;gap:8px}
+ body:not(.lyrics-mode) .panel-heading-row{flex-direction:row;gap:10px}
+ body:not(.lyrics-mode) .panel-title{font-size:20px;writing-mode:horizontal-tb;letter-spacing:.025em}
+ body:not(.lyrics-mode) .player-panel{padding:0 16px 12px}
+ body:not(.lyrics-mode) .player-top{gap:12px;flex-shrink:0}
+ body:not(.lyrics-mode) .cover-wrapper{width:clamp(90px,19dvh,180px);margin:0}
+ body:not(.lyrics-mode) .track-title{font-size:21px;line-height:1.35}
+ body:not(.lyrics-mode) .track-artist{font-size:13px;margin-top:3px}
+ body:not(.lyrics-mode) .track-tags{margin-top:6px}
+ body:not(.lyrics-mode) .player-controls{margin-top:10px}
+ body:not(.lyrics-mode) .control-row{margin-top:8px;gap:8px}
+ body:not(.lyrics-mode) .control-main{gap:12px}
+ body:not(.lyrics-mode) .volume-slider{width:44px}
+ body:not(.lyrics-mode) .lyrics-container{flex:1;min-height:60px;max-height:none;margin-top:10px;padding-top:8px}
+ body:not(.lyrics-mode) footer{display:flex;font-size:9px;line-height:1.2}
+ body:not(.lyrics-mode) .mobile-dock{display:block;flex-shrink:0;border:1px solid var(--border-subtle);border-radius:16px;background:#fff;overflow:hidden}
+ .mobile-nav{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:5px}
+ .mobile-nav button{display:flex;align-items:center;justify-content:center;gap:7px;min-height:44px;border:0;border-radius:10px;background:transparent;color:var(--text-sub);font-size:14px}
+ .mobile-nav button[aria-pressed="true"]{background:#eaf1e4;color:var(--accent);font-weight:600}
+ .mobile-now-playing{display:flex;align-items:center;gap:12px;padding:7px 12px;border-bottom:1px solid var(--border-subtle)}
+ .mobile-now-playing[hidden],body[data-mobile-view="player"] .mobile-now-playing{display:none}
+ #mobile-current-track{flex:1;min-width:0;text-align:left;border:0;background:none;color:var(--text-main);padding:2px 0}
+ #mobile-current-track span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px}
+ #mobile-current-artist{color:var(--text-sub);font-size:12px!important}
+ @media(max-height:650px){body:not(.lyrics-mode) .player-top{flex-direction:row;gap:12px}body:not(.lyrics-mode) .cover-wrapper{width:80px;flex:0 0 80px}body:not(.lyrics-mode) .track-title{font-size:18px}body:not(.lyrics-mode) .track-title-row{flex-wrap:wrap;gap:6px}body:not(.lyrics-mode) .player-actions{flex-direction:row;align-items:center}body:not(.lyrics-mode) .player-btn-row .btn{height:30px;min-height:30px;min-width:30px}body:not(.lyrics-mode) .status-pill{display:none}}
+}
 </style>
 </head>
 <body>
@@ -410,6 +456,19 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       </section>
     </main>
 
+    <div class="mobile-dock">
+      <div id="mobile-now-playing" class="mobile-now-playing" hidden>
+        <button id="mobile-current-track" type="button" aria-label="打开播放器"><span id="mobile-current-title"></span><span id="mobile-current-artist"></span></button>
+        <button id="mobile-toggle-play" class="btn btn-secondary btn-icon" type="button" aria-label="播放"></button>
+      </div>
+      <nav class="mobile-nav" aria-label="主要功能">
+        <button id="mobile-nav-search" type="button" aria-pressed="false"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-search"></use></svg><span data-i18n="mobileSearch">搜索</span></button>
+        <button id="mobile-nav-player" type="button" aria-pressed="true"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-headphones"></use></svg><span data-i18n="mobilePlayer">播放</span></button>
+        <button id="mobile-nav-music" type="button" aria-pressed="false"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#icon-list-music"></use></svg><span data-i18n="mobileMusic">我的音乐</span></button>
+      </nav>
+    </div>
+
+
     <footer><span class="copyright">音乐版权归各平台及作者</span></footer>
   </div>
 
@@ -464,7 +523,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
   <dialog id="import-progress-dialog" aria-labelledby="import-progress-title">
     <div class="import-guide-heading"><h2 id="import-progress-title">导入进度</h2><button id="import-progress-close" class="btn btn-ghost" type="button" aria-label="关闭导入进度，后台继续检查">关闭</button></div>
     <section id="import-check-panel" aria-label="导入检查进度">
-      <p id="import-check-count" role="status" aria-live="polite">正在读取歌曲总数…</p>
+      <div id="import-progress-heading"><p id="import-check-count" role="status" aria-live="polite">正在读取歌曲总数…</p><span id="import-elapsed-clock" role="timer" aria-label="导入已用时">用时 00:00</span></div>
       <progress id="import-check-progress" max="1" aria-label="已处理歌曲比例" style="width:100%"></progress>
       <p id="import-check-status" role="status" aria-live="polite"></p>
       <button id="stop-import-check" class="btn btn-ghost" type="button" disabled>停止检查并保留当前结果</button>
@@ -584,6 +643,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         shortcutMute:"静音 / 取消静音",
         shortcutFocusSearch:"聚焦搜索框",
         shortcutCloseModal:"提示：按 Esc 可以关闭弹窗。",
+        mobileSearch:"搜索",mobilePlayer:"播放",mobileMusic:"我的音乐",
         searchTitle:"歌曲搜索",
         searchSubtitle:"搜一首想听的歌",
         librarySubtitle:"收藏喜欢的声音，整理自己的歌单",
@@ -679,6 +739,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         shortcutMute:"Mute / unmute",
         shortcutFocusSearch:"Focus on search box",
         shortcutCloseModal:"Tip: press Esc to close dialogs.",
+        mobileSearch:"Search",mobilePlayer:"Player",mobileMusic:"My music",
         searchTitle:"Search",
         searchSubtitle:"Find your next favorite",
         librarySubtitle:"Your favorites, your playlists",
@@ -1325,13 +1386,29 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
     }
 
     let importController=null;
+    function createImportProgress(startedAt=Date.now()){
+      let render=null,lastPaint=-Infinity;
+      const paint=()=>{
+        $('import-elapsed-clock').textContent='用时 '+formatTime((Date.now()-startedAt)/1000);
+        render?.();lastPaint=Date.now();
+      };
+      const timer=setInterval(paint,250);paint();
+      return {
+        update(next){const first=!render;render=next;if(first||Date.now()-lastPaint>=250)paint();},
+        flush(){paint();render=null;},
+        stop(){clearInterval(timer);render=null;paint();}
+      };
+    }
+    function importActiveLines(stats){
+      return stats.active.map((text,index)=>text+(stats.activeSince?.[index]!=null?' · 本阶段 '+Math.max(0,Math.floor((Date.now()-stats.activeSince[index])/1000))+' 秒':'')).join('\n');
+    }
     let importDiagnostic=null,lastImportDiagnostic=null;
     function updateImportDiagnostic(stats,report=importDiagnostic){
       if(!report)return;
       const now=Date.now();
       for(const stage of report.activeStages)report.stages[stage]=(report.stages[stage]||0)+now-report.stageAt;
       report.stageAt=now;if(stats!==undefined)report.activeStages=(stats?.active||[]).map(text=>text.split('：')[0]);
-      if(stats){const {active,...counts}=stats;report.counts=counts;}
+      if(stats){const {active,activeSince,...counts}=stats;report.counts=counts;}
     }
     function updateImportVisibility(){
       const report=importDiagnostic;if(!report)return;
@@ -1771,6 +1848,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       const originals=[...new Map(target.map(track=>[track.uid,track])).values()];
       const controller=new AbortController();importController=controller;
       const stats={done:0,upgraded:0,unchanged:0},active=new Map();let next=0;
+      const progressUI=createImportProgress();
       $('import-progress-title').textContent='替换最高音质';
       $('import-check-failures').hidden=true;$('stop-import-check').disabled=false;
       showImportDialog('import-progress-dialog');
@@ -1808,7 +1886,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         }));
         $('import-check-status').textContent=`${controller.signal.aborted?'已停止':'升级完成'}：已升级 ${stats.upgraded} 首 · 保持原样 ${stats.unchanged} 首 · 未处理 ${originals.length-stats.done} 首。`;
       }finally{
-        controller.abort();importController=null;$('stop-import-check').disabled=true;
+        progressUI.stop();controller.abort();importController=null;$('stop-import-check').disabled=true;
       }
     }
     function importWorkerLimit(){return globalThis.matchMedia?.('(pointer:coarse)')?.matches?8:12;}
@@ -1816,7 +1894,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       const {signal}=controller;
       const originals=[...new Map([...(data.favorites||[]),...(data.playlists||[]).flatMap(pl=>pl.tracks)].map(track=>[track.uid,track])).values()];
       const results=new Map(),stats={total:originals.length,checked:0,passed:0,replaced:0,failed:0,deferred:0,pending:originals.length};
-      const active=new Map(),selectionQueue=[],selectionLimit=compareAll?6:Math.min(workers,importWorkerLimit()===12?12:6);let next=0,fatal=null,selecting=0;
+      const active=new Map(),activeSince=new Map(),selectionQueue=[],selectionLimit=compareAll?6:Math.min(workers,importWorkerLimit()===12?12:6);let next=0,fatal=null,selecting=0;
       const cancelSelections=()=>selectionQueue.splice(0).forEach(waiter=>waiter.reject(signal.reason));
       signal.addEventListener('abort',cancelSelections,{once:true});
       async function selectBest(original,stage,verifiedOriginal,failedAudioUrl){
@@ -1827,12 +1905,12 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         try{if(signal.aborted)throw signal.reason;return await findBestImportRecording(original,signal,stage,verifiedOriginal,{compareAll,failedAudioUrl,skipQQ:original.source==='qq'});}
         finally{const waiter=selectionQueue.shift();if(waiter)waiter.resolve();else selecting--;}
       }
-      const update=()=>onProgress({...stats,active:[...active.values()]});
+      const update=()=>onProgress({...stats,active:[...active.values()],activeSince:[...active.keys()].map(uid=>activeSince.get(uid))});
       update();
       try{await Promise.all(Array.from({length:Math.min(workers,originals.length)},async()=>{
         while(next<originals.length&&!signal.aborted){
           const original=originals[next++],name=`${original.title} — ${original.artist||'未知歌手'}`;
-          const stage=text=>{active.set(original.uid,`${text}：${name}`);update();};
+          const stage=text=>{const line=`${text}：${name}`;if(active.get(original.uid)!==line)activeSince.set(original.uid,Date.now());active.set(original.uid,line);update();};
           stage(original.source==='qq'?'跳过 QQ 原曲，准备搜索替代音源':compareAll?'检查原曲最高可用音质':'检查原曲');let selected=null,replaced=false;
           try{
             let verifiedOriginal=null,originalError=null;
@@ -1852,7 +1930,8 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
             else if(!signal.aborted&&error.retryable){
               results.set(original.uid,{...original,importCheck:'deferred',importCheckReason:error.userMessage||error.message});stats.checked++;stats.deferred++;stats.pending=stats.total-stats.checked;
             }else if(!signal.aborted){fatal=error;controller.abort();}
-          }finally{active.delete(original.uid);update();}
+          }finally{active.delete(original.uid);activeSince.delete(original.uid);update();}
+          await new Promise(resolve=>setTimeout(resolve,0));
         }
       }));}finally{signal.removeEventListener('abort',cancelSelections);}
       if(fatal)throw fatal;
@@ -1893,19 +1972,23 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       const controller=new AbortController();importController=controller;
       const startedAt=Date.now(),diagnostic={startedAt,stageAt:startedAt,activeStages:[],stages:{},operations:{},counts:null,backgroundMs:0,hiddenAt:document.visibilityState==='hidden'?startedAt:null};
       importDiagnostic=diagnostic;
+      const progressUI=createImportProgress(startedAt);
       $('import-progress-title').textContent='补查暂未验证';$('import-check-failures').hidden=true;$('stop-import-check').disabled=false;showImportDialog('import-progress-dialog');
       try{
         await repairDeferredTracks(tracks,controller,stats=>{
           diagnostic.retry={total:stats.total,checked:stats.checked,recovered:stats.recovered,pending:stats.pending};
           updateImportDiagnostic({total:stats.total,checked:stats.checked,passed:stats.recoveredPassed,replaced:stats.recoveredReplaced,failed:0,deferred:stats.checked-stats.recovered,pending:stats.pending,active:stats.active},diagnostic);
-          $('import-check-count').textContent=`补查 ${stats.total} 首 · 已完成 ${stats.checked} 首 · 已恢复 ${stats.recovered} 首 · 用时 ${formatTime((Date.now()-startedAt)/1000)}`;
-          $('import-check-progress').max=stats.total;$('import-check-progress').value=stats.checked;
-          $('import-check-status').textContent=`同时补查 ${stats.active.length} 首；未通过的歌曲继续保留。\n${stats.active.join('\n')}`;
+          progressUI.update(()=>{
+            $('import-check-count').textContent=`补查 ${stats.total} 首 · 已完成 ${stats.checked} 首 · 已恢复 ${stats.recovered} 首`;
+            $('import-check-progress').max=stats.total;$('import-check-progress').value=stats.checked;
+            $('import-check-status').textContent=`同时补查 ${stats.active.length} 首；未通过的歌曲继续保留。\n${importActiveLines(stats)}`;
+          });
         });
+        progressUI.flush();
         $('import-check-status').textContent=controller.signal.aborted?'已停止补查，已恢复结果已保存，其余歌曲继续保留。':'补查完成，已恢复结果已保存，其余歌曲继续保留。';
       }catch(error){$('import-check-status').textContent=error.name==='NotAllowedError'?'浏览器阻止试播，请允许播放后再补查。':controller.signal.aborted?'已停止补查，其余歌曲继续保留。':error.userMessage||error.message;}
       finally{
-        controller.abort();updateImportDiagnostic(null,diagnostic);updateImportVisibility();diagnostic.endedAt=Date.now();diagnostic.hiddenAt=null;lastImportDiagnostic=diagnostic;importDiagnostic=null;importController=null;$('stop-import-check').disabled=true;
+        progressUI.stop();controller.abort();updateImportDiagnostic(null,diagnostic);updateImportVisibility();diagnostic.endedAt=Date.now();diagnostic.hiddenAt=null;lastImportDiagnostic=diagnostic;importDiagnostic=null;importController=null;$('stop-import-check').disabled=true;
       }
     }
     async function runVerifiedImport(read,status){
@@ -1924,6 +2007,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       $('stop-import-check').disabled=false;$('import-check-progress').removeAttribute('value');
       $('import-check-count').textContent='正在读取歌曲总数…';
       $('import-check-status').textContent='第 1 步：正在读取歌单…';status.textContent='正在读取歌单…';
+      const progressUI=createImportProgress(startedAt);
       let committing=false;
       try{
         const data=await measureImportOperation('playlist','playlist',()=>read(controller.signal));
@@ -1931,10 +2015,13 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         importFileSummary(data);
         const checked=await verifyImportData(data,controller,stats=>{
           updateImportDiagnostic(stats,diagnostic);
-          $('import-check-count').textContent=`共 ${stats.total} 首 · 已完成 ${stats.checked} 首 · 剩余 ${stats.pending} 首 · 用时 ${elapsed()}`;
-          const progress=$('import-check-progress');progress.max=stats.total;progress.value=stats.checked;
-          $('import-check-status').textContent=`${Math.floor(stats.checked/stats.total*100)}% · 同时检查 ${stats.active.length} 首 · 保留原曲 ${stats.passed} · 替换可播 ${stats.replaced} · 不可播 ${stats.failed} · 暂未验证 ${stats.deferred}\n${stats.active.join('\n')}`;
+          progressUI.update(()=>{
+            $('import-check-count').textContent=`共 ${stats.total} 首 · 已完成 ${stats.checked} 首 · 剩余 ${stats.pending} 首`;
+            const progress=$('import-check-progress');progress.max=stats.total;progress.value=stats.checked;
+            $('import-check-status').textContent=`${Math.floor(stats.checked/stats.total*100)}% · 同时检查 ${stats.active.length} 首 · 保留原曲 ${stats.passed} · 替换可播 ${stats.replaced} · 不可播 ${stats.failed} · 暂未验证 ${stats.deferred}\n${importActiveLines(stats)}`;
+          });
         },{compareAll});
+        progressUI.flush();
         diagnostic.initialElapsedMs=Date.now()-startedAt;
         committing=true;const removed=removeUnavailableImports(checked.failures),stat=importPlaylistData(checked.data);
         if(stat.empty&&removed){saveLibraryToStorage();updateMainFavButton();}
@@ -1963,10 +2050,13 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
             await repairDeferredTracks(deferred,controller,stats=>{
               diagnostic.retry={total:stats.total,checked:stats.checked,recovered:stats.recovered,pending:stats.pending};
               updateImportDiagnostic({...counts,passed:counts.passed+stats.recoveredPassed,replaced:counts.replaced+stats.recoveredReplaced,deferred:counts.deferred-stats.recovered,active:stats.active},diagnostic);
-              $('import-check-count').textContent=`首轮已处理 ${counts.total} 首 · 补查 ${stats.checked} / ${stats.total} 首 · 已恢复 ${stats.recovered} 首 · 用时 ${elapsed()}`;
-              $('import-check-progress').max=stats.total;$('import-check-progress').value=stats.checked;
-              $('import-check-status').textContent=`首轮导入已保存，可关闭窗口使用播放器。同时补查 ${stats.active.length} 首。\n${stats.active.join('\n')}`;
+              progressUI.update(()=>{
+                $('import-check-count').textContent=`首轮已处理 ${counts.total} 首 · 补查 ${stats.checked} / ${stats.total} 首 · 已恢复 ${stats.recovered} 首`;
+                $('import-check-progress').max=stats.total;$('import-check-progress').value=stats.checked;
+                $('import-check-status').textContent=`首轮导入已保存，可关闭窗口使用播放器。同时补查 ${stats.active.length} 首。\n${importActiveLines(stats)}`;
+              });
             });
+            progressUI.flush();
             const retry=diagnostic.retry;
             status.textContent=initialStatus+`\n${controller.signal.aborted?'已停止补查':'补查完成'}：已补查 ${retry.checked} / ${retry.total} 首 · 新恢复 ${retry.recovered} 首 · 仍暂未验证 ${counts.deferred-retry.recovered} 首；结果已保存。`;
           }catch(error){status.textContent=initialStatus+'\n'+(error.name==='NotAllowedError'?'浏览器阻止补查试播，其余歌曲继续保留。':controller.signal.aborted?'已停止补查，其余歌曲继续保留。':'本轮补查未完成，其余歌曲继续保留。');}
@@ -1979,7 +2069,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         status.textContent=message;$('import-check-status').textContent=message+(committing?' 导入过程中发生错误，请检查当前歌单。':'');return false;
       }finally{
         controller.abort();updateImportDiagnostic(null,diagnostic);updateImportVisibility();diagnostic.endedAt=Date.now();diagnostic.hiddenAt=null;lastImportDiagnostic=diagnostic;importDiagnostic=null;
-        importController=null;$('stop-import-check').disabled=true;
+        progressUI.stop();importController=null;$('stop-import-check').disabled=true;
         controls.forEach((id,index)=>$(id).disabled=disabled[index]);
       }
     }
@@ -2973,6 +3063,31 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         const top=box.scrollTop+act.getBoundingClientRect().top-box.getBoundingClientRect().top-box.clientTop-(box.clientHeight-act.offsetHeight)/2;
         box.scrollTo({top:Math.max(0,top),behavior:'smooth'});
       }
+    }
+
+    function setMobileView(view){
+      if(!['search','player','music'].includes(view))return;
+      document.body.dataset.mobileView=view;
+      for(const name of ['search','player','music'])$('mobile-nav-'+name).setAttribute('aria-pressed',String(name===view));
+      try{localStorage.setItem('liusheng-mobile-view',view);}catch{}
+    }
+    function updateMobilePlayback(){
+      const track=state.currentTrack;
+      $('mobile-now-playing').hidden=!track;
+      $('mobile-current-title').textContent=track?.title||'';
+      $('mobile-current-artist').textContent=track?.artist||'';
+      const playing=state.isPlaying;
+      $('mobile-toggle-play').innerHTML=icon(playing?'pause':'play');
+      $('mobile-toggle-play').ariaLabel=state.language==='zh'?(playing?'暂停':'播放'):(playing?'Pause':'Play');
+    }
+    function setupMobileNavigation(){
+      let saved;try{saved=localStorage.getItem('liusheng-mobile-view');}catch{}
+      setMobileView(['search','player','music'].includes(saved)?saved:'player');
+      for(const name of ['search','player','music'])$('mobile-nav-'+name).addEventListener('click',()=>setMobileView(name));
+      $('mobile-current-track').addEventListener('click',()=>setMobileView('player'));
+      $('mobile-toggle-play').addEventListener('click',togglePlayPause);
+      for(const event of ['play','pause','loadedmetadata','emptied'])dom.audio.addEventListener(event,updateMobilePlayback);
+      updateMobilePlayback();
     }
 
     function updatePanelToggles(){
@@ -4070,6 +4185,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       loadLibraryFromStorage();
       setupEvents();
       setupPanelToggles();
+      setupMobileNavigation();
       setLanguage(state.language);
       renderPlaylistOptions();
       renderPlaylistList();

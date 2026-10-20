@@ -2,7 +2,7 @@ const fs=require('fs'),vm=require('vm'),assert=require('assert/strict'),path=req
 const html=fs.readFileSync(path.join(__dirname,'../index.html'),'utf8'),source=[...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].at(-1)[1];
 function boot(){
  const nodes=new Map(),storage=new Map(),node=id=>{if(!nodes.has(id))nodes.set(id,{disabled:false,hidden:true,value:'',textContent:'',style:{},children:[],showModal(){this.open=true;},close(){this.open=false;},removeAttribute(){},appendChild(t){this.children.push(t);}});return nodes.get(id);};
- const c=vm.createContext({console,URL,URLSearchParams,AbortSignal,AbortController,setTimeout,clearTimeout,document:{getElementById:node,visibilityState:'visible',querySelectorAll:()=>[],addEventListener(){},createElement:()=>({})},localStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)}});
+ const c=vm.createContext({console,URL,URLSearchParams,AbortSignal,AbortController,setTimeout,clearTimeout,setInterval,clearInterval,document:{getElementById:node,visibilityState:'visible',querySelectorAll:()=>[],addEventListener(){},createElement:()=>({})},localStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)}});
  vm.runInContext(source.replace(/\}\)\(\);\s*$/,`
  renderPlaylistList=()=>{};renderPlaylistOptions=()=>{};updateMainFavButton=()=>{};showToast=()=>{};showImportDialog=id=>$(id).showModal();
  findBestImportRecording=(track,signal,stage,verified,options)=>globalThis.find(track,signal,options);

@@ -3,7 +3,7 @@ const html=fs.readFileSync(path.join(__dirname,'../index.html'),'utf8');
 const source=[...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].at(-1)[1];
 const nodes=new Map(),storage=new Map();
 function node(id){if(!nodes.has(id))nodes.set(id,{showModal(){this.open=true;},close(){this.open=false;},value:'',textContent:'',disabled:false,style:{},children:[],appendChild(child){this.children.push(child);},removeAttribute(key){delete this[key];},setAttribute(key,value){this[key]=value;}});return nodes.get(id);}
-const c=vm.createContext({console,URL,URLSearchParams,AbortSignal,AbortController,setTimeout,clearTimeout,setImmediate,
+const c=vm.createContext({console,URL,URLSearchParams,AbortSignal,AbortController,setTimeout,clearTimeout,setInterval,clearInterval,setImmediate,
   window:{scrollX:0,scrollY:240,scrollTo(x,y){this.scrollX=x;this.scrollY=y;}},document:{body:{style:{position:'',top:'',left:'',width:'',overflow:''}},documentElement:{style:{overflow:''}},getElementById:node,createElement:()=>({}),addEventListener(){},querySelectorAll:()=>[]},localStorage:{getItem:key=>storage.get(key),setItem:(key,value)=>storage.set(key,value)}});
 vm.runInContext(source.replace(/\}\)\(\);\s*$/,`
  renderPlaylistList=()=>{};renderPlaylistOptions=()=>{};updateMainFavButton=()=>{};
@@ -217,7 +217,7 @@ const payload=tracks=>({version:1,favorites:[],playlists:[{id:'example-list',nam
  a.searches(async()=>{});a.probe(async track=>({...track,audioUrl:'https://cdn.example/'+track.uid,quality:'320k'}));a.dom.playlistSelect=node('select');
  const observed=[];let countText='';Object.defineProperty(node('import-check-count'),'textContent',{get(){return countText;},set(value){countText=value;observed.push(value);},configurable:true});
  assert(await a.runVerifiedImport(async()=>payload([original('progress-1'),original('progress-2')]),node('status')));
- assert(observed.some(text=>text.startsWith('共 2 首 · 已完成 0 首 · 剩余 2 首 · 用时 ')));assert(countText.startsWith('共 2 首 · 已完成 2 首 · 剩余 0 首 · 用时 '));
+ assert(observed.some(text=>text.startsWith('共 2 首 · 已完成 0 首 · 剩余 2 首')));assert(countText.startsWith('共 2 首 · 已完成 2 首 · 剩余 0 首'));
  assert.equal(node('import-check-progress').max,2);assert.equal(node('import-check-progress').value,2);
 
  // Removing all failed favorites still persists deletion when no playlist is imported.
