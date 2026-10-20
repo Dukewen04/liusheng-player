@@ -1980,7 +1980,22 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
     }
     let qqBusy=false,qqNextRequest=0,qqBlockedUntil=0;
     const qqWaiters=[];
-    const importRequestCache=new Map(),musicServiceCooldowns=new Map();
+    let apicxActive=0;
+    const apicxWaiters=[];
+    async function acquireApicx(signal){
+      if(signal?.aborted)throw signal.reason;
+      if(apicxActive<4){apicxActive++;return;}
+      await new Promise((resolve,reject)=>{
+        const waiter={resolve:()=>{signal?.removeEventListener('abort',abort);resolve();}};
+        const abort=()=>{const i=apicxWaiters.indexOf(waiter);if(i>=0)apicxWaiters.splice(i,1);reject(signal.reason);};
+        apicxWaiters.push(waiter);signal?.addEventListener('abort',abort,{once:true});
+        if(signal?.aborted)abort();
+      });
+    }
+    function releaseApicx(){
+      const next=apicxWaiters.shift();if(next)next.resolve();else apicxActive--;
+    }
+    const importRequestCache=new Map(),musicServiceCooldowns=new Map(),musicServiceFailures=new Map();
     function musicDelay(ms,signal){
       if(!ms)return signal?.aborted?Promise.reject(signal.reason):Promise.resolve();
       return new Promise((resolve,reject)=>{
@@ -2020,7 +2035,11 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
           if(signal?.aborted)abort();
         });else qqBusy=true;
       }
+      const apicx=Boolean(importController&&serviceURL.hostname==='apicx.asia');
+      if(apicx)await measureImportOperation('queue',url,()=>acquireApicx(signal));
       try{
+        if(signal?.aborted)throw signal.reason;
+        if(apicx&&Date.now()<Math.max(musicServiceCooldowns.get(serviceKey)||0,musicServiceCooldowns.get(cacheKey)||0))return measureImportOperation('cooldown',url,()=>{throw temporaryMusicError('音源暂时不可用，正在使用其他音源。');});
         if(qq){
           if(Date.now()<qqBlockedUntil)throw limited();
           if(importController&&Date.now()<Math.max(musicServiceCooldowns.get(serviceKey)||0,musicServiceCooldowns.get(cacheKey)||0))return measureImportOperation('cooldown',url,()=>{throw temporaryMusicError('音源暂时不可用，正在使用其他音源。');});
@@ -2028,6 +2047,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
           qqNextRequest=Date.now()+450;
         }
         for(let attempt=0;attempt<attempts;attempt++){
+          const serviceCooldown=musicServiceCooldowns.get(serviceKey),queryCooldown=musicServiceCooldowns.get(cacheKey);
           let response;
           try{response=await measureImportOperation('network',url,()=>fetch(url,{signal:signal?AbortSignal.any([signal,AbortSignal.timeout(8000)]):AbortSignal.timeout(8000)}));}
           catch(error){if(signal?.aborted)throw signal.reason;if(attempt+1<attempts)continue;throw musicError('musicNetworkError');}
@@ -2069,16 +2089,27 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
               importRequestCache.delete(cacheKey);
               importRequestCache.set(cacheKey,{json:JSON.stringify(data),expires:Date.now()+60000});
               if(importRequestCache.size>256)importRequestCache.delete(importRequestCache.keys().next().value);
-              musicServiceCooldowns.delete(serviceKey);musicServiceCooldowns.delete(cacheKey);
+              musicServiceFailures.delete(serviceKey);
+              if(musicServiceCooldowns.get(serviceKey)===serviceCooldown)musicServiceCooldowns.delete(serviceKey);
+              if(musicServiceCooldowns.get(cacheKey)===queryCooldown)musicServiceCooldowns.delete(cacheKey);
             }
             return data;
           }catch(error){if(signal?.aborted)throw signal.reason;if(error.retryable)throw error;throw musicError('musicServiceError');}
         }
       }catch(error){
         const cooldownKey=error.queryScoped?cacheKey:serviceKey;
-        if(importController&&error.retryable&&!signal?.aborted&&Date.now()>=(musicServiceCooldowns.get(cooldownKey)||0))musicServiceCooldowns.set(cooldownKey,Date.now()+(qq?15000:30000));
+        if(importController&&error.retryable&&!signal?.aborted){
+          let shouldCool=true;
+          if(apicx&&!/限流|频繁|too many requests|rate.?limit/i.test(error.userMessage||error.message)){
+            const previous=musicServiceFailures.get(serviceKey),now=Date.now();
+            const count=previous&&now-previous.at<30000?previous.count+1:1;
+            musicServiceFailures.set(serviceKey,{count,at:now});shouldCool=count>=2;
+          }
+          if(shouldCool&&Date.now()>=(musicServiceCooldowns.get(cooldownKey)||0))musicServiceCooldowns.set(cooldownKey,Date.now()+(qq?15000:30000));
+        }
         throw error;
       }finally{
+        if(apicx)releaseApicx();
         if(qq){const next=qqWaiters.shift();if(next)next.resolve();else qqBusy=false;}
       }
     }
