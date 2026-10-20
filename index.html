@@ -1503,7 +1503,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       async function searchFirstPlayable(keyword){
         const controller=new AbortController(),signal=AbortSignal.any([parentSignal,controller.signal]);
         const phase={...pool,signal},queue=[],fastProviders=[...primary,others[0]],fallbackProviders=others.slice(1);
-        let pending=fastProviders.length+fallbackProviders.length,fastPending=fastProviders.length,active=0,finished=false,secondaryStarted=false,secondaryTimer;
+        let pending=fastProviders.length+fallbackProviders.length,fastPending=fastProviders.length,active=0,finished=false,secondaryStarted=false,secondaryTimer,verificationGrace=false;
         return new Promise((resolve,reject)=>{
           const finish=(value,error)=>{
             if(finished)return;finished=true;clearTimeout(secondaryTimer);
@@ -1534,6 +1534,10 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
               for(const candidate of pool.searchResults){
                 if(candidate.uid===original.uid||checkedCandidates.has(candidate.uid)||!sameImportRecording(original,candidate))continue;
                 checkedCandidates.add(candidate.uid);queue.push(candidate);
+                // Chrome needs about 2–3 seconds to verify audio; avoid launching slow sources mid-probe.
+                if(fast&&!secondaryStarted&&!verificationGrace){
+                  verificationGrace=true;clearTimeout(secondaryTimer);secondaryTimer=setTimeout(startSecondary,3500);
+                }
               }
             }).catch(error=>{if(error.retryable)pool.transientErrors.push(error);})
               .finally(()=>{pending--;if(fast)fastPending--;pump();});
@@ -1605,10 +1609,18 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
             onStage('验证可播候选');
             try{
               const candidate={...raw,preferHighestQuality:false,preferCompatible,...(raw.source==='kuwo'?{detailsLoaded:false,audioUrl:null}:{})};
-              await ensureTrackDetails(candidate,{silent:true,signal});
-              if(!matchesRecording(candidate)||pool.attempted.has(candidate.audioUrl))continue;
-              Object.assign(raw,candidate);pool.attempted.add(candidate.audioUrl);
-              return await probeRecording(candidate,{signal,silent:true,useLoaded:true});
+              await ensureTrackDetails(candidate,{silent:true,signal,skipAudioPreflight:true});
+              if(!matchesRecording(candidate))continue;
+              Object.assign(raw,candidate);
+              const options=candidate.source==='joox'&&candidate.audioOptions?.length?candidate.audioOptions:[candidate];
+              for(const option of options){
+                if(signal.aborted)throw signal.reason;
+                const playable={...candidate,...option};
+                if(pool.attempted.has(playable.audioUrl))continue;
+                pool.attempted.add(playable.audioUrl);
+                try{return await probeRecording(playable,{signal,silent:true,useLoaded:true});}
+                catch(error){if(signal.aborted||error.name==='NotAllowedError')throw error;transient(error);}
+              }
             }catch(error){if(parentSignal.aborted||error.name==='NotAllowedError')throw error;transient(error);}
           }
         }
@@ -1982,9 +1994,9 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       const serviceURL=new URL(url,'https://player.local');serviceURL.searchParams.sort();
       const cacheKey=serviceURL.href,cached=importController&&importRequestCache.get(cacheKey);
       if(signal?.aborted)throw signal.reason;
-      if(cached&&cached.expires>Date.now())return JSON.parse(cached.json);
+      if(cached&&cached.expires>Date.now())return measureImportOperation('cache',url,()=>JSON.parse(cached.json));
       const serviceKey=serviceURL.origin+serviceURL.pathname;
-      if(importController&&Date.now()<Math.max(musicServiceCooldowns.get(serviceKey)||0,musicServiceCooldowns.get(cacheKey)||0))throw temporaryMusicError('音源暂时不可用，正在使用其他音源。');
+      if(importController&&Date.now()<Math.max(musicServiceCooldowns.get(serviceKey)||0,musicServiceCooldowns.get(cacheKey)||0))return measureImportOperation('cooldown',url,()=>{throw temporaryMusicError('音源暂时不可用，正在使用其他音源。');});
       const attempts=importController?1:2;
       const qq=/tang\.api\.s01s\.cn\/music_open_api\.php|\/api\/qq(?:\?|$)/.test(String(url));
       if(signal?.aborted)throw signal.reason;
@@ -2001,13 +2013,13 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       try{
         if(qq){
           if(Date.now()<qqBlockedUntil)throw limited();
-          if(importController&&Date.now()<Math.max(musicServiceCooldowns.get(serviceKey)||0,musicServiceCooldowns.get(cacheKey)||0))throw temporaryMusicError('音源暂时不可用，正在使用其他音源。');
+          if(importController&&Date.now()<Math.max(musicServiceCooldowns.get(serviceKey)||0,musicServiceCooldowns.get(cacheKey)||0))return measureImportOperation('cooldown',url,()=>{throw temporaryMusicError('音源暂时不可用，正在使用其他音源。');});
           await musicDelay(Math.max(0,qqNextRequest-Date.now()),signal);
           qqNextRequest=Date.now()+450;
         }
         for(let attempt=0;attempt<attempts;attempt++){
           let response;
-          try{response=await fetch(url,{signal:signal?AbortSignal.any([signal,AbortSignal.timeout(8000)]):AbortSignal.timeout(8000)});}
+          try{response=await measureImportOperation('network',url,()=>fetch(url,{signal:signal?AbortSignal.any([signal,AbortSignal.timeout(8000)]):AbortSignal.timeout(8000)}));}
           catch(error){if(signal?.aborted)throw signal.reason;if(attempt+1<attempts)continue;throw musicError('musicNetworkError');}
           if(response.status===429){
             if(qq)qqBlockedUntil=Date.now()+15000;
@@ -2501,7 +2513,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       throw musicError('musicNoMatch');
     }
 
-    async function fetchJooxDetails(track,signal){
+    async function fetchJooxDetails(track,signal,skipAudioPreflight=false){
       const keyword=track.keyword||`${track.title} ${track.artist}`.trim();
       const search=await readMusicJSON('https://apicx.asia/api/joox_music?'+new URLSearchParams({msg:keyword,token:APICX_TOKEN,br:JOOX_BR}),signal);
       const songs=search?.data?.songs;
@@ -2561,7 +2573,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
           if(signal?.aborted)throw signal.reason;
           const u=links[name];
           if(!u)continue;
-          if(!track.preferHighestQuality&&!(await probeJooxAudioUrl(u)))continue;
+          if(!track.preferHighestQuality&&!skipAudioPreflight&&!(await probeJooxAudioUrl(u)))continue;
           if(/母带|无损|flac|hi-res|atmos/i.test(name) || /\.flac(?:\?|$)/i.test(u)){
             return {url:u, tag:'lossless', label:'LOSSLESS', text:name};
           }
@@ -2596,7 +2608,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       }
     }
 
-    async function ensureTrackDetails(track,{silent=false,signal}={}){
+    async function ensureTrackDetails(track,{silent=false,signal,skipAudioPreflight=false}={}){
       if(track.detailsLoaded && track.audioUrl && track.detailsExpiresAt>Date.now())return;
       track.detailsLoaded=false;
       track.audioUrl=null;
@@ -2606,7 +2618,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       if(!silent)dom.playerStatus.textContent=t('playerStatusLoading');
       if(track.source==='netease') await fetchNeteaseDetails(target,false);
       else if(track.source==='kuwo') await fetchKuwoDetails(target,signal);
-      else if(track.source==='joox') await fetchJooxDetails(target,signal);
+      else if(track.source==='joox') await fetchJooxDetails(target,signal,skipAudioPreflight);
       else if(track.source==='kugou') await fetchKugouDetails(target,signal);
       else await fetchQQDetails(target,signal);
       if(target!==track)Object.assign(track,target,display);

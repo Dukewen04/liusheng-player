@@ -20,6 +20,12 @@ vm.runInContext(source.replace(/\}\)\(\);\s*$/,`
  const timeout=Object.assign(Error('播放超时'),{retryable:true});await assert.rejects(a.measureImportOperation('audio',track,async()=>{now+=18000;throw timeout;}),e=>e===timeout);
  const aborted=new DOMException('cancel','AbortError');await assert.rejects(a.measureImportOperation('api','https://api.qijieya.cn/meting/?id=secret',async()=>{now+=50;throw aborted;}),e=>e===aborted);
  const snapshot=a.getImportDiagnostic();assert.equal(snapshot.operations['audio:kuwo'].calls,2);assert.equal(snapshot.operations['audio:kuwo'].ok,1);assert.equal(snapshot.operations['audio:kuwo'].timeouts,1);assert.equal(snapshot.operations['audio:kuwo'].p95Ms,18000);assert.equal(snapshot.operations['api:netease'].canceled,1);assert.equal(snapshot.operations['api:kuwo'].averageMs,100);
+ await a.readMusicJSON('https://oiapi.net/api/Kuwo?msg=私密歌名&token=secret');
+ assert.equal(a.getImportDiagnostic().operations['network:kuwo'].calls,1);assert.equal(a.getImportDiagnostic().operations['cache:kuwo'].calls,1,'Cache hits are distinct from real network calls');
+ c.fetch=async()=>{throw Error('network down');};
+ await assert.rejects(a.readMusicJSON('https://example.com/api/kugou?msg=secret'));
+ await assert.rejects(a.readMusicJSON('https://example.com/api/kugou?msg=another'));
+ assert.equal(a.getImportDiagnostic().operations['network:kugou'].calls,1);assert.equal(a.getImportDiagnostic().operations['cooldown:kugou'].calls,1,'Cooldown skips do not inflate real network request counts');
  await a.copyImportDiagnostic();assert(copied);assert(!copied.includes('私密歌名')&&!copied.includes('私密歌手')&&!copied.includes('secret'));assert.equal(JSON.parse(copied).browser,'Chrome Test');
  c.navigator.clipboard.writeText=async()=>{throw Error('permission');};await a.copyImportDiagnostic();assert(!node('import-diagnostic-text').hidden&&node('import-diagnostic-text').selected);assert(node('import-diagnostic-text').value.includes('elapsedMs'));
  const old=report;const fresh=a.begin();await a.measureImportOperation('audio',{source:'qq'},async()=>{now+=10;});assert.equal(Object.keys(fresh.operations).length,1);assert.equal(old.operations['audio:kuwo'].calls,2);

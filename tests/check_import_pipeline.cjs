@@ -6,7 +6,7 @@ function boot(){
  vm.runInContext(source.replace(/\}\)\(\);\s*$/,`
   searchNetease=(k,p,n,pool)=>globalThis.search('netease',k,pool);searchQQ=(k,n,pool)=>globalThis.search('qq',k,pool);
   searchKuwo=(k,n,pool)=>globalThis.search('kuwo',k,pool);searchJoox=(k,n,pool)=>globalThis.search('joox',k,pool);searchKugou=(k,n,pool)=>globalThis.search('kugou',k,pool);
-  ensureTrackDetails=async track=>{globalThis.compat.push(track.preferCompatible);globalThis.loads++;Object.assign(track,{audioUrl:'https://cdn.example/'+track.uid+(track.preferCompatible?'-compatible':''),detailsLoaded:true});};
+  ensureTrackDetails=async(track,options)=>{if(globalThis.loadDetails)return globalThis.loadDetails(track,options);globalThis.compat.push(track.preferCompatible);globalThis.loads++;Object.assign(track,{audioUrl:'https://cdn.example/'+track.uid+(track.preferCompatible?'-compatible':''),detailsLoaded:true});};
   probeRecording=async(track,options)=>globalThis.probe(track,options);
   globalThis.find=findBestImportRecording;
  })();`),c);c.loads=0;c.compat=[];return c;
@@ -29,6 +29,20 @@ const within=async task=>{let timer;try{return await Promise.race([task,new Prom
  const slowNeeded=boot();slowNeeded.search=async(name,k,pool)=>{if(name==='joox')add(pool,name);};slowNeeded.probe=async track=>({...track});assert.equal((await within(run(slowNeeded))).source,'joox','Slow sources start immediately when fast sources have no matching candidate');
  const hedged=boot();hedged.setTimeout=(fn,ms)=>setTimeout(fn,ms===1800?5:ms);let fastCanceled=0;
  hedged.search=async(name,k,pool)=>{if(['netease','kuwo'].includes(name)){try{await hang(pool.signal);}finally{fastCanceled++;}}else if(name==='joox')add(pool,name);};hedged.probe=async track=>({...track});assert.equal((await within(run(hedged))).source,'joox');await new Promise(r=>setImmediate(r));assert.equal(fastCanceled,2,'The delayed hedge can escape stalled fast sources');
+ const grace=boot(),graceQueries=[];
+ grace.setTimeout=(fn,ms)=>setTimeout(fn,ms===1800?18:ms===3500?35:ms);
+ grace.search=async(name,k,pool)=>{graceQueries.push(name);if(name==='kuwo')add(pool,name);};
+ grace.probe=async track=>{await new Promise(r=>setTimeout(r,25));return {...track};};
+ assert.equal((await within(run(grace))).source,'kuwo');assert.deepEqual(graceQueries.sort(),['kuwo','netease'],'A normal Chrome-length audio probe finishes without launching slow sources at 1.8 seconds');
+ const stalledProbe=boot();stalledProbe.setTimeout=(fn,ms)=>setTimeout(fn,ms===3500?5:ms);
+ stalledProbe.search=async(name,k,pool)=>{if(name==='netease'||name==='joox')add(pool,name);};
+ stalledProbe.probe=async(track,{signal})=>track.source==='netease'?hang(signal):track;
+ assert.equal((await within(run(stalledProbe))).source,'joox','Verification grace is bounded; slow providers rescue a stalled candidate');
+ const jooxFallback=boot(),formats=[];let preflightOption;
+ jooxFallback.search=async(name,k,pool)=>{if(name==='joox')add(pool,name);};
+ jooxFallback.loadDetails=async(track,options)=>{preflightOption=options.skipAudioPreflight;Object.assign(track,{audioUrl:'https://cdn.example/bad',detailsLoaded:true,audioOptions:[{audioUrl:'https://cdn.example/bad',quality:'320k'},{audioUrl:'https://cdn.example/good',quality:'128k'}]});};
+ jooxFallback.probe=async track=>{formats.push(track.audioUrl);if(track.audioUrl.endsWith('/bad'))throw Error('Unsupported format');return track;};
+ const jooxWinner=await within(run(jooxFallback));assert(preflightOption);assert.equal(jooxWinner.audioUrl,'https://cdn.example/good');assert.equal(jooxWinner.quality,'128k');assert.deepEqual(formats,['https://cdn.example/bad','https://cdn.example/good'],'Failed JOOX format falls back through actual audio verification');
  const stop=boot(),ctrl=new AbortController();stop.search=async(name,k,pool)=>hang(pool.signal);stop.probe=async track=>track;const task=run(stop,ctrl.signal);ctrl.abort();await assert.rejects(task,e=>e.name==='AbortError');
  const down=boot();down.search=async(name,k,pool)=>{pool.sourceErrors[name]='Temporarily unavailable';};down.probe=async()=>{throw Error('No audio');};await assert.rejects(run(down),e=>e.retryable);
  console.log('通过：首轮结果即验证、QQ导入按需启动慢源且不请求QQ、成功不补搜歌名并取消慢源、两路候选验证取消慢地址、仅失败后补搜、取消清理及故障保留。');
