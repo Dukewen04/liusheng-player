@@ -1982,13 +1982,15 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
     const qqWaiters=[];
     let apicxActive=0;
     const apicxWaiters=[];
-    async function acquireApicx(signal){
+    async function acquireApicx(signal,priority=false){
       if(signal?.aborted)throw signal.reason;
-      if(apicxActive<4){apicxActive++;return;}
+      if(apicxActive<6){apicxActive++;return;}
       await new Promise((resolve,reject)=>{
-        const waiter={resolve:()=>{signal?.removeEventListener('abort',abort);resolve();}};
+        const waiter={priority,resolve:()=>{signal?.removeEventListener('abort',abort);resolve();}};
         const abort=()=>{const i=apicxWaiters.indexOf(waiter);if(i>=0)apicxWaiters.splice(i,1);reject(signal.reason);};
-        apicxWaiters.push(waiter);signal?.addEventListener('abort',abort,{once:true});
+        const index=priority?apicxWaiters.findIndex(item=>!item.priority):-1;
+        if(index>=0)apicxWaiters.splice(index,0,waiter);else apicxWaiters.push(waiter);
+        signal?.addEventListener('abort',abort,{once:true});
         if(signal?.aborted)abort();
       });
     }
@@ -2036,7 +2038,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         });else qqBusy=true;
       }
       const apicx=Boolean(importController&&serviceURL.hostname==='apicx.asia');
-      if(apicx)await measureImportOperation('queue',url,()=>acquireApicx(signal));
+      if(apicx)await measureImportOperation('queue',url,()=>acquireApicx(signal,serviceURL.searchParams.has('n')));
       try{
         if(signal?.aborted)throw signal.reason;
         if(apicx&&Date.now()<Math.max(musicServiceCooldowns.get(serviceKey)||0,musicServiceCooldowns.get(cacheKey)||0))return measureImportOperation('cooldown',url,()=>{throw temporaryMusicError('音源暂时不可用，正在使用其他音源。');});
