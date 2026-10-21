@@ -34,7 +34,7 @@ node('import-platform').value='netease';a.setImportMethod('link');
 assert.equal(node('import-platform-steps').textContent,'网易云 → 我的 → 选择歌单（比如我喜欢的音乐） → 分享 → 复制链接');assert.equal(node('import-link-example').textContent,'链接格式：https://163cn.tv/***');
 node('import-platform').value='qq';a.setImportMethod('link');
 assert.equal(node('import-platform-qq')['aria-pressed'],'true');assert.equal(node('import-platform-netease')['aria-pressed'],'false');
-assert.equal(node('import-platform-steps').textContent,'QQ → 我的 → 我的收藏 → 分享到微信 → 用浏览器打开 → 复制链接');assert.equal(node('import-link-example').textContent,'链接格式：https://i2.y.qq.com/***');assert(!node('import-link-form').hidden);assert(node('import-connection-note').textContent.includes('无需配置代理'));
+assert.equal(node('import-platform-steps').textContent,'QQ → 我的 → 我的收藏 → 分享到微信 → 用浏览器打开 → 复制链接');assert.equal(node('import-link-example').textContent,'链接格式：https://i2.y.qq.com/***');assert(!node('import-link-form').hidden);assert(node('import-connection-note').textContent.includes('公开歌单'));
 function choose(name,size=100){const target={files:[{name,size}],value:name};a.handleImportPlaylistFile({target});return target;}
 choose('bad.mp3');assert(node('confirm-import-file').disabled);assert.equal(readers.length,0);
 choose('big.json',6*1024*1024);assert.equal(readers.length,0);
