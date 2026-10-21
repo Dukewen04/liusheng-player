@@ -5,10 +5,11 @@
   <title>留声 · Liusheng Player</title>
   <meta name="description" content="留住喜欢的声音。一个支持多音源搜索、收藏和歌单管理的简洁音乐播放器。" />
   <meta name="referrer" content="no-referrer" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="apple-touch-icon" href="./icons/icon-180.png" />
-  <meta name="theme-color" content="#284d3f" />
+  <meta name="theme-color" content="#f4f5ef" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="留声" />
   <style>
@@ -182,7 +183,6 @@ body:not(.lyrics-mode) .lyrics-container{margin-top:18px;padding-top:16px;min-he
  body:not(.lyrics-mode) .player-controls{margin-top:10px}
  body:not(.lyrics-mode) .control-row{margin-top:8px;gap:8px}
  body:not(.lyrics-mode) .control-main{gap:12px}
- body:not(.lyrics-mode) .volume-slider{width:44px}
  body:not(.lyrics-mode) .lyrics-container{flex:1;min-height:60px;max-height:none;margin-top:10px;padding-top:8px}
  body:not(.lyrics-mode) footer{display:flex;font-size:9px;line-height:1.2}
  body:not(.lyrics-mode) .mobile-dock{display:block;flex-shrink:0;border:1px solid var(--border-subtle);border-radius:16px;background:#fff;overflow:hidden}
@@ -256,6 +256,39 @@ select:disabled{opacity:.6;cursor:not-allowed}select option{background:#fff;colo
 #import-link-dialog #import-qq-note{padding:10px 12px;border-radius:9px;background:#fbf6ea;color:#80683d;font-size:12px;line-height:1.8}
 body.lyrics-mode .app{position:fixed;inset:0;box-sizing:border-box;width:100%;height:100dvh;max-width:none;overflow:hidden;padding-top:max(16px,env(safe-area-inset-top))}.lyrics-mode .layout,.lyrics-mode .player-panel{min-height:0;overflow:hidden}.lyrics-mode .player-panel>.panel-header{flex-shrink:0;position:relative;z-index:2}.lyrics-mode .lyrics-container{min-height:0;overflow-y:auto;touch-action:pan-y;overscroll-behavior:contain}
 #play-queue-dialog[open]{display:flex;flex-direction:column;overflow:hidden}#play-queue-dialog>.import-guide-heading,#play-queue-count{flex-shrink:0}#play-queue-list{min-height:0;overflow:auto;overscroll-behavior:contain}
+
+html{background:#f4f5ef}.volume-control{display:flex;align-items:center;gap:8px}.volume-control>.ui-icon{width:18px;height:18px}#volume-value{display:none}
+@media(max-width:650px){
+ body{background:#f4f5ef}
+ body:not(.lyrics-mode) .app{padding-top:calc(env(safe-area-inset-top,0px) + 14px);padding-left:max(12px,env(safe-area-inset-left));padding-right:max(12px,env(safe-area-inset-right))}
+ body.lyrics-mode .app{padding-top:calc(env(safe-area-inset-top,0px) + 14px);padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right));background:#f4f5ef}
+ .app>header{position:relative;z-index:3;background:#f4f5ef;backdrop-filter:none;-webkit-backdrop-filter:none}
+ body:not(.lyrics-mode) .player-top{display:grid;grid-template-columns:minmax(0,1fr);gap:12px}
+ body:not(.lyrics-mode) .player-main{display:contents}
+ body:not(.lyrics-mode) .cover-wrapper{justify-self:center;flex-shrink:0}
+ body:not(.lyrics-mode) .track-title-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px}
+ body:not(.lyrics-mode) .track-text{min-width:0;max-width:100%}
+ body:not(.lyrics-mode) .track-title{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere}
+ .cover-placeholder{gap:8px;padding:10px;text-align:center}
+ .cover-disc{flex-shrink:0;width:50%;min-height:0}
+ .cover-disc:after{inset:28%;white-space:nowrap;letter-spacing:0;font-size:11px;line-height:1}
+ .cover-placeholder>[data-i18n="coverHint"]{flex-shrink:0;max-width:100%;font-size:11px;line-height:1.5;letter-spacing:0;overflow-wrap:anywhere}
+ .player-controls .control-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px}
+ .player-controls .control-main{grid-column:1;grid-row:1;justify-content:center;gap:12px;min-width:0}
+ .player-controls .control-main .btn{width:32px;min-width:32px;height:36px;min-height:36px}
+ .player-controls .control-main .play-btn{width:52px;min-width:52px;height:52px;min-height:52px}
+ .player-controls .control-secondary{display:contents}
+ .player-controls .quality-trigger{grid-column:2;grid-row:1;max-width:116px;min-height:36px;font-size:12px;padding:7px 10px;overflow:hidden;text-overflow:ellipsis}
+ .player-controls .volume-control{grid-column:1/-1;grid-row:2;display:grid;grid-template-columns:20px minmax(0,1fr) 34px;align-items:center;gap:10px;width:100%;min-height:44px;padding:6px 12px;border:1px solid #e2e9dd;border-radius:12px;background:#f0f4ec;color:var(--accent)}
+ #volume-value{display:block;text-align:right;font-size:12px;font-variant-numeric:tabular-nums;color:var(--text-sub)}
+ .player-controls .volume-control .volume-slider{appearance:none;-webkit-appearance:none;width:100%;min-width:0;height:30px;margin:0;background:transparent;cursor:pointer;--volume-level:80%}
+ .volume-slider::-webkit-slider-runnable-track{height:4px;border-radius:4px;background:linear-gradient(to right,var(--accent) var(--volume-level),#d5dfcf var(--volume-level))}
+ .volume-slider::-webkit-slider-thumb{appearance:none;-webkit-appearance:none;width:18px;height:18px;margin-top:-7px;border:3px solid #fff;border-radius:50%;background:var(--accent);box-shadow:0 1px 4px #243b2930}
+ .volume-slider::-moz-range-track{height:4px;border-radius:4px;background:#d5dfcf}.volume-slider::-moz-range-progress{height:4px;border-radius:4px;background:var(--accent)}
+ .volume-slider::-moz-range-thumb{width:12px;height:12px;border:3px solid #fff;border-radius:50%;background:var(--accent);box-shadow:0 1px 4px #243b2930}
+}
+@media(max-width:380px){.player-controls .quality-trigger{max-width:100px;font-size:11px}.player-controls .control-main{gap:10px}.player-controls .control-main .btn{width:30px;min-width:30px}.player-controls .control-main .play-btn{width:48px;min-width:48px;height:48px;min-height:48px}}
+@media(max-width:650px) and (max-height:650px){body:not(.lyrics-mode) .player-top{grid-template-columns:80px minmax(0,1fr);gap:8px 12px}body:not(.lyrics-mode) .cover-wrapper{grid-column:1;grid-row:1;width:80px}body:not(.lyrics-mode) .track-title-row{grid-column:2;grid-row:1;grid-template-columns:minmax(0,1fr)}body:not(.lyrics-mode) .player-controls{grid-column:1/-1;grid-row:2;margin-top:0}.cover-placeholder>[data-i18n="coverHint"]{display:none}.cover-disc{width:70%}.cover-disc:after{font-size:9px}}
 </style>
 </head>
 <body>
@@ -451,8 +484,11 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
                 </div>
                 <div class="control-secondary">
                   <button id="playback-quality" class="btn quality-trigger" type="button" aria-label="播放音质" aria-haspopup="dialog" aria-controls="playback-quality-dialog" disabled>音质</button>
-                  <span><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="volume-2"><use href="#icon-volume-2"></use></svg></span>
-                  <input id="volume-slider" class="volume-slider" type="range" min="0" max="1" step="0.01" value="0.8" />
+                  <div class="volume-control">
+                    <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="volume-2"><use href="#icon-volume-2"></use></svg>
+                    <input id="volume-slider" class="volume-slider" type="range" min="0" max="1" step="0.01" value="0.8" aria-label="音量" />
+                    <output id="volume-value" for="volume-slider" aria-hidden="true">80%</output>
+                  </div>
                 </div>
               </div>
             </div>
@@ -4209,8 +4245,14 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       globalThis.addEventListener?.('beforeinstallprompt',event=>{event.preventDefault();installPrompt=event;$('install-home-btn').hidden=isHomeInstalled();});
       globalThis.addEventListener?.('appinstalled',()=>{installPrompt=null;$('install-home-btn').hidden=true;$('install-home-dialog').close();showToast('已添加到桌面');});
     }
+    function renderVolumeControl(value=dom.volumeSlider.value){
+      const level=Math.max(0,Math.min(1,Number(value)||0)),percent=Math.round(level*100)+'%';
+      dom.volumeSlider.value=level;dom.volumeSlider.style.setProperty('--volume-level',percent);
+      dom.volumeSlider.setAttribute('aria-valuetext',percent);$('volume-value').textContent=percent;
+    }
     function bindPlaybackAudio(audio){
       const on=(event,handler)=>audio.addEventListener(event,()=>{if(audio===dom.audio)handler();});
+      on('volumechange',()=>renderVolumeControl(dom.audio.volume));
       on('timeupdate',()=>{
         const cur=dom.audio.currentTime||0, dur=dom.audio.duration||0;
         dom.currentTime.textContent=formatTime(cur);
@@ -4332,7 +4374,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
       dom.volumeSlider.addEventListener('input',()=>{
         dom.audio.volume=parseFloat(dom.volumeSlider.value);
-        savePlaybackState();
+        renderVolumeControl();savePlaybackState();
       });
 
       bindPlaybackAudio(dom.audio);
@@ -4417,8 +4459,8 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         if(e.code==='Space'&&!typing){e.preventDefault();togglePlayPause();}
         if(e.key==='ArrowRight'&&!typing){dom.audio.currentTime=(dom.audio.currentTime||0)+5;}
         if(e.key==='ArrowLeft'&&!typing){dom.audio.currentTime=Math.max(0,(dom.audio.currentTime||0)-5);}
-        if(e.key==='ArrowUp'&&!typing){dom.audio.volume=Math.min(1,(dom.audio.volume||0)+0.05);dom.volumeSlider.value=dom.audio.volume;}
-        if(e.key==='ArrowDown'&&!typing){dom.audio.volume=Math.max(0,(dom.audio.volume||0)-0.05);dom.volumeSlider.value=dom.audio.volume;}
+        if(e.key==='ArrowUp'&&!typing){dom.audio.volume=Math.min(1,(dom.audio.volume||0)+0.05);dom.volumeSlider.value=dom.audio.volume;renderVolumeControl();}
+        if(e.key==='ArrowDown'&&!typing){dom.audio.volume=Math.max(0,(dom.audio.volume||0)-0.05);dom.volumeSlider.value=dom.audio.volume;renderVolumeControl();}
         if((e.key==='n'||e.key==='N')&&!typing)playNext('next');
         if((e.key==='p'||e.key==='P')&&!typing)playNext('prev');
         if((e.key==='f'||e.key==='F')&&!typing)toggleFavoriteCurrent();
@@ -4448,7 +4490,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       let lyricsMode=false;
       try{lyricsMode=localStorage.getItem('liusheng-lyrics-mode')==='1';}catch{}
       setLyricsMode(lyricsMode);
-      restorePlaybackState();
+      restorePlaybackState();renderVolumeControl();
       void restoreImportedPlaylistNames();
     }
 

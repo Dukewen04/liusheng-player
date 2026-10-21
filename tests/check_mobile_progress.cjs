@@ -3,7 +3,7 @@ const html=fs.readFileSync(path.join(__dirname,'../index.html'),'utf8');
 const source=[...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].at(-1)[1];
 let now=0;class Clock extends Date{static now(){return now;}}
 const nodes=new Map(),storage=new Map(),timers=new Map(),events=new Map();let timerId=0;
-const node=id=>{if(!nodes.has(id))nodes.set(id,{classList:{items:new Set(),toggle(key){if(this.items.has(key)){this.items.delete(key);return false;}this.items.add(key);return true;}},attrs:{},listeners:{},textContent:'',style:{},setAttribute(k,v){this.attrs[k]=v;},addEventListener(k,fn){this.listeners[k]=fn;},close(){},showModal(){},removeAttribute(){}});return nodes.get(id);};
+const node=id=>{if(!nodes.has(id))nodes.set(id,{classList:{items:new Set(),toggle(key){if(this.items.has(key)){this.items.delete(key);return false;}this.items.add(key);return true;}},attrs:{},listeners:{},textContent:'',style:{setProperty(key,value){this[key]=value;}},setAttribute(k,v){this.attrs[k]=v;},addEventListener(k,fn){this.listeners[k]=fn;},close(){},showModal(){},removeAttribute(){}});return nodes.get(id);};
 const c=vm.createContext({console,Date:Clock,URL,URLSearchParams,AbortSignal,AbortController,setTimeout,clearTimeout,
  setInterval:fn=>{const id=++timerId;timers.set(id,fn);return id;},clearInterval:id=>timers.delete(id),
  document:{body:{dataset:{}},visibilityState:'visible',getElementById:node,addEventListener(){},querySelectorAll:()=>[]},localStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)}});
@@ -12,10 +12,13 @@ vm.runInContext(source.replace(/\}\)\(\);\s*$/,`
  dom.audio={addEventListener:(event,fn)=>globalThis.events.set(event,fn)};
  togglePlayPause=()=>globalThis.toggled=true;
  findBestImportRecording=async track=>({...track,uid:'kuwo-'+track.uid,source:'kuwo'});
- globalThis.app={state,toggleLibraryActions,setupMobileNavigation,setMobileView,updateMobilePlayback,createImportProgress,importActiveLines,verifyImportData,runPlaylistImport,stop:()=>importController.abort()};
+ globalThis.app={state,dom,renderVolumeControl,toggleLibraryActions,setupMobileNavigation,setMobileView,updateMobilePlayback,createImportProgress,importActiveLines,verifyImportData,runPlaylistImport,stop:()=>importController.abort()};
 })();`),Object.assign(c,{events}));
 const a=c.app,tick=()=>{for(const fn of [...timers.values()])fn();};
 (async()=>{
+ a.dom.volumeSlider=node('volume-slider');
+ for(const [value,expected] of [[.8,'80%'],[.35,'35%'],[0,'0%'],[1,'100%'],[2,'100%'],[-1,'0%']]){a.renderVolumeControl(value);assert.equal(node('volume-value').textContent,expected);assert.equal(a.dom.volumeSlider.style['--volume-level'],expected);assert.equal(a.dom.volumeSlider.attrs['aria-valuetext'],expected);}
+ assert(html.includes('grid-template-columns:20px minmax(0,1fr) 34px'));assert(!html.includes('.volume-slider{width:44px}'));assert(html.includes('viewport-fit=cover'));assert(html.includes('name="apple-mobile-web-app-status-bar-style" content="default"'));
  a.setupMobileNavigation();assert.equal(c.document.body.dataset.mobileView,'player');
  a.state.currentTrack={uid:'current',title:'雨',artist:'沈以诚'};a.state.isPlaying=true;
  const before=JSON.stringify(a.state);node('mobile-nav-search').listeners.click();assert.equal(c.document.body.dataset.mobileView,'search');assert.equal(JSON.stringify(a.state),before,'Switching screens leaves playback and library untouched');
