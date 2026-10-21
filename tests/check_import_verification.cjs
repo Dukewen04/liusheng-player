@@ -217,7 +217,7 @@ const payload=tracks=>({version:1,favorites:[],playlists:[{id:'example-list',nam
  a.searches(async()=>{});a.probe(async track=>({...track,audioUrl:'https://cdn.example/'+track.uid,quality:'320k'}));a.dom.playlistSelect=node('select');
  a.probe(async()=>{throw Error('No audio checks during import');});
  assert(await a.runPlaylistImport(async()=>payload([original('progress-1'),original('progress-2')]),node('status')));
- assert(!node('import-progress-dialog').open);
+ assert(node('import-progress-dialog').open);assert(node('import-progress-dialog').className.includes('import-compact'));
  assert(node('status').textContent.includes('读取 2 首'));
  const doomed=original('doomed'),saved=original('saved');a.state.favorites=[doomed,saved];a.state.playlists=[];
  assert(await a.runPlaylistImport(async()=>({version:1,favorites:[doomed],playlists:[]}),node('status')));
@@ -230,7 +230,7 @@ const payload=tracks=>({version:1,favorites:[],playlists:[{id:'example-list',nam
  assert.equal(a.state.favorites[0].uid,'true-original');
  a.probe(async()=>{throw Object.assign(Error('Autoplay blocked'),{name:'NotAllowedError'});});
  assert(await a.runPlaylistImport(async()=>payload([original('blocked')]),node('status')),'Autoplay restrictions cannot block importing metadata');
- assert(!node('import-progress-dialog').open);assert(!node('import-link-submit').disabled);
+ assert(node('import-progress-dialog').open);assert(node('import-progress-dialog').className.includes('import-compact'));assert(!node('import-link-submit').disabled);
  a.providers(async()=>{});
  const temporary=Object.assign(new Error('Provider throttled'),{retryable:true});
  a.probe(async()=>{throw temporary;});a.details(async()=>{throw temporary;});

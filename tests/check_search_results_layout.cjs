@@ -3,12 +3,12 @@ const html=fs.readFileSync(path.join(__dirname,'../index.html'),'utf8');
 const source=[...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].at(-1)[1];
 const nodes=new Map(),storage=new Map();
 function element(){
-  const classes=new Set(),node={dataset:{},style:{},value:'',textContent:'',children:[],handlers:{},classList:{add(v){classes.add(v);},remove(v){classes.delete(v);},toggle(v,on){on?classes.add(v):classes.delete(v);},contains(v){return classes.has(v);}},appendChild(child){this.children.push(child);},addEventListener(e,fn){this.handlers[e]=fn;},click(){this.handlers.click?.({stopPropagation(){}});}};
+  const classes=new Set(),node={dataset:{},style:{},value:'',textContent:'',children:[],handlers:{},classList:{add(v){classes.add(v);},remove(v){classes.delete(v);},toggle(v,on){on?classes.add(v):classes.delete(v);},contains(v){return classes.has(v);}},appendChild(child){this.children.push(child);},addEventListener(e,fn){this.handlers[e]=fn;},click(){this.handlers.click?.({stopPropagation(){}});},showModal(){this.open=true;},close(){this.open=false;}};
   Object.defineProperty(node,'innerHTML',{set(value){this.html=value;this.children=[];},get(){return this.html||'';}});return node;
 }
 const node=id=>{if(!nodes.has(id))nodes.set(id,element());return nodes.get(id);};
 const c=vm.createContext({console,URL,URLSearchParams,setTimeout,clearTimeout,window:{},localStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)},document:{addEventListener(){},getElementById:node,createElement:element,querySelector:()=>({dataset:{tab:'favorites'}}),querySelectorAll:()=>[]}});
-vm.runInContext(source.replace(/\}\)\(\);\s*$/,`renderPlaylistOptions=()=>{};updateMainFavButton=()=>{};showToast=()=>{};playFromList=(...args)=>globalThis.played=args;globalThis.app={state,dom,renderPlaylistList,clearSearchResults};})();`),c);
+vm.runInContext(source.replace(/\}\)\(\);\s*$/,`renderPlaylistOptions=()=>{};updateMainFavButton=()=>{};showToast=text=>globalThis.toast=text;showImportDialog=id=>$(id).showModal();playFromList=(...args)=>globalThis.played=args;globalThis.app={state,dom,renderPlaylistList,clearSearchResults,openAddToPlaylist};})();`),c);
 const a=c.app;
 for(const name of ['playlistList','playlistSelect','playlistSelectRow','playlistInfo','searchMiniList','searchCount','searchStatus'])a.dom[name]=node(name);
 assert(!html.includes('data-tab="results"'),'The library has no duplicate search-result tab');
@@ -27,7 +27,12 @@ rows[1].children[2].children[0].click();assert.deepEqual(Array.from(c.played),['
 rows[0].children[2].children[1].click();
 assert.equal(a.state.favorites.length,2);assert.equal(a.dom.playlistList.children.length,2);
 assert.equal(a.dom.searchMiniList.children[0].children[2].children[1].ariaPressed,'true','Search favorite state updates immediately');
-assert.equal(a.dom.searchMiniList.children[0].children[2].children.length,2,'Search offers play and favorite, without playlist removal');
+assert.equal(a.dom.searchMiniList.children[0].children[2].children.length,3,'Search offers play, favorite and add to a chosen playlist');
+const one={id:'one',name:'One',tracks:[]},two={id:'two',name:'Two',tracks:[]};a.state.playlists=[one,two];
+const playedBefore=Array.from(c.played);a.dom.searchMiniList.children[0].children[2].children[2].click();assert(node('add-playlist-dialog').open);assert.equal(node('add-playlist-options').children.length,2);node('add-playlist-options').children[1].click();assert.equal(one.tracks.length,0);assert.equal(two.tracks.length,1);assert.equal(two.tracks[0].uid,net.uid);assert.equal(JSON.parse(storage.get('liusheng-library-v1')).playlists[1].tracks[0].uid,net.uid);assert.deepEqual(Array.from(c.played),playedBefore,'Adding does not start or change playback');assert(!node('add-playlist-dialog').open);
+a.openAddToPlaylist(net);node('add-playlist-options').children[1].click();assert.equal(two.tracks.length,1);assert(c.toast.includes('已在'));
+a.openAddToPlaylist(qq);a.state.playlists=[one];node('add-playlist-options').children[1].click();assert.equal(one.tracks.length,0);assert(c.toast.includes('已删除'));
+a.state.playlists=[];a.openAddToPlaylist(net);assert(node('add-playlist-options').children[0].textContent.includes('新建歌单'));
 a.clearSearchResults();assert.equal(a.state.searchResults.length,0);assert(node('clear-results-btn').disabled);
 assert.equal(a.dom.searchMiniList.children.length,1);assert(a.dom.searchMiniList.children[0].textContent.includes('输入歌名'));
 assert.equal(a.state.currentTrack.uid,net.uid);assert.equal(a.state.favorites.length,2);
