@@ -244,6 +244,7 @@ select:disabled{opacity:.6;cursor:not-allowed}select option{background:#fff;colo
 @media(max-width:650px),(hover:none) and (pointer:coarse){#shortcut-toggle-btn,.header-controls .shortcut-hint{display:none}}
 .install-home-btn{display:none!important}#install-home-dialog{width:min(420px,92vw);box-sizing:border-box;border-radius:22px;padding:24px}#install-home-dialog h2{font-size:22px;margin:0}#install-home-steps{font-size:15px;line-height:1.9;padding-left:24px}#install-home-steps li{padding:6px 0}
 @media(max-width:650px),(hover:none) and (pointer:coarse){.install-home-btn:not([hidden]){display:inline-flex!important;align-items:center}.header-controls{gap:5px}.header-controls .btn{font-size:11px;padding:7px 8px}}
+.library-repair-banner .repair-help,.library-repair-banner .repair-action{border:0;background:transparent;color:inherit;font:inherit;cursor:pointer;min-height:32px;padding:2px 0}.repair-help{display:inline-flex;align-items:center;gap:5px;text-align:left}.repair-help .ui-icon{width:16px;height:16px}.library-repair-banner .repair-action{font-weight:650;white-space:nowrap}#repair-help-dialog{box-sizing:border-box;width:min(540px,94vw);max-height:85dvh;overflow:auto;overscroll-behavior:contain;padding:24px;border-radius:22px}#repair-help-dialog h2{font-size:22px;margin:0}#repair-help-dialog ol{padding-left:24px}#repair-help-dialog li,#repair-help-dialog p{font-size:14px;line-height:1.9}#repair-help-dialog li{padding:5px 0}#repair-help-dialog p{color:var(--text-sub)}#task-complete-actions{display:none}#import-progress-dialog.task-complete #task-complete-actions{display:flex;justify-content:flex-end;padding-top:18px}#task-complete-btn{min-width:100px}#import-check-count{white-space:pre-line}
 </style>
 </head>
 <body>
@@ -472,7 +473,10 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
           </div>
         </div>
 
-          <button id="repair-library-btn" class="library-repair-banner" type="button"><span>歌曲不能播放？</span><strong>一键解决 →</strong></button>
+        <div class="library-repair-banner">
+          <button id="repair-help-btn" class="repair-help" type="button" aria-haspopup="dialog" aria-controls="repair-help-dialog">歌曲不能播放？<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7v2"/></svg></button>
+          <button id="repair-library-btn" class="repair-action" type="button">一键解决 →</button>
+        </div>
         <div id="music-panel-content" class="playlist-main">
           <div class="playlist-bar library-toolbar">
             <div class="playlist-top-row">
@@ -609,6 +613,18 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       <button id="stop-import-check" class="btn btn-ghost" type="button" disabled>停止检查并保留当前结果</button>
       <details id="import-check-failures" hidden><summary id="import-check-failures-title">已移除歌曲</summary><ul id="import-check-failures-list"></ul></details>
     </section>
+    <div id="task-complete-actions"><button id="task-complete-btn" class="btn" type="button">完成</button></div>
+  </dialog>
+
+  <dialog id="repair-help-dialog" aria-labelledby="repair-help-title">
+    <div class="import-guide-heading"><h2 id="repair-help-title">一键解决会做什么？</h2><button id="repair-help-close" class="btn btn-ghost" type="button">知道了</button></div>
+    <ol>
+      <li>只检查当前收藏或当前歌单；每个歌单分别记忆，跳过其中已验证可播且版本未变的歌曲。</li>
+      <li>原曲可播就保留；QQ 歌曲直接搜索其他音源。需要替换时，先匹配歌名和歌手，不为更高音质额外搜索。</li>
+      <li>精确匹配无结果，再尝试同歌手的相近歌名或高相似版本；仍无资源时，才尝试有可靠依据的原唱版本。找到候选后验证能否播放。</li>
+      <li>通过的替代版本保存到当前列表，未解决的歌曲保留。停止时保留已完成结果；关闭进度框后仍会继续。</li>
+    </ol>
+    <p>首次检查大歌单可能需要一些时间，请保持页面在前台。旧版记录没有区分歌单，需要在各歌单重新检查一次。</p>
   </dialog>
 
   <dialog id="install-home-dialog" aria-labelledby="install-home-title">
@@ -1117,7 +1133,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         'uid','source','displayIndex','keyword','songid','songMid','qqId','qqSearchKey','qqIndex',
         'kugouPage','jooxIndex','jooxSongId','jooxSongMid','title','artist','album','cover','pageUrl','sourceTitle','sourceArtist','sourceAlbum',
         'quality','qualityLabel','qqQualityText','jooxQualityText','pay',
-        'preferHighestQuality','preferCompatible','preferredAudioQuality','importOriginalUid','importCheck','importCheckReason','importMatchType','repairVerifiedKey','originalArtist','originalArtistStatus'
+        'preferHighestQuality','preferCompatible','preferredAudioQuality','importOriginalUid','importCheck','importCheckReason','importMatchType','repairVerifiedScopes','originalArtist','originalArtistStatus'
       ];
       const out={};
       keys.forEach(k=>{
@@ -1319,7 +1335,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         const name=formatImportedPlaylistName({id:rawId,name:(pl.name || fallbackName).toString().trim() || fallbackName,nameEdited:pl.nameEdited});
 
         let target=rawId ? state.playlists.find(item=>item.id===rawId) : null;
-        if(!target) target=state.playlists.find(item=>item.name===name);
+        if(!target&&!rawId) target=state.playlists.find(item=>item.name===name);
 
         if(!target){
           let id=rawId || ('pl-import-'+Date.now()+'-'+idx+'-'+Math.random().toString(16).slice(2));
@@ -1379,7 +1395,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       $(id).showModal();
     }
     function restoreImportScroll(){
-      if(!importScrollLock||$('import-link-dialog').open||$('import-progress-dialog').open||$('replacement-dialog').open||$('play-queue-dialog').open||$('playback-quality-dialog').open||$('add-playlist-dialog').open||$('install-home-dialog').open)return;
+      if(!importScrollLock||$('import-link-dialog').open||$('import-progress-dialog').open||$('replacement-dialog').open||$('play-queue-dialog').open||$('playback-quality-dialog').open||$('add-playlist-dialog').open||$('install-home-dialog').open||$('repair-help-dialog').open)return;
       const saved=importScrollLock;importScrollLock=null;
       Object.assign(document.body.style,saved.body);document.documentElement.style.overflow=saved.htmlOverflow;
       window.scrollTo(saved.x,saved.y);
@@ -2041,6 +2057,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       let changed=false;
       for(const song of [track,...state.favorites,...state.playlists.flatMap(pl=>pl.tracks)]){
         if(song.uid!==track.uid)continue;
+        if(song.repairVerifiedScopes){delete song.repairVerifiedScopes;changed=true;}
         if(song.repairVerifiedKey){delete song.repairVerifiedKey;changed=true;}
         if(song.importCheck==='playable'){delete song.importCheck;changed=true;}
       }
@@ -2052,7 +2069,10 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       const playlist=favorites?null:state.playlists.find(pl=>pl.id===dom.playlistSelect.value);
       const target=favorites?state.favorites:playlist?.tracks;
       if(!target?.length){showToast('没有可检查的歌曲');return;}
-      const originals=target.filter(track=>track.repairVerifiedKey?track.repairVerifiedKey!==repairRecordingKey(track):track.importCheck!=='playable'),skipped=target.length-originals.length;
+      const scope=favorites?'favorites':'playlist:'+playlist.id,scopeName=favorites?'我的收藏':playlist.name;
+      const songs=[...new Map(target.map(track=>[track.uid,track])).values()];
+      const originals=songs.filter(track=>track.repairVerifiedScopes?.[scope]!==repairRecordingKey(track)),skipped=songs.length-originals.length;
+      const total=songs.length;
       const controller=new AbortController();importController=controller;
       let saveTimer=null,dirty=false,lastRender=0;
       const flush=()=>{clearTimeout(saveTimer);saveTimer=null;if(dirty){saveLibraryToStorage();dirty=false;}};
@@ -2060,22 +2080,22 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       globalThis.addEventListener?.('pagehide',flush);
       const progressUI=createImportProgress();let replaced=0,retained=0;
       $('import-progress-dialog').className='';$('import-progress-close').textContent='关闭';
-      $('import-progress-title').textContent='一键解决播放问题';
+      $('import-progress-title').textContent='检查「'+scopeName+'」';
       $('import-check-failures').hidden=true;$('stop-import-check').disabled=false;
       $('stop-import-check').textContent='停止检查并保留结果';
       showImportDialog('import-progress-dialog');
       try{
         const checked=await verifyImportData({favorites:originals,playlists:[]},controller,stats=>progressUI.update(()=>{
-          $('import-check-count').textContent=`本次 ${stats.total} 首 · 已检查 ${stats.checked} 首 · 剩余 ${stats.pending} 首 · 已验证跳过 ${skipped} 首`;
+          $('import-check-count').textContent=`歌单共 ${total} 首 · 已验证跳过 ${skipped} 首\n本次需检查 ${stats.total} 首 · 已检查 ${stats.checked} 首 · 剩余 ${stats.pending} 首`;
           $('import-check-progress').max=stats.total;$('import-check-progress').value=stats.checked;
           $('import-check-status').textContent=`已替换 ${replaced} 首 · 原曲可播 ${retained} 首 · 同时检查 ${stats.active.length} 首\n${importActiveLines(stats)}`;
         }),{compareAll:false,onVerified:(original,selected)=>{
           const exists=favorites?state.favorites===target:state.playlists.includes(playlist)&&playlist.tracks===target;
           const index=exists?target.indexOf(original):-1;
           if(index<0)return;
-          selected.repairVerifiedKey=repairRecordingKey(selected);
+          selected.repairVerifiedScopes={...selected.repairVerifiedScopes,[scope]:repairRecordingKey(selected)};
           const duplicate=target.findIndex((item,i)=>i!==index&&item.uid===selected.uid);
-          if(duplicate>=0){if(target[duplicate].importCheck!=='playable')target[duplicate]=selected;target[duplicate].repairVerifiedKey=repairRecordingKey(target[duplicate]);target.splice(index,1);}
+          if(duplicate>=0){if(target[duplicate].importCheck!=='playable')target[duplicate]=selected;target[duplicate].repairVerifiedScopes={...target[duplicate].repairVerifiedScopes,[scope]:repairRecordingKey(target[duplicate])};target.splice(index,1);}
           else target[index]=selected;
           state.trackMap.set(selected.uid,selected);
           if(selected.uid===original.uid)retained++;else replaced++;
@@ -2084,8 +2104,8 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         }});
         progressUI.flush();
         const stats=checked.stats;
-        $('import-progress-title').textContent=controller.signal.aborted?'检查已停止':'✓ 检查完成';
-        $('import-check-count').textContent=`本次已检查 ${stats.checked} / ${stats.total} 首`;
+        $('import-progress-title').textContent=(controller.signal.aborted?'检查已停止':'✓ 检查完成')+' · '+scopeName;
+        $('import-check-count').textContent=`歌单共 ${total} 首 · 已验证跳过 ${skipped} 首\n本次已检查 ${stats.checked} / ${stats.total} 首`;
         $('import-check-status').textContent=`已替换 ${replaced} 首 · 原曲可播 ${retained} 首\n已验证跳过 ${skipped} 首 · 未修复 ${stats.failed+stats.deferred} 首`+(stats.pending?` · 未检查 ${stats.pending} 首`:'')+'\n结果已保存。未修复的歌曲已保留，下次可继续检查。';
       }catch(error){
         $('import-progress-title').textContent=controller.signal.aborted?'检查已停止':'检查未完成';
@@ -2093,7 +2113,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       }finally{
         progressUI.stop();flush();globalThis.removeEventListener?.('pagehide',flush);
         controller.abort();importController=null;$('stop-import-check').disabled=true;
-        $('import-progress-dialog').className='task-complete';$('import-progress-close').textContent='完成';
+        $('import-progress-dialog').className='task-complete';$('import-progress-close').textContent='关闭';
         renderPlaylistList();updateMainFavButton();
       }
     }
@@ -2125,12 +2145,13 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         status.textContent=`导入完成：读取 ${count} 首，新增 ${stat.addedPlaylistTracks} 首歌单歌曲、${stat.addedFavorites} 首收藏。`+(data.warning?'\n'+data.warning:'');
         $('import-progress-title').textContent='✓ 导入完成';
         $('import-check-status').textContent=status.textContent;
-        $('import-progress-dialog').className='import-compact task-complete';$('import-progress-close').textContent='完成';
+        $('import-progress-dialog').className='import-compact task-complete';$('import-progress-close').textContent='关闭';
         void restoreImportedPlaylistNames();return true;
       }catch(error){
         const message=controller.signal.aborted?'已取消导入，未修改歌单。':error.userMessage||error.message||'读取歌单失败，请重试。';
         status.textContent=$('import-check-status').textContent=saved?'歌曲已保存，请刷新页面查看。':message;
-        $('import-progress-title').textContent=saved?'导入已保存':'导入未完成';$('import-progress-close').textContent='完成';
+        $('import-progress-title').textContent=saved?'导入已保存':'导入未完成';$('import-progress-close').textContent='关闭';
+        $('import-progress-dialog').className='import-compact task-complete';
         return saved;
       }finally{
         controller.abort();importController=null;importingPlaylist=false;
@@ -4120,6 +4141,9 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       $('playback-quality').addEventListener('click',openPlaybackQualityDialog);
       $('quality-panel-close').addEventListener('click',()=>$('playback-quality-dialog').close());
       $('repair-library-btn').addEventListener('click',repairCurrentLibrary);
+      $('repair-help-btn').addEventListener('click',() =>showImportDialog('repair-help-dialog'));
+      $('repair-help-close').addEventListener('click',()=>$('repair-help-dialog').close());
+      $('task-complete-btn').addEventListener('click',()=>$('import-progress-dialog').close());
       $('add-playlist-close').addEventListener('click',()=>$('add-playlist-dialog').close());
       document.addEventListener('visibilitychange',updateImportVisibility);
       $('play-queue-btn').addEventListener('click',()=>{renderPlayQueue();showImportDialog('play-queue-dialog');});
@@ -4167,7 +4191,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       $('import-link-close').addEventListener('click',()=>$('import-link-dialog').close());
       $('import-progress-close').addEventListener('click',()=>$('import-progress-dialog').close());
       $('import-progress-dialog').addEventListener('close',()=>{renderPlaylistList();updateMainFavButton();});
-      ['import-link-dialog','import-progress-dialog','replacement-dialog','play-queue-dialog','playback-quality-dialog','add-playlist-dialog','install-home-dialog'].forEach(id=>$(id).addEventListener('close',restoreImportScroll));
+      ['import-link-dialog','import-progress-dialog','replacement-dialog','play-queue-dialog','playback-quality-dialog','add-playlist-dialog','install-home-dialog','repair-help-dialog'].forEach(id=>$(id).addEventListener('close',restoreImportScroll));
       $('import-link-form').addEventListener('submit',importPlaylistLink);
       document.querySelectorAll('.lang-btn').forEach(btn=>{
         btn.addEventListener('click',()=>setLanguage(btn.dataset.lang));
