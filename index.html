@@ -3298,63 +3298,48 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       dom.favBtn.ariaLabel=state.language==='zh' ? (active?'取消收藏 (F)':'收藏 (F)') : (active?'Unfavorite (F)':'Favorite (F)');
     }
 
-    async function chooseDeferredReplacement(original,signal,manual=false){
-      const dialog=$('replacement-dialog'),list=$('replacement-list'),status=$('replacement-status');
-      $('replacement-title').textContent=manual?'搜索其他音源，选择替换版本':'该歌曲无法播放，请选择替代版本';
-      list.innerHTML='';$('replacement-original').textContent=`${original.title} — ${original.artist||'未知歌手'}`;
-      status.textContent='正在搜索，请选择要替换的版本…';
+    let replacementDialogOwner;
+    async function chooseDeferredReplacement(original,parentSignal){
+      const controller=new AbortController(),signal=AbortSignal.any([parentSignal,controller.signal]);
+      replacementDialogOwner?.abort();replacementDialogOwner=controller;
+      const dialog=$('replacement-dialog'),status=$('replacement-status');
+      $('replacement-title').textContent='自动匹配最高可播音质';
+      $('replacement-original').textContent=`${original.title} — ${original.artist||'未知歌手'}`;
+      $('replacement-list').innerHTML='';status.textContent='正在搜索各音源…';
+      const cancel=()=>controller.abort();
+      dialog.addEventListener('close',cancel);dialog.addEventListener('cancel',cancel);
+      $('replacement-close').addEventListener('click',cancel);
       showImportDialog('replacement-dialog');
-      return new Promise(resolve=>{
-        let settled=false,busy=false;
-        const finish=value=>{
-          if(settled)return;settled=true;
-          signal.removeEventListener('abort',cancel);dialog.removeEventListener('close',cancel);dialog.removeEventListener('cancel',cancel);
-          $('replacement-close').removeEventListener('click',cancel);
-          dialog.close();resolve(value);
-        };
-        const cancel=()=>finish(null);
-        signal.addEventListener('abort',cancel,{once:true});dialog.addEventListener('close',cancel);dialog.addEventListener('cancel',cancel);
-        $('replacement-close').addEventListener('click',cancel);
-        const pool={searchResults:[],trackMap:new Map(),sourceErrors:{},signal};
-        const shown=new Set();
-        const render=()=>{
-          if(settled||signal.aborted)return;
-          for(const candidate of pool.searchResults){
-            if(shown.has(candidate.uid))continue;shown.add(candidate.uid);
-            const row=document.createElement('div');row.className='replacement-row';
-            const info=document.createElement('div'),title=document.createElement('strong'),meta=document.createElement('span');
-            title.textContent=candidate.title||'未知歌名';meta.textContent=`${candidate.artist||'未知歌手'} · ${{netease:'网易云',qq:'QQ',kuwo:'酷我',joox:'JOOX',kugou:'酷狗'}[candidate.source]||candidate.source}${candidate.album?' · '+candidate.album:''}`;
-            info.appendChild(title);info.appendChild(meta);
-            const button=document.createElement('button');button.type='button';button.className='btn btn-secondary';button.textContent='选择替换';
-            button.addEventListener('click',async()=>{
-              if(busy||settled||signal.aborted)return;busy=true;
-              list.querySelectorAll('button').forEach(el=>el.disabled=true);status.textContent=`正在验证：${candidate.title} — ${candidate.artist||'未知歌手'}`;
-              try{
-                const selected=await probeRecording({...candidate},{signal,silent:true});
-                if(settled||signal.aborted)return;
-                finish({...selected,importCheck:'playable',importOriginalUid:original.importOriginalUid||original.uid});
-              }catch(error){
-                if(!settled&&!signal.aborted)status.textContent=error.name==='NotAllowedError'?'浏览器阻止试播，请允许音频播放后重试。':'这个版本暂时无法播放，请选择其他版本。';
-              }finally{
-                busy=false;if(!settled)list.querySelectorAll('button').forEach(el=>el.disabled=false);
-              }
-            });
-            button.disabled=busy;row.appendChild(info);row.appendChild(button);list.appendChild(row);
-          }
-        };
-        const providers=[k=>searchNetease(k,1,10,pool),k=>searchKuwo(k,10,pool),k=>searchJoox(k,10,pool),k=>searchKugou(k,10,pool)];
-        if(manual||original.source!=='qq')providers.push(k=>searchQQ(k,10,pool));
-        void Promise.allSettled(providers.map(async search=>{
+      try{
+        const seed={...original},pool={searchResults:[seed],trackMap:new Map([[seed.uid,seed]]),sourceErrors:{},transientErrors:[],attempted:new Set(),signal};
+        const providers=[k=>searchNetease(k,1,20,pool),k=>searchQQ(k,20,pool),k=>searchKuwo(k,20,pool),k=>searchJoox(k,20,pool),k=>searchKugou(k,20,pool)];
+        await Promise.allSettled(providers.map(async search=>{
           for(const keyword of new Set([`${original.title} ${original.artist||''}`.trim(),original.title])){
-            if(settled||signal.aborted)return;await search(keyword);render();
+            if(signal.aborted)throw signal.reason;await search(keyword);
           }
-        })).then(()=>{
-          if(settled||signal.aborted||busy)return;
-          status.textContent=shown.size?`找到 ${shown.size} 个候选，请选择后验证并替换。`:
-            Object.keys(pool.sourceErrors).length?'音源暂时无法完成搜索，请关闭后重试；原歌曲已保留。':'未找到候选，原歌曲已保留。';
-        });
-        if(signal.aborted)cancel();
-      });
+        }));
+        if(signal.aborted)return null;
+        const stage=text=>{if(!signal.aborted)status.textContent=text;};
+        let selected=await selectImportRecording(original,signal,stage,null,pool);
+        if(!selected){
+          const near=nearImportCandidates(original,pool.searchResults);
+          if(!near.ambiguous&&near.tracks.length)selected=await selectImportRecording(original,signal,stage,null,{...pool,searchResults:near.tracks},{nearTitle:true});
+        }
+        if(!selected){
+          const similar=pool.searchResults.filter(track=>similarImportTitleScore(original,track)>0);
+          if(similar.length)selected=await selectImportRecording(original,signal,stage,null,{...pool,searchResults:similar},{similarVersion:true});
+        }
+        if(signal.aborted)return null;
+        if(!selected){showToast('未找到可播放的匹配版本，已保留原歌曲');return null;}
+        return {...selected,title:original.title,artist:original.artist,importCheck:'playable',importOriginalUid:original.importOriginalUid||original.uid};
+      }catch(error){
+        if(!signal.aborted)showToast('音源匹配未完成，已保留原歌曲：'+(error.userMessage||error.message));
+        return null;
+      }finally{
+        dialog.removeEventListener('close',cancel);dialog.removeEventListener('cancel',cancel);
+        $('replacement-close').removeEventListener('click',cancel);controller.abort();
+        if(replacementDialogOwner===controller){replacementDialogOwner=null;dialog.close();}
+      }
     }
     function replaceDeferredLibraryTrack(original,selected){
       const replace=list=>{
@@ -3378,7 +3363,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         const list=context.type==='favorites'?getSortedFavorites():context.type==='playlist'?state.playlists.find(pl=>pl.id===context.playlistId)?.tracks:state.searchResults;
         if(list)context.index=list.findIndex(track=>track.uid===selected.uid);
         await playTrack(selected,context);
-        showToast('已替换为所选音源');
+        showToast('已应用最高可播音质版本');
       }finally{
         if(deferredController===controller)deferredController=null;
         controller.abort();
@@ -3535,7 +3520,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         });list.appendChild(button);
       }
       const search=document.createElement('button');search.type='button';search.className='quality-choice';
-      search.textContent='搜索其他音源 · 选择并替换歌曲';
+      search.textContent='自动匹配最高可播音质';
       search.addEventListener('click',()=>{
         $('playback-quality-dialog').close();
         if(state.currentTrack===track)void searchCurrentTrackSources();
