@@ -1252,7 +1252,6 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       const prefix=info.source==='qq'?'QQ':'网易云';
       let name=String(playlist.name||'').trim();
       while(name.startsWith(prefix+'-'))name=name.slice(prefix.length+1).trim();
-      if(info.source==='netease'&&/^.+喜欢的音乐$/.test(name))name='我喜欢的音乐';
       const compact=name.replace(/\s/g,'');
       if(compact===prefix+'歌单'+info.id||compact===prefix+'歌单')name='歌单 '+info.id;
       return prefix+'-'+(name||'歌单 '+info.id);
@@ -1262,7 +1261,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       const prefix=info.source==='qq'?'QQ':'网易云';
       let name=String(playlist.name||'').replace(/\s/g,'');
       while(name.startsWith(prefix+'-'))name=name.slice(prefix.length+1);
-      return [prefix+'歌单'+info.id,prefix+'歌单','歌单'+info.id,'歌单'].includes(name);
+      return (info.source==='netease'&&name==='我喜欢的音乐')||[prefix+'歌单'+info.id,prefix+'歌单','歌单'+info.id,'歌单'].includes(name);
     }
     async function restoreImportedPlaylistNames(){
       const playlists=state.playlists.filter(hasDefaultPlaylistName);let next=0;

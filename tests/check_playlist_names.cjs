@@ -35,6 +35,8 @@ a.state.playlists=[playlist];a.state.favorites=[track];a.state.currentTrack=trac
  const unnamed={id:'qq-playlist-123',name:'QQ 歌单 123',tracks:[track]};a.state.playlists=[unnamed];a.dom.playlistSelect.value=unnamed.id;
  c.fetch=async()=>({ok:true,json:async()=>({name:'我喜欢'})});const current=a.state.currentTrack;
  await a.restoreImportedPlaylistNames();assert.equal(unnamed.name,'QQ-我喜欢');assert.equal(a.state.currentTrack,current);assert.equal(a.dom.playlistSelect.value,unnamed.id);assert.equal(JSON.parse(storage.get('liusheng-library-v1')).playlists[0].name,'QQ-我喜欢','Refresh-time correction is persisted without reimporting songs');
+ const restored={id:'netease-playlist-2621178258',name:'网易云-我喜欢的音乐',tracks:[track]};a.state.playlists=[restored];
+ c.fetch=async()=>({ok:true,json:async()=>({name:'蓉城彬少喜欢的音乐'})});await a.restoreImportedPlaylistNames();assert.equal(restored.name,'网易云-蓉城彬少喜欢的音乐','Restore names changed by the removed normalization rule');
  let release;const waiting={id:'qq-playlist-123',name:'QQ 歌单 123',tracks:[track]};a.state.playlists=[waiting];
  c.fetch=()=>new Promise(resolve=>{release=resolve;});const pending=a.restoreImportedPlaylistNames();waiting.name='Changed while loading';waiting.nameEdited=true;release({ok:true,json:async()=>({name:'我喜欢'})});await pending;assert.equal(waiting.name,'Changed while loading');
  a.state.playlists=[{id:'qq-playlist-123',name:'QQ 歌单 123',tracks:[track]}];const deleted=a.restoreImportedPlaylistNames();a.state.playlists=[];release({ok:true,json:async()=>({name:'我喜欢'})});await deleted;assert.equal(a.state.playlists.length,0);
@@ -43,8 +45,8 @@ a.state.playlists=[playlist];a.state.favorites=[track];a.state.currentTrack=trac
  const sharedData=await a.readPlaylistLinkData(shared,new AbortController().signal);assert.equal(sharedData.playlists[0].name,'QQ-我喜欢');assert.equal(metadataCalls,0,'A provided share title needs no extra metadata request');
  assert.equal(a.formatImportedPlaylistName({id:'qq-playlist-123',name:'我喜欢'}),'QQ-我喜欢');
  assert.equal(a.formatImportedPlaylistName({id:'netease-playlist-456',name:'我的收藏'}),'网易云-我的收藏');
- assert.equal(a.formatImportedPlaylistName({id:'netease-playlist-2621178258',name:'蓉城彬少喜欢的音乐'}),'网易云-我喜欢的音乐');
- assert.equal(a.formatImportedPlaylistName({id:'netease-playlist-2621178258',name:'网易云-蓉城彬少喜欢的音乐'}),'网易云-我喜欢的音乐');
+ assert.equal(a.formatImportedPlaylistName({id:'netease-playlist-2621178258',name:'蓉城彬少喜欢的音乐'}),'网易云-蓉城彬少喜欢的音乐');
+ assert.equal(a.formatImportedPlaylistName({id:'netease-playlist-2621178258',name:'网易云-蓉城彬少喜欢的音乐'}),'网易云-蓉城彬少喜欢的音乐');
  assert.equal(a.formatImportedPlaylistName({id:'netease-playlist-2621178258',name:'蓉城彬少喜欢的音乐',nameEdited:true}),'蓉城彬少喜欢的音乐');
  assert.equal(a.formatImportedPlaylistName({id:'qq-playlist-123',name:'QQ-QQ-我喜欢'}),'QQ-我喜欢');
  assert.equal(a.formatImportedPlaylistName({id:'pl-local',name:'日常'}),'日常');
