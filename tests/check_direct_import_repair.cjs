@@ -19,7 +19,7 @@ const tick=()=>new Promise(setImmediate);
  const direct=boot(),tracks=Array.from({length:654},(_,i)=>({...song(String(i)),importCheck:i%2?'deferred':'unavailable',importCheckReason:'Old result'}));
  direct.c.probe=direct.c.find=()=>{throw Error('Import cannot search or inspect audio');};
  const started=Date.now();assert(await direct.a.runPlaylistImport(async()=>({version:1,favorites:[],playlists:[{id:'list',name:'Songs',tracks}]}),direct.node('status')));
- await tick();assert.equal(direct.a.state.playlists[0].tracks.length,654);assert.equal(direct.c.calls.probe,0);assert.equal(direct.c.calls.search,0);assert(direct.a.state.playlists[0].tracks.every(t=>!t.importCheck));assert.equal(JSON.parse(direct.storage.get('liusheng-library-v1')).playlists[0].tracks.length,654);assert.equal(direct.node('import-check-count').textContent,'共 654 首 · 已导入 654 首');
+ await tick();assert.equal(direct.a.state.playlists[0].tracks.length,654);assert.equal(direct.c.calls.probe,0);assert.equal(direct.c.calls.search,0);assert(direct.a.state.playlists[0].tracks.every(t=>!t.importCheck));assert.equal(JSON.parse(direct.storage.get('liusheng-library-v1')).playlists[0].tracks.length,654);assert(!direct.node('import-progress-dialog').open,'Direct import must not open the repair progress dialog');
  console.log('654-track metadata-only save: '+(Date.now()-started)+' ms; audio/search calls: 0');
  const fix=boot(),a=song('a','netease'),b=song('b'),c=song('c'),d=song('d'),other={id:'other',name:'Other',tracks:[b]};
  fix.c.tab='favorites';fix.a.state.favorites=[a,b,c,d];fix.a.state.playlists=[other];fix.a.state.favoriteSearch='no match';fix.a.state.currentTrack=a;fix.a.state.isPlaying=true;

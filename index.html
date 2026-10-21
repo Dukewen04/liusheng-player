@@ -1252,6 +1252,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       const prefix=info.source==='qq'?'QQ':'网易云';
       let name=String(playlist.name||'').trim();
       while(name.startsWith(prefix+'-'))name=name.slice(prefix.length+1).trim();
+      if(info.source==='netease'&&/^.+喜欢的音乐$/.test(name))name='我喜欢的音乐';
       const compact=name.replace(/\s/g,'');
       if(compact===prefix+'歌单'+info.id||compact===prefix+'歌单')name='歌单 '+info.id;
       return prefix+'-'+(name||'歌单 '+info.id);
@@ -1358,7 +1359,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       window.scrollTo(saved.x,saved.y);
     }
     function openImportGuide(method){
-      if(importController){showImportDialog('import-progress-dialog');return;}
+      if(importController){showImportDialog(importingPlaylist?'import-link-dialog':'import-progress-dialog');return;}
       setImportMethod(method);$('import-link-status').textContent='';
       showImportDialog('import-link-dialog');$('import-link-dialog').scrollTop=0;
     }
@@ -1508,7 +1509,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       await runPlaylistImport(async signal=>{
         const info=playlistLinkInfo($('import-link-url').value);
         $('import-platform').value=info.source;renderImportPlatform();
-        $('import-check-status').textContent=$('import-link-status').textContent=info.short?'正在连接解析服务、展开网易云短链接并读取完整歌单…（最多等待 35 秒）':'正在读取歌单…（最多等待 35 秒）';
+        $('import-link-status').textContent=info.short?'正在连接解析服务、展开网易云短链接并读取完整歌单…（最多等待 35 秒）':'正在读取歌单…（最多等待 35 秒）';
         const data=await readPlaylistLinkData(info,signal);
         if(!Array.isArray(data?.playlists)||!data.playlists[0]?.tracks?.length)throw new Error('歌单服务没有返回有效歌曲，请检查链接或稍后重试。');
         if(favorite)data.favorites=data.playlists[0].tracks;
@@ -1516,7 +1517,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       },$('import-link-status'));
     }
 
-    let importController=null;
+    let importController=null,importingPlaylist=false;
     function createImportProgress(startedAt=Date.now()){
       let render=null,lastPaint=-Infinity;
       const paint=()=>{
@@ -1993,7 +1994,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         failures:originals.filter(track=>results.get(track.uid)?.importCheck==='unavailable')};
     }
     async function repairCurrentLibrary(){
-      if(importController){showImportDialog('import-progress-dialog');return;}
+      if(importController){showImportDialog(importingPlaylist?'import-link-dialog':'import-progress-dialog');return;}
       const favorites=document.querySelector('.playlist-tab.active')?.dataset.tab==='favorites';
       const playlist=favorites?null:state.playlists.find(pl=>pl.id===dom.playlistSelect.value);
       const target=favorites?state.favorites:playlist?.tracks;
@@ -2033,15 +2034,11 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
     }
     async function runPlaylistImport(read,status){
       if(importController)return false;
-      const controller=new AbortController();importController=controller;
+      const controller=new AbortController();importController=controller;importingPlaylist=true;
       const controls=['import-link-submit','confirm-import-file','import-method-link','import-method-file','choose-import-file','import-platform','import-link-favorite','import-link-url'];
       const disabled=controls.map(id=>$(id).disabled);controls.forEach(id=>$(id).disabled=true);
-      $('import-progress-title').textContent='导入进度';
-      $('import-link-dialog').close();showImportDialog('import-progress-dialog');
-      $('import-check-failures').hidden=true;$('stop-import-check').disabled=false;$('stop-import-check').textContent='取消导入';
-      $('import-check-progress').removeAttribute('value');$('import-check-count').textContent='正在读取歌曲总数…';
-      $('import-check-status').textContent=status.textContent='正在读取歌单…';
-      const progressUI=createImportProgress();let saved=false;
+      status.textContent='正在读取歌单…';
+      let saved=false;
       try{
         const raw=await read(controller.signal);if(controller.signal.aborted)throw controller.signal.reason;
         importFileSummary(raw);
@@ -2056,18 +2053,14 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
           if(target){dom.playlistSelect.value=target.id;state.playContext={type:'playlist',index:0,playlistId:target.id};}
         }
         renderPlaylistList();
-        $('import-check-count').textContent=`共 ${count} 首 · 已导入 ${count} 首`;
-        $('import-check-progress').max=count;$('import-check-progress').value=count;
         status.textContent=`导入完成：读取 ${count} 首，新增 ${stat.addedPlaylistTracks} 首歌单歌曲、${stat.addedFavorites} 首收藏。`+(data.warning?'\n'+data.warning:'');
-        $('import-check-status').textContent=status.textContent;
         void restoreImportedPlaylistNames();return true;
       }catch(error){
-        if(!saved&&$('import-check-count').textContent==='正在读取歌曲总数…')$('import-check-count').textContent='尚未取得歌曲列表';
         const message=controller.signal.aborted?'已取消导入，未修改歌单。':error.userMessage||error.message||'读取歌单失败，请重试。';
-        status.textContent=$('import-check-status').textContent=saved?'歌曲已保存，请刷新页面查看。':message;
+        status.textContent=saved?'歌曲已保存，请刷新页面查看。':message;
         return saved;
       }finally{
-        progressUI.stop();controller.abort();importController=null;$('stop-import-check').disabled=true;
+        controller.abort();importController=null;importingPlaylist=false;
         controls.forEach((id,index)=>$(id).disabled=disabled[index]);
       }
     }

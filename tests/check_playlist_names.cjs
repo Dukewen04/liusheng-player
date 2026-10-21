@@ -43,6 +43,9 @@ a.state.playlists=[playlist];a.state.favorites=[track];a.state.currentTrack=trac
  const sharedData=await a.readPlaylistLinkData(shared,new AbortController().signal);assert.equal(sharedData.playlists[0].name,'QQ-我喜欢');assert.equal(metadataCalls,0,'A provided share title needs no extra metadata request');
  assert.equal(a.formatImportedPlaylistName({id:'qq-playlist-123',name:'我喜欢'}),'QQ-我喜欢');
  assert.equal(a.formatImportedPlaylistName({id:'netease-playlist-456',name:'我的收藏'}),'网易云-我的收藏');
+ assert.equal(a.formatImportedPlaylistName({id:'netease-playlist-2621178258',name:'蓉城彬少喜欢的音乐'}),'网易云-我喜欢的音乐');
+ assert.equal(a.formatImportedPlaylistName({id:'netease-playlist-2621178258',name:'网易云-蓉城彬少喜欢的音乐'}),'网易云-我喜欢的音乐');
+ assert.equal(a.formatImportedPlaylistName({id:'netease-playlist-2621178258',name:'蓉城彬少喜欢的音乐',nameEdited:true}),'蓉城彬少喜欢的音乐');
  assert.equal(a.formatImportedPlaylistName({id:'qq-playlist-123',name:'QQ-QQ-我喜欢'}),'QQ-我喜欢');
  assert.equal(a.formatImportedPlaylistName({id:'pl-local',name:'日常'}),'日常');
  assert.equal(a.formatImportedPlaylistName({id:'qq-playlist-123',name:'手动名称',nameEdited:true}),'手动名称');
