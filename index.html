@@ -3298,8 +3298,9 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       dom.favBtn.ariaLabel=state.language==='zh' ? (active?'取消收藏 (F)':'收藏 (F)') : (active?'Unfavorite (F)':'Favorite (F)');
     }
 
-    async function chooseDeferredReplacement(original,signal){
+    async function chooseDeferredReplacement(original,signal,manual=false){
       const dialog=$('replacement-dialog'),list=$('replacement-list'),status=$('replacement-status');
+      $('replacement-title').textContent=manual?'搜索其他音源，选择替换版本':'该歌曲无法播放，请选择替代版本';
       list.innerHTML='';$('replacement-original').textContent=`${original.title} — ${original.artist||'未知歌手'}`;
       status.textContent='正在搜索，请选择要替换的版本…';
       showImportDialog('replacement-dialog');
@@ -3342,7 +3343,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
           }
         };
         const providers=[k=>searchNetease(k,1,10,pool),k=>searchKuwo(k,10,pool),k=>searchJoox(k,10,pool),k=>searchKugou(k,10,pool)];
-        if(original.source!=='qq')providers.push(k=>searchQQ(k,10,pool));
+        if(manual||original.source!=='qq')providers.push(k=>searchQQ(k,10,pool));
         void Promise.allSettled(providers.map(async search=>{
           for(const keyword of new Set([`${original.title} ${original.artist||''}`.trim(),original.title])){
             if(settled||signal.aborted)return;await search(keyword);render();
@@ -3363,6 +3364,25 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       replace(state.favorites);state.playlists.forEach(pl=>replace(pl.tracks));replace(state.searchResults);
       state.trackMap.delete(original.uid);state.trackMap.set(selected.uid,selected);
       saveLibraryToStorage();renderPlaylistList();updateMainFavButton();
+    }
+    async function searchCurrentTrackSources(){
+      const original=state.currentTrack;
+      if(!original||qualityController)return;
+      const request=playbackRequest,context={...state.playContext};
+      deferredController?.abort();
+      const controller=new AbortController();deferredController=controller;
+      try{
+        const selected=await chooseDeferredReplacement(original,controller.signal,true);
+        if(!selected||controller.signal.aborted||request!==playbackRequest||state.currentTrack!==original)return;
+        replaceDeferredLibraryTrack(original,selected);
+        const list=context.type==='favorites'?getSortedFavorites():context.type==='playlist'?state.playlists.find(pl=>pl.id===context.playlistId)?.tracks:state.searchResults;
+        if(list)context.index=list.findIndex(track=>track.uid===selected.uid);
+        await playTrack(selected,context);
+        showToast('已替换为所选音源');
+      }finally{
+        if(deferredController===controller)deferredController=null;
+        controller.abort();
+      }
     }
     let playbackRequest = 0, playbackIntentRevision=0, lyricsController, deferredController, qualityController;
     async function playTrack(track,context,startTime=0){
@@ -3493,12 +3513,12 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       const label=track?.qualityLabel?qualityBadge(track.qualityLabel).text.replace(/^(?:音质|Quality) · /,''):'';
       const version=track?.source==='kuwo'?(track.preferCompatible?'备用版本':'默认版本'):label;
       field.textContent=qualityController?'正在切换…':(state.language==='zh'?'音质':'Quality')+(version?' · '+version:'');
-      field.disabled=options.length<2||!!qualityController;
-      field.title=qualityController?'新版本准备好后切换，当前音乐继续播放':options.length<2?'当前音源仅提供一种音质':'选择播放音质';
+      field.disabled=!track||!!qualityController;
+      field.title=qualityController?'新版本准备好后切换，当前音乐继续播放':'选择播放音质或搜索其他音源';
     }
     function openPlaybackQualityDialog(){
       const track=state.currentTrack,options=playbackQualityOptions(track);
-      if(options.length<2||qualityController)return;
+      if(!track||qualityController)return;
       const list=$('quality-options');list.innerHTML='';
       for(const item of options){
         const active=track.source==='kuwo'?!!track.preferCompatible===item.preferCompatible:item.audioUrl===track.audioUrl;
@@ -3514,6 +3534,12 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
           if(!active)void switchPlaybackQuality(item.preferredAudioQuality);
         });list.appendChild(button);
       }
+      const search=document.createElement('button');search.type='button';search.className='quality-choice';
+      search.textContent='搜索其他音源 · 选择并替换歌曲';
+      search.addEventListener('click',()=>{
+        $('playback-quality-dialog').close();
+        if(state.currentTrack===track)void searchCurrentTrackSources();
+      });list.appendChild(search);
       showImportDialog('playback-quality-dialog');
     }
     function prepareQualityAudio(track,signal){
