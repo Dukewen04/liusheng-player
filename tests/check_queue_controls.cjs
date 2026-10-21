@@ -9,7 +9,10 @@ vm.runInContext(source.replace(/\}\)\(\);\s*$/,`
  playTrack=(track,context)=>{globalThis.chosen={track,context};};
  globalThis.app={state,dom,renderTrackRows,renderPlayQueue,setPlaybackIcon,setCurrent:uid=>loadedTrackUid=uid};
 })();`),c);
-assert.equal((html.match(/class="playmode-row"/g)||[]).length,1);const playerSection=html.slice(html.indexOf('class="panel player-panel'),html.indexOf('class="panel playlist-panel'));assert(playerSection.includes('class="playmode-row"'));assert(playerSection.includes('列表循环</span>'));assert(playerSection.includes('单曲循环</span>'));assert(playerSection.includes('随机播放</span>'));
+assert(!html.includes('class="playmode-row"'));assert(html.includes('id="player-status" role="status" aria-live="polite" hidden'));
+const playerActions=html.slice(html.indexOf('<div class="player-actions">'),html.indexOf('<div class="player-controls">'));assert(playerActions.includes('id="playmode-toggle"'));
+for(const [expected,symbol] of [['list','repeat'],['single','repeat-1'],['shuffle','shuffle']]){node('playmode-toggle').click();assert.equal(c.app.state.playMode,expected);assert(node('playmode-toggle').innerHTML.includes('#icon-'+symbol));assert(node('playmode-toggle').ariaLabel.includes('点击切换'));}
+
 const a=c.app,one={uid:'one',title:'One',artist:'Singer',source:'netease',detailsLoaded:true},two={uid:'two',title:'Two',artist:'Singer',source:'kuwo'};
 a.state.currentTrack=one;a.state.isPlaying=true;a.state.playContext={type:'playlist',playlistId:'list',index:0};a.state.playlists=[{id:'list',tracks:[one,two]}];a.state.lyricsMode=true;
 const wrap=element();a.renderTrackRows(wrap,[one,two],'playlists');
