@@ -254,6 +254,8 @@ select:disabled{opacity:.6;cursor:not-allowed}select option{background:#fff;colo
 #import-progress-dialog.import-success{width:min(340px,90vw)!important;padding:30px 24px 24px}#import-progress-dialog.import-success #import-progress-close,#import-progress-dialog.import-success #import-check-panel{display:none}#import-progress-dialog.import-success .import-guide-heading{justify-content:center;margin:0}#import-progress-dialog.import-success h2{text-align:center;font-size:22px}#import-progress-dialog.import-success #task-complete-actions{padding-top:26px;justify-content:center}#import-progress-dialog.import-success #task-complete-btn{width:100%;min-height:44px}
 @media(max-width:380px){#import-link-dialog .import-platform-selected{display:none}.import-platform-mark{width:24px;height:24px}#import-link-dialog .import-platform-choices .btn{gap:6px}}
 #import-link-dialog #import-qq-note{padding:10px 12px;border-radius:9px;background:#fbf6ea;color:#80683d;font-size:12px;line-height:1.8}
+body.lyrics-mode .app{position:fixed;inset:0;box-sizing:border-box;width:100%;height:100dvh;max-width:none;overflow:hidden;padding-top:max(16px,env(safe-area-inset-top))}.lyrics-mode .layout,.lyrics-mode .player-panel{min-height:0;overflow:hidden}.lyrics-mode .player-panel>.panel-header{flex-shrink:0;position:relative;z-index:2}.lyrics-mode .lyrics-container{min-height:0;overflow-y:auto;touch-action:pan-y;overscroll-behavior:contain}
+#play-queue-dialog[open]{display:flex;flex-direction:column;overflow:hidden}#play-queue-dialog>.import-guide-heading,#play-queue-count{flex-shrink:0}#play-queue-list{min-height:0;overflow:auto;overscroll-behavior:contain}
 </style>
 </head>
 <body>
@@ -613,7 +615,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
   <dialog id="playback-quality-dialog" aria-labelledby="playback-quality-title">
     <div class="quality-panel-heading"><h2 id="playback-quality-title">播放音质</h2><button id="quality-panel-close" class="btn btn-ghost" type="button">关闭</button></div>
     <div id="quality-options" role="group" aria-label="可用音质"></div>
-    <p class="quality-panel-note">切换后从当前进度继续播放。</p>
+    <p class="quality-panel-note">新版本准备好后接续播放；准备期间可继续听。</p>
   </dialog>
 
   <dialog id="import-progress-dialog" aria-labelledby="import-progress-title">
@@ -3313,7 +3315,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       state.trackMap.delete(original.uid);state.trackMap.set(selected.uid,selected);
       saveLibraryToStorage();renderPlaylistList();updateMainFavButton();
     }
-    let playbackRequest = 0, lyricsController, deferredController, qualityController;
+    let playbackRequest = 0, playbackIntentRevision=0, lyricsController, deferredController, qualityController;
     async function playTrack(track,context,startTime=0){
       if(!track)return;
       const request = ++playbackRequest;
@@ -3440,8 +3442,8 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
     function playbackQualityOptions(track){
       if(!track?.audioUrl)return [];
       if(track.source==='kuwo')return [
-        {preferredAudioQuality:'kuwo-original',label:'原音质',preferCompatible:false},
-        {preferredAudioQuality:'kuwo-compatible',label:'兼容音质',preferCompatible:true}
+        {preferredAudioQuality:'kuwo-original',label:'默认版本',description:'正常播放时选这个，使用音源提供的默认格式。',preferCompatible:false},
+        {preferredAudioQuality:'kuwo-compatible',label:'备用版本',description:'没声音或加载慢时可尝试，使用更易播放的格式。',preferCompatible:true}
       ];
       if(!['qq','joox'].includes(track.source))return [];
       const seen=new Set();
@@ -3451,9 +3453,10 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
     function renderPlaybackQuality(){
       const field=$('playback-quality'),track=state.currentTrack,options=playbackQualityOptions(track);
       const label=track?.qualityLabel?qualityBadge(track.qualityLabel).text.replace(/^(?:音质|Quality) · /,''):'';
-      field.textContent=(state.language==='zh'?'音质':'Quality')+(label?' · '+label:'');
+      const version=track?.source==='kuwo'?(track.preferCompatible?'备用版本':'默认版本'):label;
+      field.textContent=qualityController?'正在切换…':(state.language==='zh'?'音质':'Quality')+(version?' · '+version:'');
       field.disabled=options.length<2||!!qualityController;
-      field.title=qualityController?'正在验证音质…':options.length<2?'当前音源仅提供一种音质':'选择播放音质';
+      field.title=qualityController?'新版本准备好后切换，当前音乐继续播放':options.length<2?'当前音源仅提供一种音质':'选择播放音质';
     }
     function openPlaybackQualityDialog(){
       const track=state.currentTrack,options=playbackQualityOptions(track);
@@ -3465,7 +3468,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         button.setAttribute('aria-pressed',String(active));
         const text=document.createElement('span'),title=document.createElement('strong'),description=document.createElement('small');
         title.textContent=item.label;
-        description.textContent=active?'正在使用':item.preferCompatible?'优先使用设备兼容的音频格式':'使用当前音源提供的这个版本';
+        description.textContent=(active?'正在使用'+(item.description?' · ':''):'')+(item.description||(!active?'使用当前音源提供的这个版本':''));
         text.appendChild(title);text.appendChild(description);button.appendChild(text);
         button.addEventListener('click',()=>{
           $('playback-quality-dialog').close();
@@ -3475,55 +3478,108 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       }
       showImportDialog('playback-quality-dialog');
     }
+    function prepareQualityAudio(track,signal){
+      return new Promise((resolve,reject)=>{
+        if(signal.aborted){reject(signal.reason);return;}
+        const audio=new Audio();audio.preload='auto';audio.playsInline=true;
+        let metadata=false,finished=false;
+        const finish=error=>{
+          if(finished)return;finished=true;clearTimeout(timer);signal.removeEventListener('abort',abort);
+          audio.onloadedmetadata=null;audio.oncanplay=null;audio.onseeked=null;audio.onerror=null;
+          if(error){audio.pause();audio.removeAttribute('src');audio.load();reject(error);}else resolve(audio);
+        };
+        const abort=()=>finish(signal.reason);
+        const ready=()=>{if(metadata&&!audio.seeking&&audio.readyState>=3)finish();};
+        const timer=setTimeout(()=>finish(new Error('新版本准备超时')),15000);
+        signal.addEventListener('abort',abort,{once:true});
+        audio.onloadedmetadata=()=>{
+          if(!Number.isFinite(audio.duration)||audio.duration<45){finish(new Error('该版本可能是试听片段'));return;}
+          metadata=true;audio.currentTime=Math.min(dom.audio.currentTime||0,Math.max(0,audio.duration-.1));ready();
+        };
+        audio.oncanplay=ready;audio.onseeked=ready;
+        audio.onerror=()=>finish(new Error('该版本无法加载或解码'));
+        audio.src=track.audioUrl;audio.load();
+      });
+    }
     async function switchPlaybackQuality(key){
       const track=state.currentTrack,option=playbackQualityOptions(track).find(item=>item.preferredAudioQuality===key);
       if(!option)return;
       qualityController?.abort();
       const controller=new AbortController();qualityController=controller;
-      const request=playbackRequest;
+      const request=playbackRequest;let prepared=null,handedOff=false,cancelPrepared=null;
       renderPlaybackQuality();
       try{
         const candidate={...track,detailsLoaded:false,audioUrl:null,preferredAudioQuality:key,
           preferCompatible:option.preferCompatible||false,preferHighestQuality:false};
-        await ensureTrackDetails(candidate,{silent:true,signal:controller.signal,skipAudioPreflight:true});
+        if(track.source!=='kuwo'&&track.detailsExpiresAt>Date.now()&&option.audioUrl){Object.assign(candidate,option);candidate.detailsLoaded=true;}
+        else await ensureTrackDetails(candidate,{silent:true,signal:controller.signal,skipAudioPreflight:true});
         if(track.source!=='kuwo'){
           const selected=candidate.audioOptions?.find(item=>item.preferredAudioQuality===key);
           if(!selected)throw new Error('该音质暂时不可用');
           Object.assign(candidate,selected);
         }
-        await probeRecording(candidate,{signal:controller.signal,silent:true,useLoaded:true});
+        prepared=await prepareQualityAudio(candidate,controller.signal);
         if(controller.signal.aborted||request!==playbackRequest||state.currentTrack!==track)return;
-        const position=dom.audio.currentTime||0,resume=!dom.audio.paused,previous={...track};
-        let cancelLoad;
-        const loadAtPosition=()=>new Promise((resolve,reject)=>{
-          loadedTrackUid=null;pendingSeek=position;
-          const finish=error=>{
-            cancelLoad=null;clearTimeout(timer);dom.audio.removeEventListener('loadedmetadata',seek);dom.audio.removeEventListener('error',failed);
-            controller.signal.removeEventListener('abort',aborted);error?reject(error):resolve();
-          };
-          const seek=()=>{
-            if(request!==playbackRequest||controller.signal.aborted){finish(new DOMException('Canceled','AbortError'));return;}
-            dom.audio.currentTime=Math.min(position,Number.isFinite(dom.audio.duration)?Math.max(0,dom.audio.duration-.1):position);
-            pendingSeek=null;loadedTrackUid=track.uid;savePlaybackState();finish();
-          };
-          const failed=()=>finish(new Error('新音质加载失败')),aborted=()=>finish(controller.signal.reason);
-          const timer=setTimeout(()=>finish(new Error('新音质加载超时')),15000);
-          cancelLoad=finish;
-          dom.audio.addEventListener('loadedmetadata',seek);dom.audio.addEventListener('error',failed);
-          controller.signal.addEventListener('abort',aborted,{once:true});
-          dom.audio.src=track.audioUrl;dom.audio.load();
-        });
-        try{
-          dom.audio.pause();Object.assign(track,candidate);
-          const ready=loadAtPosition();
-          await Promise.all([ready,resume?dom.audio.play():Promise.resolve()]);
-        }catch(error){
-          cancelLoad?.(error);
-          if(request!==playbackRequest||controller.signal.aborted)return;
-          Object.assign(track,previous);
-          const ready=loadAtPosition();
-          await Promise.all([ready,resume?dom.audio.play():Promise.resolve()]).catch(()=>{});
-          throw error;
+        cancelPrepared=()=>{prepared.pause();prepared.removeAttribute('src');prepared.load();};
+        controller.signal.addEventListener('abort',cancelPrepared,{once:true});
+        const previousAudio=dom.audio;
+        let usePrepared=true;const resumePrepared=!previousAudio.paused,intent=playbackIntentRevision;
+        prepared.currentTime=Math.min(previousAudio.currentTime||0,Math.max(0,prepared.duration-.1));
+        prepared.volume=previousAudio.volume;prepared.muted=previousAudio.muted;prepared.playbackRate=previousAudio.playbackRate;
+        if(resumePrepared){
+          try{await prepared.play();}
+          catch(error){
+            if(error.name==='NotAllowedError')usePrepared=false;
+            else{if(previousAudio.paused&&intent===playbackIntentRevision)await previousAudio.play().catch(()=>{});throw error;}
+          }
+        }
+        if(controller.signal.aborted||request!==playbackRequest||state.currentTrack!==track)return;
+        if(usePrepared){
+          // Mobile browsers may pause the old element automatically when another starts.
+          if(!resumePrepared||(intent!==playbackIntentRevision&&previousAudio.paused))prepared.pause();
+          prepared.volume=previousAudio.volume;prepared.muted=previousAudio.muted;
+          bindPlaybackAudio(prepared);
+          for(const event of ['play','pause','loadedmetadata','emptied'])prepared.addEventListener(event,()=>{if(dom.audio===prepared)updateMobilePlayback();});
+          prepared.id=previousAudio.id||'audio';previousAudio.replaceWith(prepared);dom.audio=prepared;handedOff=true;
+          Object.assign(track,candidate);loadedTrackUid=track.uid;pendingSeek=null;
+          previousAudio.pause();previousAudio.removeAttribute('src');previousAudio.load();
+          state.isPlaying=!prepared.paused;setPlaybackIcon(state.isPlaying);updateMobilePlayback();
+          dom.playerStatus.textContent=t(state.isPlaying?'playerStatusPlaying':'playerStatusPaused');
+          updateLyricsHighlight(prepared.currentTime||0);
+        }else{
+          // Some browsers only allow the audio element the user has already played.
+          const position=dom.audio.currentTime||0,resume=!dom.audio.paused,previous={...track};
+          let cancelLoad;
+          const loadAtPosition=()=>new Promise((resolve,reject)=>{
+            loadedTrackUid=null;pendingSeek=position;
+            const finish=error=>{
+              cancelLoad=null;clearTimeout(timer);dom.audio.removeEventListener('loadedmetadata',seek);dom.audio.removeEventListener('error',failed);
+              controller.signal.removeEventListener('abort',aborted);error?reject(error):resolve();
+            };
+            const seek=()=>{
+              if(request!==playbackRequest||controller.signal.aborted){finish(new DOMException('Canceled','AbortError'));return;}
+              dom.audio.currentTime=Math.min(position,Number.isFinite(dom.audio.duration)?Math.max(0,dom.audio.duration-.1):position);
+              pendingSeek=null;loadedTrackUid=track.uid;savePlaybackState();finish();
+            };
+            const failed=()=>finish(new Error('新音质加载失败')),aborted=()=>finish(controller.signal.reason);
+            const timer=setTimeout(()=>finish(new Error('新音质加载超时')),15000);
+            cancelLoad=finish;
+            dom.audio.addEventListener('loadedmetadata',seek);dom.audio.addEventListener('error',failed);
+            controller.signal.addEventListener('abort',aborted,{once:true});
+            dom.audio.src=track.audioUrl;dom.audio.load();
+          });
+          try{
+            dom.audio.pause();Object.assign(track,candidate);
+            const ready=loadAtPosition();
+            await Promise.all([ready,resume?dom.audio.play():Promise.resolve()]);
+          }catch(error){
+            cancelLoad?.(error);
+            if(request!==playbackRequest||controller.signal.aborted)return;
+            Object.assign(track,previous);
+            const ready=loadAtPosition();
+            await Promise.all([ready,resume?dom.audio.play():Promise.resolve()]).catch(()=>{});
+            throw error;
+          }
         }
         if(request!==playbackRequest)return;
         for(const list of [state.favorites,...state.playlists.map(pl=>pl.tracks)])for(const item of list)if(item.uid===track.uid)Object.assign(item,track);
@@ -3535,6 +3591,8 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       }catch(error){
         if(!controller.signal.aborted&&request===playbackRequest)showToast('音质切换失败，保留原音质：'+(error.userMessage||error.message));
       }finally{
+        if(cancelPrepared)controller.signal.removeEventListener('abort',cancelPrepared);
+        if(prepared&&!handedOff){prepared.pause();prepared.removeAttribute('src');prepared.load();}
         if(qualityController===controller){qualityController=null;renderPlaybackQuality();}
       }
     }
@@ -3618,6 +3676,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
     function togglePlayPause(){
       const track=state.currentTrack;
       if(!track)return;
+      playbackIntentRevision++;
       if(state.isPlaying){dom.audio.pause();return;}
       if(!dom.audio.src || loadedTrackUid!==track.uid || !track.detailsLoaded || track.detailsExpiresAt<=Date.now() || dom.audio.error){
         const position=pendingSeek??(loadedTrackUid===track.uid ? dom.audio.currentTime : 0);
@@ -4150,6 +4209,45 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       globalThis.addEventListener?.('beforeinstallprompt',event=>{event.preventDefault();installPrompt=event;$('install-home-btn').hidden=isHomeInstalled();});
       globalThis.addEventListener?.('appinstalled',()=>{installPrompt=null;$('install-home-btn').hidden=true;$('install-home-dialog').close();showToast('已添加到桌面');});
     }
+    function bindPlaybackAudio(audio){
+      const on=(event,handler)=>audio.addEventListener(event,()=>{if(audio===dom.audio)handler();});
+      on('timeupdate',()=>{
+        const cur=dom.audio.currentTime||0, dur=dom.audio.duration||0;
+        dom.currentTime.textContent=formatTime(cur);
+        dom.totalTime.textContent=formatTime(dur||0);
+        if(dur>0){
+          const r=cur/dur;
+          dom.progressBar.style.transform='scaleX('+r+')';
+          const w=dom.progressWrapper.clientWidth;
+          dom.progressHandle.style.left=(w*r)+'px';
+        }
+        const intensity = Math.abs(Math.sin(cur * 2.3));
+        audioLevel = 0.3 + 0.7 * intensity * (dom.audio.volume || 1);
+        updateLyricsHighlight(cur);
+        if(Date.now()-lastPlaybackSave>2000){lastPlaybackSave=Date.now();savePlaybackState();}
+      });
+      on('play',()=>{
+        state.isPlaying=true;
+        setPlaybackIcon(true);
+        dom.playerStatus.textContent=t('playerStatusPlaying');
+      });
+      on('pause',()=>{
+        state.isPlaying=false;
+        setPlaybackIcon(false);
+        dom.playerStatus.textContent=t('playerStatusPaused');
+        audioLevel = 0;
+        savePlaybackState();
+      });
+      on('seeked',()=>{updateLyricsHighlight(dom.audio.currentTime||0);savePlaybackState();});
+      on('error',()=>{
+        if(loadedTrackUid && loadedTrackUid===state.currentTrack?.uid)handlePlaybackFailure(musicError('musicAudioError'));
+      });
+      on('ended',()=>{
+        audioLevel = 0;
+        playNext('next');
+      });
+
+    }
     function setupEvents(){
       for(const type of ['favorites','playlist'])$(type+'-actions-toggle').addEventListener('click',()=>toggleLibraryActions(type));
       $('playback-quality').addEventListener('click',openPlaybackQualityDialog);
@@ -4237,42 +4335,8 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         savePlaybackState();
       });
 
-      dom.audio.addEventListener('timeupdate',()=>{
-        const cur=dom.audio.currentTime||0, dur=dom.audio.duration||0;
-        dom.currentTime.textContent=formatTime(cur);
-        dom.totalTime.textContent=formatTime(dur||0);
-        if(dur>0){
-          const r=cur/dur;
-          dom.progressBar.style.transform='scaleX('+r+')';
-          const w=dom.progressWrapper.clientWidth;
-          dom.progressHandle.style.left=(w*r)+'px';
-        }
-        const intensity = Math.abs(Math.sin(cur * 2.3));
-        audioLevel = 0.3 + 0.7 * intensity * (dom.audio.volume || 1);
-        updateLyricsHighlight(cur);
-        if(Date.now()-lastPlaybackSave>2000){lastPlaybackSave=Date.now();savePlaybackState();}
-      });
-      dom.audio.addEventListener('play',()=>{
-        state.isPlaying=true;
-        setPlaybackIcon(true);
-        dom.playerStatus.textContent=t('playerStatusPlaying');
-      });
-      dom.audio.addEventListener('pause',()=>{
-        state.isPlaying=false;
-        setPlaybackIcon(false);
-        dom.playerStatus.textContent=t('playerStatusPaused');
-        audioLevel = 0;
-        savePlaybackState();
-      });
-      dom.audio.addEventListener('seeked',()=>{updateLyricsHighlight(dom.audio.currentTime||0);savePlaybackState();});
-      dom.audio.addEventListener('error',()=>{
-        if(loadedTrackUid && loadedTrackUid===state.currentTrack?.uid)handlePlaybackFailure(musicError('musicAudioError'));
-      });
+      bindPlaybackAudio(dom.audio);
       window.addEventListener('pagehide',savePlaybackState);
-      dom.audio.addEventListener('ended',()=>{
-        audioLevel = 0;
-        playNext('next');
-      });
 
       dom.progressWrapper.addEventListener('click',e=>{
         const rect=dom.progressWrapper.getBoundingClientRect();
