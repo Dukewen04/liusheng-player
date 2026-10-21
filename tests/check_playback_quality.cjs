@@ -1,20 +1,21 @@
 const fs=require('fs'),vm=require('vm'),assert=require('assert/strict'),path=require('path');
 const html=fs.readFileSync(path.join(__dirname,'../index.html'),'utf8');
 const source=[...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].at(-1)[1];
-const nodes=new Map(),node=id=>{if(!nodes.has(id))nodes.set(id,{innerHTML:'',style:{},appendChild(){}});return nodes.get(id);};
+function element(){const item={style:{},attrs:{},children:[],handlers:{},setAttribute(k,v){this.attrs[k]=v;},appendChild(child){this.children.push(child);},addEventListener(event,fn){this.handlers[event]=fn;},close(){this.open=false;},showModal(){this.open=true;}};Object.defineProperty(item,'innerHTML',{get(){return this.html||'';},set(value){this.html=value;this.children=[];}});return item;}
+const nodes=new Map(),node=id=>{if(!nodes.has(id))nodes.set(id,element());return nodes.get(id);};
 const listeners=new Map();
 const audio={currentTime:42,duration:180,paused:false,src:'https://audio.test/std.mp3',
  addEventListener(type,fn){listeners.set(type,fn);},removeEventListener(type,fn){if(listeners.get(type)===fn)listeners.delete(type);},
  load(){this.currentTime=0;const fn=listeners.get('loadedmetadata');listeners.delete('loadedmetadata');fn?.();},
  pause(){this.paused=true;},async play(){this.paused=false;}};
 const c=vm.createContext({console,URL,URLSearchParams,AbortSignal,AbortController,setTimeout,clearTimeout,
- document:{getElementById:node,createElement:()=>({}),addEventListener(){}},localStorage:{getItem(){return null;}}});
+ document:{getElementById:node,createElement:element,addEventListener(){}},localStorage:{getItem(){return null;}}});
 vm.runInContext(source.replace(/\}\)\(\);\s*$/,`
  dom.audio=globalThis.audio;dom.trackQualityPill={style:{}};
- savePlaybackState=()=>{};saveLibraryToStorage=()=>{};renderPlaylistList=()=>{};showToast=text=>globalThis.toast=text;
+ showImportDialog=id=>$(id).showModal();savePlaybackState=()=>{};saveLibraryToStorage=()=>{};renderPlaylistList=()=>{};showToast=text=>globalThis.toast=text;
  ensureTrackDetails=async candidate=>{candidate.audioOptions=globalThis.options;candidate.audioUrl='https://audio.test/std.mp3';candidate.detailsLoaded=true;candidate.detailsExpiresAt=Date.now()+600000;};
  probeRecording=async candidate=>{if(globalThis.probe)await globalThis.probe(candidate);return candidate;};
- globalThis.app={state,playbackQualityOptions,switchPlaybackQuality,renderPlaybackQuality,
+ globalThis.app={state,playbackQualityOptions,switchPlaybackQuality,renderPlaybackQuality,openPlaybackQualityDialog,
  changed:()=>{++playbackRequest;qualityController?.abort();state.currentTrack={uid:'another'};}};
 })();`),Object.assign(c,{audio}));
 const options=[{preferredAudioQuality:'std',audioUrl:'https://audio.test/std.mp3',qualityLabel:'STD'},
@@ -24,8 +25,11 @@ const a=c.app,track={uid:'qq-1',source:'qq',title:'Song',artist:'Singer',audioUr
 a.state.currentTrack=track;a.state.favorites=[{...track}];
 (async()=>{
  assert.equal(a.playbackQualityOptions(track)[0].label,'标准','Compact labels omit the repeated quality prefix');
- assert(html.includes('class="playback-quality-control"'));assert(html.includes('min-height:42px'));
- await a.switchPlaybackQuality('flac');assert.equal(track.audioUrl,options[1].audioUrl);assert.equal(track.preferredAudioQuality,'flac');assert.equal(audio.currentTime,42);assert.equal(audio.paused,false);assert.equal(a.state.favorites[0].preferredAudioQuality,'flac');
+ assert(html.includes('id="playback-quality-dialog"'));assert(html.includes('class="btn quality-trigger"'));assert(!html.includes('<select id="playback-quality"'));assert(html.includes('min-height:42px'));
+ a.openPlaybackQualityDialog();const panel=node('quality-options');assert.equal(panel.children.length,2);assert.equal(panel.children[0].attrs['aria-pressed'],'true');assert.equal(panel.children[1].attrs['aria-pressed'],'false');assert.equal(panel.children[0].children[0].children[1].textContent,'正在使用');
+ panel.children[0].handlers.click();assert.equal(node('playback-quality-dialog').open,false);assert.equal(track.audioUrl,options[0].audioUrl,'Choosing the current tier keeps playback untouched');
+ a.openPlaybackQualityDialog();const stale=panel.children[1];a.state.currentTrack={uid:'another'};stale.handlers.click();assert.equal(track.audioUrl,options[0].audioUrl);a.state.currentTrack=track;
+ a.openPlaybackQualityDialog();panel.children[1].handlers.click();await new Promise(setImmediate);assert.equal(track.audioUrl,options[1].audioUrl);assert.equal(track.preferredAudioQuality,'flac');assert.equal(audio.currentTime,42);assert.equal(audio.paused,false);assert.equal(a.state.favorites[0].preferredAudioQuality,'flac');
  audio.paused=true;audio.currentTime=71;await a.switchPlaybackQuality('std');assert.equal(audio.currentTime,71);assert(audio.paused,'A paused track stays paused');
  const normalPlay=audio.play;audio.play=async function(){if(this.src.endsWith('.flac'))throw Error('play failed');return normalPlay.call(this);};
  audio.paused=false;await a.switchPlaybackQuality('flac');assert.equal(track.audioUrl,options[0].audioUrl);assert.equal(audio.currentTime,71);assert(!audio.paused,'Failed activation restores old playback');audio.play=normalPlay;
@@ -35,5 +39,5 @@ a.state.currentTrack=track;a.state.favorites=[{...track}];
  assert.equal(a.playbackQualityOptions({source:'netease',audioUrl:'https://audio.test/x'}).length,0);
  assert.equal(a.playbackQualityOptions({source:'kuwo',audioUrl:'https://audio.test/x'}).length,2);
  assert.equal(a.playbackQualityOptions({...track,audioOptions:[options[0],options[0]]}).length,1,'Duplicate addresses do not invent extra tiers');
- console.log('通过：音质地址及偏好切换、播放进度和暂停状态保持、失败及缺失档位保留原曲、切歌竞态、单档及重复地址处理。');
+ console.log('通过：音质地址及偏好切换、播放进度和暂停状态保持、失败及缺失档位保留原曲、切歌竞态、单档及重复地址处理、独立面板当前项标记/选择/关闭/旧歌曲操作保护。');
 })().catch(error=>{console.error(error);process.exitCode=1;});

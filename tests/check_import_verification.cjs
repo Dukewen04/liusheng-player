@@ -7,7 +7,7 @@ const c=vm.createContext({console,URL,URLSearchParams,AbortSignal,AbortControlle
   window:{scrollX:0,scrollY:240,scrollTo(x,y){this.scrollX=x;this.scrollY=y;}},document:{body:{style:{position:'',top:'',left:'',width:'',overflow:''}},documentElement:{style:{overflow:''}},getElementById:node,createElement:()=>({}),addEventListener(){},querySelectorAll:()=>[]},localStorage:{getItem:key=>storage.get(key),setItem:(key,value)=>storage.set(key,value)}});
 vm.runInContext(source.replace(/\}\)\(\);\s*$/,`
  renderPlaylistList=()=>{};renderPlaylistOptions=()=>{};updateMainFavButton=()=>{};
- globalThis.app={state,dom,verifyImportData,findBestImportRecording,importQualityRank,probeRecording,runVerifiedImport,importPlaylistData,serializeTrack,removeUnavailableImports,loadLibraryFromStorage,importWorkerLimit,showImportDialog,restoreImportScroll,
+ globalThis.app={state,dom,verifyImportData,findBestImportRecording,importQualityRank,probeRecording,runPlaylistImport,importPlaylistData,serializeTrack,removeUnavailableImports,loadLibraryFromStorage,importWorkerLimit,showImportDialog,restoreImportScroll,
    probe:fn=>probeRecording=fn,details:fn=>ensureTrackDetails=fn,
    providers:fn=>{searchNetease=(k,p,n,pool)=>fn('netease',k,pool);searchQQ=(k,n,pool)=>fn('qq',k,pool);searchKuwo=(k,n,pool)=>fn('kuwo',k,pool);searchJoox=(k,n,pool)=>fn('joox',k,pool);searchKugou=(k,n,pool)=>fn('kugou',k,pool);},
    qqSearch:fn=>searchQQ=fn,searches:fn=>{searchNetease=fn;searchQQ=async()=>{};searchKuwo=async()=>{};searchJoox=async()=>{};searchKugou=async()=>{};}};
@@ -215,27 +215,21 @@ const payload=tracks=>({version:1,favorites:[],playlists:[{id:'example-list',nam
  assert.equal(JSON.parse(storage.get('liusheng-library-v1')).playlists[0].tracks[0].importCheck,'playable');
 
  a.searches(async()=>{});a.probe(async track=>({...track,audioUrl:'https://cdn.example/'+track.uid,quality:'320k'}));a.dom.playlistSelect=node('select');
- const observed=[];let countText='';Object.defineProperty(node('import-check-count'),'textContent',{get(){return countText;},set(value){countText=value;observed.push(value);},configurable:true});
- assert(await a.runVerifiedImport(async()=>payload([original('progress-1'),original('progress-2')]),node('status')));
- assert(observed.some(text=>text.startsWith('共 2 首 · 已完成 0 首 · 剩余 2 首')));assert(countText.startsWith('共 2 首 · 已完成 2 首 · 剩余 0 首'));
+ a.probe(async()=>{throw Error('No audio checks during import');});
+ assert(await a.runPlaylistImport(async()=>payload([original('progress-1'),original('progress-2')]),node('status')));
+ assert.equal(node('import-check-count').textContent,'共 2 首 · 已导入 2 首');
  assert.equal(node('import-check-progress').max,2);assert.equal(node('import-check-progress').value,2);
-
- // Removing all failed favorites still persists deletion when no playlist is imported.
- const doomed=original('doomed'),saved=original('saved');
- a.state.favorites=[doomed,saved];a.state.playlists=[];a.searches(async()=>{});a.probe(async()=>{throw Error('Unavailable');});
- assert(await a.runVerifiedImport(async()=>({version:1,favorites:[doomed],playlists:[]}),node('status')));
- assert.equal(a.state.favorites.length,1);assert.equal(a.state.favorites[0].uid,'saved');assert.equal(JSON.parse(storage.get('liusheng-library-v1')).favorites[0].uid,'saved');assert(node('status').textContent.includes('已移除 1'));
-
+ const doomed=original('doomed'),saved=original('saved');a.state.favorites=[doomed,saved];a.state.playlists=[];
+ assert(await a.runPlaylistImport(async()=>({version:1,favorites:[doomed],playlists:[]}),node('status')));
+ assert.equal(a.state.favorites.length,2,'Import cannot remove songs based on playability');
  const coverRow={...original('old-cover'),title:'Song (cover Original Singer)',artist:'Cover Singer'};
  const originalRow={...original('true-original'),artist:'Original Singer',importOriginalUid:coverRow.uid,originalArtist:'Original Singer',originalArtistStatus:'identified',importCheck:'playable'};
  a.state.favorites=[coverRow];a.state.trackMap.set(coverRow.uid,coverRow);
  a.importPlaylistData({favorites:[originalRow],playlists:[]});
  assert.equal(a.state.favorites.length,1,'A verified original-singer fallback replaces the unavailable old entry instead of appending a duplicate');
  assert.equal(a.state.favorites[0].uid,'true-original');
- a.probe(async()=>{const error=new Error('Autoplay blocked');error.name='NotAllowedError';throw error;});
- const before=JSON.stringify(a.state.playlists);
- assert.equal(await a.runVerifiedImport(async()=>payload([original('blocked')]),node('status')),false);
- assert.equal(JSON.stringify(a.state.playlists),before);assert(node('status').textContent.includes('浏览器阻止'));
+ a.probe(async()=>{throw Object.assign(Error('Autoplay blocked'),{name:'NotAllowedError'});});
+ assert(await a.runPlaylistImport(async()=>payload([original('blocked')]),node('status')),'Autoplay restrictions cannot block importing metadata');
  assert(node('stop-import-check').disabled);assert(!node('import-link-submit').disabled);
  a.providers(async()=>{});
  const temporary=Object.assign(new Error('Provider throttled'),{retryable:true});

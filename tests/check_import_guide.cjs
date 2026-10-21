@@ -6,7 +6,7 @@ const node=id=>{if(!nodes.has(id))nodes.set(id,{style:{},classList:{add(){},remo
 const c=vm.createContext({console,URL,URLSearchParams,AbortSignal,AbortController,location:{hostname:'dukewen04.github.io',port:''},localStorage:{getItem(){return null;}},
   window:{scrollX:0,scrollY:240,scrollTo(x,y){this.scrollX=x;this.scrollY=y;}},document:{body:{style:{position:'',top:'',left:'',width:'',overflow:''}},documentElement:{style:{overflow:''}},getElementById:node,createElement:()=>({}),addEventListener(){},querySelectorAll:()=>[]},
   FileReader:class{constructor(){readers.push(this);}readAsText(){}},setTimeout,clearTimeout,setInterval,clearInterval});
-vm.runInContext(source.replace(/\}\)\(\);\s*$/,`globalThis.imports=[];globalThis.importModes=[];importPlaylistData=data=>{imports.push(data);state.playlists=data.playlists;return {addedFavorites:1,addedPlaylists:0,addedPlaylistTracks:0};};renderPlaylistList=()=>{};renderPlaylistOptions=()=>{};verifyImportData=async(data,controller,progress,options)=>(importModes.push(options.compareAll),{data,stats:{total:data.playlists.reduce((n,p)=>n+p.tracks.length,0),checked:1,passed:1,replaced:0,failed:0,pending:0,deferred:0},failures:[]});globalThis.app={state,dom,importPlaylistLink,readPlaylistLinkData,playlistLinkInfo,importFileSummary,handleImportPlaylistFile,confirmImportFile,openImportGuide,setImportMethod};})();`),c);
+vm.runInContext(source.replace(/\}\)\(\);\s*$/,`globalThis.imports=[];globalThis.importModes=[];importPlaylistData=data=>{imports.push(data);state.playlists=data.playlists;return {addedFavorites:1,addedPlaylists:0,addedPlaylistTracks:0};};renderPlaylistList=()=>{};renderPlaylistOptions=()=>{};verifyImportData=async()=>{throw Error('Import must not verify songs');};globalThis.app={state,dom,importPlaylistLink,readPlaylistLinkData,playlistLinkInfo,importFileSummary,handleImportPlaylistFile,confirmImportFile,openImportGuide,setImportMethod};})();`),c);
 const a=c.app;
 assert(!html.includes('id="import-compare-all"'));assert(!html.includes('id="import-check-mode"'));
 a.dom.playlistSelect=node('select');
@@ -39,7 +39,7 @@ choose('big.json',6*1024*1024);assert.equal(readers.length,0);
 choose('broken.json');readers[0].result='{bad';readers[0].onload();assert(node('confirm-import-file').disabled);assert.equal(c.imports.length,0);
 choose('old.json');choose('new.json');readers[2].result=JSON.stringify(data);readers[2].onload();readers[1].result='{}';readers[1].onload();
 assert(!node('confirm-import-file').disabled);assert(node('import-file-status').textContent.includes('new.json'));assert.equal(c.imports.length,0,'Reading a file must not modify the library');
-const fileImport=a.confirmImportFile();assert(node('import-link-submit').disabled);assert(!node('import-link-dialog').open);assert(node('import-progress-dialog').open);await fileImport;assert.equal(c.importModes[0],false);assert(!node('import-link-submit').disabled);assert.equal(c.imports.length,1);assert(node('confirm-import-file').disabled);await a.confirmImportFile();assert.equal(c.imports.length,1);
+const fileImport=a.confirmImportFile();assert(node('import-link-submit').disabled);assert(!node('import-link-dialog').open);assert(node('import-progress-dialog').open);await fileImport;assert.equal(c.importModes.length,0);assert(!node('import-link-submit').disabled);assert.equal(c.imports.length,1);assert(node('confirm-import-file').disabled);await a.confirmImportFile();assert.equal(c.imports.length,1);
 assert(Object.values(a.state.enabledSources).every(Boolean));
 assert(!html.includes('id="library-import-btn"'));const footer=html.match(/<footer>([\s\S]*?)<\/footer>/)[1];assert.equal(footer.replace(/<[^>]+>/g,'').trim(),'音乐版权归各平台及作者');
 for(const s of ['netease','qq','kuwo','joox','kugou'])assert(new RegExp(`data-source="${s}"[^>]*checked`).test(html));
@@ -56,9 +56,9 @@ console.log('通过：平台链接识别及错误指引、JSON格式/大小/空�
   const linkImport=a.importPlaylistLink({preventDefault(){}});assert(node('import-link-submit').disabled);assert.equal(node('import-progress-title').textContent,'导入进度');
   assert(!node('import-link-dialog').open);assert(node('import-progress-dialog').open);assert(node('import-check-status').textContent.includes('读取'));
   node('import-progress-dialog').close();a.openImportGuide('file');assert(node('import-progress-dialog').open);assert(!node('import-link-dialog').open);
-  finishRead();await linkImport;assert.equal(c.importModes.at(-1),false,'Imports always skip cross-source quality comparison');assert(!node('import-link-submit').disabled);assert(node('import-check-status').textContent.includes('测试读取提示'));
+  finishRead();await linkImport;assert.equal(c.importModes.length,0,'Imports must not check audio');assert(!node('import-link-submit').disabled);assert(node('import-check-status').textContent.includes('测试读取提示'));
   assert.equal(c.imports.length,2);assert.equal(c.imports[1].favorites.length,1);assert.equal(a.state.playContext.playlistId,'test-playlist');
-  assert(node('import-link-status').textContent.includes('已导入'));assert(!node('import-link-submit').disabled);
+  assert(node('import-link-status').textContent.includes('导入完成'));assert(!node('import-link-submit').disabled);
   c.fetch=async()=>({ok:false,json:async()=>({error:'短链接失效'})});
   await a.importPlaylistLink({preventDefault(){}});
   assert.equal(c.imports.length,2);assert.equal(node('import-link-status').textContent,'短链接失效');assert.equal(node('import-check-status').textContent,'短链接失效');assert(node('import-progress-dialog').open);node('import-progress-dialog').close();a.openImportGuide('link');assert(node('import-link-dialog').open);assert(!node('import-progress-dialog').open);assert(!node('import-link-submit').disabled);

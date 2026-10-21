@@ -8,7 +8,7 @@ function boot(){
  ensureTrackDetails=async track=>{Object.assign(track,{audioUrl:'https://cdn.example/'+track.uid,detailsLoaded:true});if(track.wrongDetails)track.title='Completely different track';};
  probeRecording=async track=>{globalThis.probes.push(track.uid);if(track.broken)throw Error('Unplayable');return {...track};};
  renderLyrics=()=>{};ensureTrackLyrics=async track=>{globalThis.lyricTitle=track.title;track.lrc='[00:01]actual version';};
- globalThis.app={findBestImportRecording,similarImportTitleScore,serializeTrack,realEnsure,refreshTrackLyrics,findHigherQualityRecording};
+ globalThis.app={findBestImportRecording,similarImportTitleScore,serializeTrack,realEnsure,refreshTrackLyrics};
  })();`),c);c.probes=[];c.search=async(source,k,pool)=>{for(const t of c.catalog||[]){if(t.source!==source||pool.trackMap.has(t.uid))continue;pool.trackMap.set(t.uid,t);pool.searchResults.push({...t});}};return c;
 }
 const original={uid:'imported',source:'qq',title:'遗憾 (莫非要你尝尽了苦悲)',artist:'DinDin',album:'Imported album'};
@@ -34,7 +34,6 @@ const run=(c,o=original)=>c.app.findBestImportRecording(o,new AbortController().
  const restored=c.app.serializeTrack(selected);await c.app.realEnsure(restored,{silent:true});assert.equal(restored.title,original.title);assert.equal(restored.sourceTitle,rnb.title);assert(restored.audioUrl);
  await assert.rejects(c.app.realEnsure({...restored,sourceTitle:'Completely different title',detailsLoaded:false},{silent:true}),e=>e.message==='musicMismatch');
  await c.app.refreshTrackLyrics(restored,0,new AbortController().signal);assert.equal(c.lyricTitle,rnb.title,'Lyrics follow the actual matched version');
- c.catalog=[live];assert.equal(await c.app.findHigherQualityRecording({...original,source:'netease',quality:'128k'},new AbortController().signal,()=>{}),null,'Quality upgrades still require the same recording');
  assert(html.includes("?'相似版本：':'近似匹配：'"));
- console.log('通过：原版优先、同歌手R&B/Live及包含/90%高相似兜底、差异较小候选优先、逐个实播失败再降级、异歌手/伴奏/短歌名拒绝、详情重检、实际版本持久化/刷新/歌词、音质升级仍保持同版本。');
+ console.log('通过：原版优先、同歌手R&B/Live及包含/90%高相似兜底、差异较小候选优先、逐个实播失败再降级、异歌手/伴奏/短歌名拒绝、详情重检、实际版本持久化/刷新/歌词。');
 })().catch(e=>{console.error(e);process.exitCode=1;});

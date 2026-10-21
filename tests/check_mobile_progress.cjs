@@ -12,7 +12,7 @@ vm.runInContext(source.replace(/\}\)\(\);\s*$/,`
  dom.audio={addEventListener:(event,fn)=>globalThis.events.set(event,fn)};
  togglePlayPause=()=>globalThis.toggled=true;
  findBestImportRecording=async track=>({...track,uid:'kuwo-'+track.uid,source:'kuwo'});
- globalThis.app={state,toggleLibraryActions,setupMobileNavigation,setMobileView,updateMobilePlayback,createImportProgress,importActiveLines,verifyImportData,runVerifiedImport,stop:()=>importController.abort()};
+ globalThis.app={state,toggleLibraryActions,setupMobileNavigation,setMobileView,updateMobilePlayback,createImportProgress,importActiveLines,verifyImportData,runPlaylistImport,stop:()=>importController.abort()};
 })();`),Object.assign(c,{events}));
 const a=c.app,tick=()=>{for(const fn of [...timers.values()])fn();};
 (async()=>{
@@ -35,8 +35,8 @@ const a=c.app,tick=()=>{for(const fn of [...timers.values()])fn();};
  assert.equal(renders,1,'Frequent worker callbacks do not synchronously rewrite the DOM');now=250;tick();assert.equal(renders,2);
  now=5250;tick();assert.equal(node('import-elapsed-clock').textContent,'用时 00:05');assert(node('stage').textContent.includes('5 秒'),'Stage wait continues while the API is pending');
  now=90500;tick();assert.equal(node('import-elapsed-clock').textContent,'用时 01:30','Use wall time after background throttling');ui.flush();node('stage').textContent='完成';tick();assert.equal(node('stage').textContent,'完成');ui.stop();assert.equal(timers.size,0);
- const pending=a.runVerifiedImport(signal=>new Promise((resolve,reject)=>signal.addEventListener('abort',()=>reject(signal.reason))),node('status'));
- now+=8000;tick();assert.equal(node('import-elapsed-clock').textContent,'用时 00:08','The reading phase has an independent live clock too');assert.equal(node('import-check-count').textContent,'正在读取歌曲总数…');a.stop();assert.equal(await pending,false);assert.equal(timers.size,0,'Stop and failure release the timer');assert(node('import-check-status').textContent.includes('已停止读取'));
+ const pending=a.runPlaylistImport(signal=>new Promise((resolve,reject)=>signal.addEventListener('abort',()=>reject(signal.reason))),node('status'));
+ now+=8000;tick();assert.equal(node('import-elapsed-clock').textContent,'用时 00:08','The reading phase has an independent live clock too');assert.equal(node('import-check-count').textContent,'正在读取歌曲总数…');a.stop();assert.equal(await pending,false);assert.equal(timers.size,0,'Stop and failure release the timer');assert(node('import-check-status').textContent.includes('已取消导入'));
  let checked=0,yieldedAt=-1;setTimeout(()=>{yieldedAt=checked;},0);
  const tracks=Array.from({length:40},(_,i)=>({uid:String(i),title:'Song '+i,artist:'Singer',source:'qq'}));
  const result=await a.verifyImportData({favorites:tracks,playlists:[]},new AbortController(),stats=>{checked=stats.checked;},{compareAll:false,workers:1});
