@@ -253,6 +253,7 @@ select:disabled{opacity:.6;cursor:not-allowed}select option{background:#fff;colo
 .library-repair-banner .repair-help,.library-repair-banner .repair-action{border:0;background:transparent;color:inherit;font:inherit;cursor:pointer;min-height:32px;padding:2px 0}.repair-help{display:inline-flex;align-items:center;gap:5px;text-align:left}.repair-help .ui-icon{width:16px;height:16px}.library-repair-banner .repair-action{font-weight:650;white-space:nowrap}#repair-help-dialog{box-sizing:border-box;width:min(540px,94vw);max-height:85dvh;overflow:auto;overscroll-behavior:contain;padding:24px;border-radius:22px}#repair-help-dialog h2{font-size:22px;margin:0}#repair-help-dialog ol{padding-left:24px}#repair-help-dialog li,#repair-help-dialog p{font-size:14px;line-height:1.9}#repair-help-dialog li{padding:5px 0}#repair-help-dialog p{color:var(--text-sub)}#task-complete-actions{display:none}#import-progress-dialog.task-complete #task-complete-actions{display:flex;justify-content:flex-end;padding-top:18px}#task-complete-btn{min-width:100px}#import-check-count{white-space:pre-line}
 #import-progress-dialog.import-success{width:min(340px,90vw)!important;padding:30px 24px 24px}#import-progress-dialog.import-success #import-progress-close,#import-progress-dialog.import-success #import-check-panel{display:none}#import-progress-dialog.import-success .import-guide-heading{justify-content:center;margin:0}#import-progress-dialog.import-success h2{text-align:center;font-size:22px}#import-progress-dialog.import-success #task-complete-actions{padding-top:26px;justify-content:center}#import-progress-dialog.import-success #task-complete-btn{width:100%;min-height:44px}
 @media(max-width:380px){#import-link-dialog .import-platform-selected{display:none}.import-platform-mark{width:24px;height:24px}#import-link-dialog .import-platform-choices .btn{gap:6px}}
+#import-link-dialog #import-qq-note{padding:10px 12px;border-radius:9px;background:#fbf6ea;color:#80683d;font-size:12px;line-height:1.8}
 </style>
 </head>
 <body>
@@ -569,6 +570,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         <button id="import-platform-netease" class="btn btn-secondary" type="button" aria-pressed="true"><span class="import-platform-mark netease" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><use href="#icon-music"></use></svg></span><span>网易云音乐</span><span class="import-platform-selected" aria-hidden="true"></span></button>
         <button id="import-platform-qq" class="btn btn-secondary" type="button" aria-pressed="false"><span class="import-platform-mark qq" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><use href="#icon-music"></use></svg></span><span>QQ 音乐</span><span class="import-platform-selected" aria-hidden="true"></span></button>
       </div>
+      <p id="import-qq-note" class="import-note" hidden>受版权及音源接口限制，QQ 音乐歌单导入后可能无法直接播放。请在导入完成后点击“一键解决”，查找可播放的替代音源。</p>
       <details class="import-link-help"><summary>如何复制歌单链接</summary>
         <p id="import-platform-steps"></p>
         <p id="import-link-example" class="import-note"></p>
@@ -1387,6 +1389,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
     }
     function renderImportPlatform(){
       const qq=$('import-platform').value==='qq';
+      $('import-qq-note').hidden=!qq;
       $('import-platform-netease').setAttribute('aria-pressed',String(!qq));$('import-platform-qq').setAttribute('aria-pressed',String(qq));
       $('import-platform-steps').textContent=qq?'QQ → 我的 → 我的收藏 → 分享到微信 → 用浏览器打开 → 复制链接':'网易云 → 我的 → 选择歌单（比如我喜欢的音乐） → 分享 → 复制链接';
       $('import-link-example').textContent=qq?'链接格式：https://i2.y.qq.com/***':'链接格式：https://163cn.tv/***';
