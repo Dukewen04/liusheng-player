@@ -9,6 +9,7 @@ vm.runInContext(source.replace(/\}\)\(\);\s*$/,`
  playTrack=(track,context)=>{globalThis.chosen={track,context};};
  globalThis.app={state,dom,renderTrackRows,renderPlayQueue,setPlaybackIcon,setCurrent:uid=>loadedTrackUid=uid};
 })();`),c);
+assert.equal((html.match(/class="playmode-row"/g)||[]).length,1);const playerSection=html.slice(html.indexOf('class="panel player-panel'),html.indexOf('class="panel playlist-panel'));assert(playerSection.includes('class="playmode-row"'));assert(playerSection.includes('列表循环</span>'));assert(playerSection.includes('单曲循环</span>'));assert(playerSection.includes('随机播放</span>'));
 const a=c.app,one={uid:'one',title:'One',artist:'Singer',source:'netease',detailsLoaded:true},two={uid:'two',title:'Two',artist:'Singer',source:'kuwo'};
 a.state.currentTrack=one;a.state.isPlaying=true;a.state.playContext={type:'playlist',playlistId:'list',index:0};a.state.playlists=[{id:'list',tracks:[one,two]}];a.state.lyricsMode=true;
 const wrap=element();a.renderTrackRows(wrap,[one,two],'playlists');

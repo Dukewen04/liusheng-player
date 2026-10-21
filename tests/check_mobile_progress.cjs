@@ -12,13 +12,11 @@ vm.runInContext(source.replace(/\}\)\(\);\s*$/,`
  dom.audio={addEventListener:(event,fn)=>globalThis.events.set(event,fn)};
  togglePlayPause=()=>globalThis.toggled=true;
  findBestImportRecording=async track=>({...track,uid:'kuwo-'+track.uid,source:'kuwo'});
- globalThis.app={state,dom,renderVolumeControl,toggleLibraryActions,setupMobileNavigation,setMobileView,updateMobilePlayback,createImportProgress,importActiveLines,verifyImportData,runPlaylistImport,stop:()=>importController.abort()};
+ globalThis.app={state,dom,toggleLibraryActions,setupMobileNavigation,setMobileView,updateMobilePlayback,createImportProgress,importActiveLines,verifyImportData,runPlaylistImport,stop:()=>importController.abort()};
 })();`),Object.assign(c,{events}));
 const a=c.app,tick=()=>{for(const fn of [...timers.values()])fn();};
 (async()=>{
- a.dom.volumeSlider=node('volume-slider');
- for(const [value,expected] of [[.8,'80%'],[.35,'35%'],[0,'0%'],[1,'100%'],[2,'100%'],[-1,'0%']]){a.renderVolumeControl(value);assert.equal(node('volume-value').textContent,expected);assert.equal(a.dom.volumeSlider.style['--volume-level'],expected);assert.equal(a.dom.volumeSlider.attrs['aria-valuetext'],expected);}
- assert(html.includes('grid-template-columns:20px minmax(0,1fr) 34px'));assert(!html.includes('.volume-slider{width:44px}'));assert(html.includes('viewport-fit=cover'));assert(html.includes('name="apple-mobile-web-app-status-bar-style" content="default"'));
+ assert(!html.includes('id="volume-slider"'));assert(!html.includes('track-quality-pill'));assert(!html.includes('import-platform-mark'));const tags=html.slice(html.indexOf('<div class="track-tags">'),html.indexOf('<div class="player-actions">'));assert(tags.includes('id="playback-quality"'));assert(html.includes('restorePlaybackState();'));assert(html.includes('viewport-fit=cover'));assert(html.includes('name="apple-mobile-web-app-status-bar-style" content="default"'));
  a.setupMobileNavigation();assert.equal(c.document.body.dataset.mobileView,'player');
  a.state.currentTrack={uid:'current',title:'雨',artist:'沈以诚'};a.state.isPlaying=true;
  const before=JSON.stringify(a.state);node('mobile-nav-search').listeners.click();assert.equal(c.document.body.dataset.mobileView,'search');assert.equal(JSON.stringify(a.state),before,'Switching screens leaves playback and library untouched');

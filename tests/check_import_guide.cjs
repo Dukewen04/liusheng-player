@@ -8,6 +8,7 @@ const c=vm.createContext({console,URL,URLSearchParams,AbortSignal,AbortControlle
   FileReader:class{constructor(){readers.push(this);}readAsText(){}},setTimeout,clearTimeout,setInterval,clearInterval});
 vm.runInContext(source.replace(/\}\)\(\);\s*$/,`globalThis.imports=[];globalThis.importModes=[];importPlaylistData=data=>{imports.push(data);state.playlists=data.playlists;return {addedFavorites:1,addedPlaylists:0,addedPlaylistTracks:0};};renderPlaylistList=()=>{};renderPlaylistOptions=()=>{};verifyImportData=async()=>{throw Error('Import must not verify songs');};globalThis.app={state,dom,importPlaylistLink,readPlaylistLinkData,playlistLinkInfo,importFileSummary,handleImportPlaylistFile,confirmImportFile,openImportGuide,setImportMethod};})();`),c);
 const a=c.app;
+assert(html.includes('<details class="import-link-help" open>'));assert(html.includes('#import-link-dialog[open]{display:flex;flex-direction:column}'));assert(html.includes('transform:none!important;-webkit-tap-highlight-color:transparent'));
 assert(!html.includes('<select id="import-platform"'));assert(html.includes('id="import-platform-netease"'));assert(html.includes('id="import-platform-qq"'));
 assert(!html.includes('id="import-compare-all"'));assert(!html.includes('id="import-check-mode"'));
 a.dom.playlistSelect=node('select');
@@ -35,7 +36,7 @@ assert.equal(node('import-platform-steps').textContent,'网易云 → 我的 →
 assert(node('import-qq-note').hidden);
 node('import-platform').value='qq';a.setImportMethod('link');assert.equal(node('import-qq-note').hidden,false);
 assert.equal(node('import-platform-qq')['aria-pressed'],'true');assert.equal(node('import-platform-netease')['aria-pressed'],'false');
-assert.equal(node('import-platform-steps').textContent,'QQ → 我的 → 我的收藏 → 分享到微信 → 用浏览器打开 → 复制链接');assert.equal(node('import-link-example').textContent,'链接格式：https://i2.y.qq.com/***');assert(!node('import-link-form').hidden);assert(node('import-connection-note').textContent.includes('公开歌单'));
+assert.equal(node('import-platform-steps').textContent,'QQ 音乐 → 我的 → 我的收藏 → 分享到微信 → 用浏览器打开 → 复制链接');assert.equal(node('import-link-example').textContent,'链接格式：https://i2.y.qq.com/***');assert(!node('import-link-form').hidden);assert(node('import-connection-note').textContent.includes('公开歌单'));
 function choose(name,size=100){const target={files:[{name,size}],value:name};a.handleImportPlaylistFile({target});return target;}
 choose('bad.mp3');assert(node('confirm-import-file').disabled);assert.equal(readers.length,0);
 choose('big.json',6*1024*1024);assert.equal(readers.length,0);
