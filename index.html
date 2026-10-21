@@ -6,6 +6,11 @@
   <meta name="description" content="留住喜欢的声音。一个支持多音源搜索、收藏和歌单管理的简洁音乐播放器。" />
   <meta name="referrer" content="no-referrer" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="./icons/icon-180.png" />
+  <meta name="theme-color" content="#284d3f" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="留声" />
   <style>
 :root{color-scheme:light;--bg-dark:#f4f5ef;--panel-glass:#fff;--panel-glass-soft:#f7f8f3;--accent:#284d3f;--accent-strong:#1b392e;--accent-green:#47725b;--accent-pink:#ad6980;--accent-blue:#567389;--accent-red:#ad5749;--text-main:#24332b;--text-sub:#758078;--border-subtle:#e3e8dd}
 *{box-sizing:border-box}body{margin:0;background:var(--bg-dark);color:var(--text-main);font:17px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif}button,input,select{font:inherit}button,select{cursor:pointer}button{touch-action:manipulation}button:disabled{opacity:.45;cursor:wait}button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:3px solid #97b2a0;outline-offset:3px}input,select{min-width:0}a{color:var(--accent)}
@@ -236,6 +241,9 @@ select:disabled{opacity:.6;cursor:not-allowed}select option{background:#fff;colo
 @media(pointer:coarse){#playback-quality.quality-trigger{min-height:42px;font-size:14px}}
 .import-platform-choices{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0 18px}.import-platform-choices .btn{padding:12px;border:1px solid var(--border-subtle)}.import-platform-choices [aria-pressed="true"]{color:#fff;background:var(--accent);border-color:var(--accent)}
 .import-mobile-label{display:none}@media(max-width:650px){.import-desktop-label{display:none}.import-mobile-label{display:inline}}
+@media(max-width:650px),(hover:none) and (pointer:coarse){#shortcut-toggle-btn,.header-controls .shortcut-hint{display:none}}
+.install-home-btn{display:none!important}#install-home-dialog{width:min(420px,92vw);box-sizing:border-box;border-radius:22px;padding:24px}#install-home-dialog h2{font-size:22px;margin:0}#install-home-steps{font-size:15px;line-height:1.9;padding-left:24px}#install-home-steps li{padding:6px 0}
+@media(max-width:650px),(hover:none) and (pointer:coarse){.install-home-btn:not([hidden]){display:inline-flex!important;align-items:center}.header-controls{gap:5px}.header-controls .btn{font-size:11px;padding:7px 8px}}
 </style>
 </head>
 <body>
@@ -306,6 +314,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       </div>
       <div class="header-controls">
         <button id="import-link-btn" class="btn btn-secondary" type="button" title="导入网易云 / QQ 歌单" aria-label="导入网易云 / QQ 歌单"><span class="import-desktop-label">导入网易云 / QQ 歌单</span><span class="import-mobile-label">导入歌单</span></button>
+        <button id="install-home-btn" class="btn btn-ghost install-home-btn" type="button" title="添加到手机桌面">添加桌面</button>
         <button id="audio-settings-btn" class="btn btn-ghost">音源设置</button>
         <div class="lang-toggle ripple-target">
           <button class="lang-btn active" data-lang="zh">中</button>
@@ -600,6 +609,11 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       <button id="stop-import-check" class="btn btn-ghost" type="button" disabled>停止检查并保留当前结果</button>
       <details id="import-check-failures" hidden><summary id="import-check-failures-title">已移除歌曲</summary><ul id="import-check-failures-list"></ul></details>
     </section>
+  </dialog>
+
+  <dialog id="install-home-dialog" aria-labelledby="install-home-title">
+    <div class="import-guide-heading"><h2 id="install-home-title">添加到桌面</h2><button id="install-home-close" class="btn btn-ghost" type="button">知道了</button></div>
+    <ol id="install-home-steps"></ol>
   </dialog>
 
   <dialog id="add-playlist-dialog" aria-labelledby="add-playlist-title" aria-describedby="add-playlist-song">
@@ -1365,7 +1379,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       $(id).showModal();
     }
     function restoreImportScroll(){
-      if(!importScrollLock||$('import-link-dialog').open||$('import-progress-dialog').open||$('replacement-dialog').open||$('play-queue-dialog').open||$('playback-quality-dialog').open||$('add-playlist-dialog').open)return;
+      if(!importScrollLock||$('import-link-dialog').open||$('import-progress-dialog').open||$('replacement-dialog').open||$('play-queue-dialog').open||$('playback-quality-dialog').open||$('add-playlist-dialog').open||$('install-home-dialog').open)return;
       const saved=importScrollLock;importScrollLock=null;
       Object.assign(document.body.style,saved.body);document.documentElement.style.overflow=saved.htmlOverflow;
       window.scrollTo(saved.x,saved.y);
@@ -4068,6 +4082,39 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       throw new Error('链接导入服务未连接。请在「音源设置」连接兼容的歌单服务，或切换到「歌单文件」导入 JSON。');
     }
 
+    let installPrompt=null,installBusy=false;
+    function isHomeInstalled(){
+      return globalThis.navigator?.standalone===true||globalThis.matchMedia?.('(display-mode: standalone)')?.matches===true;
+    }
+    function showHomeInstallGuide(){
+      const ua=globalThis.navigator?.userAgent||'',ios=/iPhone|iPad|iPod/.test(ua)||(/Macintosh/.test(ua)&&globalThis.navigator?.maxTouchPoints>1);
+      const steps=[];
+      if(/MicroMessenger|QQ\/|FBAN|Instagram/.test(ua))steps.push('先打开右上角菜单，选择“在浏览器中打开”。');
+      if(ios)steps.push('点击浏览器的分享按钮。','选择“添加到主屏幕”。','确认名称为“留声”，点击“添加”。');
+      else steps.push('打开浏览器右上角的菜单（⋮）。','选择“安装应用”或“添加到主屏幕”。','根据系统提示确认添加。');
+      const list=$('install-home-steps');list.innerHTML='';
+      for(const text of steps){const item=document.createElement('li');item.textContent=text;list.appendChild(item);}
+      showImportDialog('install-home-dialog');
+    }
+    async function requestHomeInstall(){
+      if(installBusy)return;
+      if(isHomeInstalled()){showToast('当前已从桌面打开');return;}
+      if(!installPrompt){showHomeInstallGuide();return;}
+      const prompt=installPrompt;installPrompt=null;installBusy=true;$('install-home-btn').disabled=true;
+      try{
+        await prompt.prompt();
+        const choice=await prompt.userChoice;
+        showToast(choice.outcome==='accepted'?'请按系统提示完成添加':'已取消添加，可稍后从浏览器菜单重试');
+      }catch{showHomeInstallGuide();}
+      finally{installBusy=false;$('install-home-btn').disabled=false;}
+    }
+    function setupHomeInstall(){
+      $('install-home-btn').hidden=isHomeInstalled();
+      $('install-home-btn').addEventListener('click',requestHomeInstall);
+      $('install-home-close').addEventListener('click',()=>$('install-home-dialog').close());
+      globalThis.addEventListener?.('beforeinstallprompt',event=>{event.preventDefault();installPrompt=event;$('install-home-btn').hidden=isHomeInstalled();});
+      globalThis.addEventListener?.('appinstalled',()=>{installPrompt=null;$('install-home-btn').hidden=true;$('install-home-dialog').close();showToast('已添加到桌面');});
+    }
     function setupEvents(){
       for(const type of ['favorites','playlist'])$(type+'-actions-toggle').addEventListener('click',()=>toggleLibraryActions(type));
       $('playback-quality').addEventListener('click',openPlaybackQualityDialog);
@@ -4120,7 +4167,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       $('import-link-close').addEventListener('click',()=>$('import-link-dialog').close());
       $('import-progress-close').addEventListener('click',()=>$('import-progress-dialog').close());
       $('import-progress-dialog').addEventListener('close',()=>{renderPlaylistList();updateMainFavButton();});
-      ['import-link-dialog','import-progress-dialog','replacement-dialog','play-queue-dialog','playback-quality-dialog','add-playlist-dialog'].forEach(id=>$(id).addEventListener('close',restoreImportScroll));
+      ['import-link-dialog','import-progress-dialog','replacement-dialog','play-queue-dialog','playback-quality-dialog','add-playlist-dialog','install-home-dialog'].forEach(id=>$(id).addEventListener('close',restoreImportScroll));
       $('import-link-form').addEventListener('submit',importPlaylistLink);
       document.querySelectorAll('.lang-btn').forEach(btn=>{
         btn.addEventListener('click',()=>setLanguage(btn.dataset.lang));
@@ -4288,6 +4335,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       try{const lg=localStorage.getItem('liusheng-lang'); if(lg)state.language=lg;}catch(e){}
       loadLibraryFromStorage();
       setupEvents();
+      setupHomeInstall();
       setupPanelToggles();
       setupMobileNavigation();
       setLanguage(state.language);

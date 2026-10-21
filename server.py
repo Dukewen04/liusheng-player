@@ -211,7 +211,9 @@ class Handler(BaseHTTPRequestHandler):
             except (KeyError, TypeError, AttributeError):
                 return self.respond(502, {'error': '平台数据格式变化，暂时无法导入。'})
         files = {'/': ('index.html', 'text/html; charset=utf-8'),
-                 '/index.html': ('index.html', 'text/html; charset=utf-8')}
+                 '/index.html': ('index.html', 'text/html; charset=utf-8'),
+                 '/manifest.webmanifest': ('manifest.webmanifest', 'application/manifest+json'),
+                 **{f'/icons/icon-{n}.png': (f'icons/icon-{n}.png', 'image/png') for n in (180, 192, 512)}}
         if route.path not in files:
             return self.respond(404, {'error': 'Not found'})
         name, content_type = files[route.path]
