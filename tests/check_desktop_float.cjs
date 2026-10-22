@@ -1,0 +1,20 @@
+const fs=require('fs'),vm=require('vm'),assert=require('assert/strict'),path=require('path');
+const html=fs.readFileSync(path.join(__dirname,'../index.html'),'utf8'),source=[...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].at(-1)[1];
+function node(){return {value:'',attrs:{},events:{},children:[],textContent:'',disabled:false,setAttribute(k,v){this.attrs[k]=v;},addEventListener(k,f){this.events[k]=f;},appendChild(n){this.children.push(n);}};}
+function document(){const nodes=new Map();return {head:node(),body:node(),getElementById(id){if(!nodes.has(id))nodes.set(id,node());return nodes.get(id);},createElement:node,addEventListener(){},querySelectorAll:()=>[],querySelector:()=>null};}
+const main=document(),pipDoc=document(),events={},timers=new Map(),storage=new Map();let calls=0,focus=0,next,toast;
+const pip={document:pipDoc,closed:false,focus(){focus++;},close(){this.closed=true;events.pagehide?.();},addEventListener(k,f){events[k]=f;},setInterval(fn){timers.set(1,fn);return 1;},clearInterval(id){timers.delete(id);}};
+const c=vm.createContext({console,URLSearchParams,document:main,setTimeout,clearTimeout,localStorage:{setItem:(k,v)=>storage.set(k,v),getItem:k=>storage.get(k)},documentPictureInPicture:{requestWindow:async()=>{calls++;return pip;}}});
+vm.runInContext(source.replace(/\}\)\(\);\s*$/,`renderPlaylistList=()=>{};updateMainFavButton=()=>{};showToast=message=>globalThis.toast=message;togglePlayPause=()=>state.isPlaying=!state.isPlaying;playNext=dir=>globalThis.next=dir;globalThis.app={state,dom,openDesktopFloat,toggleFavoriteCurrent,mergeImportedTracks,getSortedFavorites};})();`),c);
+(async()=>{
+ const a=c.app,old={uid:'netease-1',source:'netease',title:'Old',artist:'Singer'},fresh={uid:'netease-2',source:'netease',title:'<b>New</b>',artist:'Singer',songid:'2'};
+ a.state.favorites=[old];a.state.currentTrack=fresh;a.dom.audio={currentTime:30,duration:120};a.state.lyricLines=[{time:0,text:'First'},{time:20,text:'Current'}];a.state.isPlaying=true;
+ a.toggleFavoriteCurrent();assert.deepEqual(Array.from(a.state.favorites,t=>t.uid),[fresh.uid,old.uid]);assert.equal(JSON.parse(storage.get('liusheng-library-v1')).favorites[0].uid,fresh.uid);
+ const later={uid:'netease-3',source:'netease',title:'Later',artist:'Singer',songid:'3'};a.mergeImportedTracks(a.state.favorites,[later,old]);assert.deepEqual(Array.from(a.state.favorites,t=>t.uid),[later.uid,fresh.uid,old.uid]);const playlist=[old];a.mergeImportedTracks(playlist,[later]);assert.deepEqual(Array.from(playlist,t=>t.uid),[old.uid,later.uid],'Playlist order is unchanged');
+ await a.openDesktopFloat();assert.equal(calls,1);assert.equal(pipDoc.getElementById('float-title').textContent,fresh.title);assert.equal(pipDoc.getElementById('float-lyric').textContent,'Current');assert.equal(pipDoc.getElementById('float-play').textContent,'暂停');assert.equal(a.dom.audio.currentTime,30);assert.equal(pipDoc.getElementById('float-seek').value,'250');
+ await a.openDesktopFloat();assert.equal(calls,1);assert.equal(focus,1);pipDoc.getElementById('float-play').events.click();assert(!a.state.isPlaying);assert.equal(pipDoc.getElementById('float-play').textContent,'播放');pipDoc.getElementById('float-next').events.click();assert.equal(c.next,'next');pipDoc.getElementById('float-seek').events.input({target:{value:'500'}});assert.equal(a.dom.audio.currentTime,60);
+ a.state.currentTrack=old;timers.get(1)();assert.equal(pipDoc.getElementById('float-title').textContent,'Old');pip.close();assert.equal(timers.size,0);assert.equal(main.getElementById('desktop-float-btn').attrs['aria-pressed'],'false');assert.equal(a.dom.audio.currentTime,60,'Closing float leaves playback position intact');
+ c.documentPictureInPicture=undefined;await a.openDesktopFloat();assert(c.toast.includes('不支持'));assert(!main.getElementById('desktop-float-btn').disabled);
+ assert(html.includes('@media(max-width:650px),(pointer:coarse){#desktop-float-btn{display:none}}'));
+ console.log('通过：新收藏及批量新增置顶、歌单顺序保留、桌面浮窗复用音频、歌名歌词同步、播放控制及拖动、复用窗口和关闭释放、不支持浏览器提示。');
+})().catch(e=>{console.error(e);process.exitCode=1;});
