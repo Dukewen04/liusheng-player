@@ -350,6 +350,8 @@ body.lyrics-mode .app{background:var(--bg-dark)}.lyrics-mode .player-panel{backg
 @media(max-width:650px){.brand-mark{border-radius:14px}.brand-mark svg{width:37px;height:37px}.panel{border-radius:20px}body:not(.lyrics-mode) .cover-wrapper{border-radius:20px}.mobile-nav button{border-radius:13px}.app>header{background:var(--bg-dark)}body.lyrics-mode .app{background:var(--bg-dark)}}
 
 @media(max-width:650px),(pointer:coarse){#desktop-float-btn{display:none}}
+
+.lyrics-container:has(.lyrics-empty-actions){mask-image:none;-webkit-mask-image:none}.lyrics-mode .lyrics-inner:has(.lyrics-empty-actions){padding:clamp(20px,12dvh,100px) 12px}.lyrics-empty-actions{display:flex;justify-content:center;padding:4px 8px 20px}.lyrics-empty-actions .btn{min-height:40px}.lyrics-mode .lyrics-empty-actions .btn{font-size:14px}
 </style>
 </head>
 <body>
@@ -3157,6 +3159,20 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       }
     }
 
+    async function addCurrentLyrics(){
+      const track=state.currentTrack,request=playbackRequest;
+      if(!track||track.lyricsLoading||parseLRC(track.lrc).length)return;
+      lyricsController?.abort();lyricsController=new AbortController();
+      await refreshTrackLyrics(track,request,lyricsController.signal);
+      if(request!==playbackRequest||state.currentTrack!==track)return;
+      if(!parseLRC(track.lrc).length){showToast('暂未找到匹配歌词，可以稍后重试');return;}
+      rememberLyrics(track);
+      for(const song of [ ...state.favorites,...state.playlists.flatMap(playlist=>playlist.tracks)]){
+        if(song.uid===track.uid){song.lrc=track.lrc;song.lyricSource=track.lyricSource;}
+      }
+      showToast('歌词已添加并保存');
+    }
+
     function renderLyrics(){
       const wrap=dom.lyricsInner;
       wrap.innerHTML='';
@@ -3179,6 +3195,13 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
           ? (state.language==='zh' ? '正在查找歌词，歌曲播放不受影响…' : 'Looking for lyrics…')
           : t('lyricsEmpty');
         wrap.appendChild(empty);
+        if(track){
+          const actions=document.createElement('div');actions.className='lyrics-empty-actions';
+          const button=document.createElement('button');button.type='button';button.className='btn btn-secondary';
+          button.textContent=state.language==='zh'?(track.lyricsLoading?'正在查找歌词…':'一键添加歌词'):(track.lyricsLoading?'Finding lyrics…':'Add lyrics');
+          button.disabled=Boolean(track.lyricsLoading);button.addEventListener('click',addCurrentLyrics);
+          actions.appendChild(button);wrap.appendChild(actions);
+        }
         return;
       }
       if(track?.lyricSource || arr[0].time===null){
