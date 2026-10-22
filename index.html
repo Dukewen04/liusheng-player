@@ -348,6 +348,8 @@ html,body{background:var(--bg-dark)}.app>header{background:var(--bg-dark);border
 #toast{background:#647566;color:#faf8f3;border-radius:14px}.mobile-dock{background:#faf8f4!important;border-color:#e1dee2!important;border-radius:20px!important}.mobile-nav button{border-radius:14px}.mobile-nav button[aria-pressed="true"]{background:#dce3d7;color:#5c6b5a}.mobile-now-playing{background:#edefed;border-color:#dce0dd}.lang-toggle{background:#eae7ed}.lang-btn.active{background:#faf9f6;color:#5b705e}footer{color:#888487}::-webkit-scrollbar-thumb{background:#d4cfd7}
 body.lyrics-mode .app{background:var(--bg-dark)}.lyrics-mode .player-panel{background:transparent}.lyrics-mode .lyrics-line{color:#a29ea4}.lyrics-mode .lyrics-line.active{color:#5b705e}
 @media(max-width:650px){.brand-mark{border-radius:14px}.brand-mark svg{width:37px;height:37px}.panel{border-radius:20px}body:not(.lyrics-mode) .cover-wrapper{border-radius:20px}.mobile-nav button{border-radius:13px}.app>header{background:var(--bg-dark)}body.lyrics-mode .app{background:var(--bg-dark)}}
+
+@media(max-width:650px),(pointer:coarse){#desktop-float-btn{display:none}}
 </style>
 </head>
 <body>
@@ -460,6 +462,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
           <div class="player-view-actions">
             <span class="chip" data-i18n="playerSubtitle">一首歌，一段好时光</span>
             <button id="play-queue-btn" class="btn btn-ghost lyrics-mode-btn" type="button" aria-haspopup="dialog">播放列表</button>
+            <button id="desktop-float-btn" class="btn btn-ghost lyrics-mode-btn" type="button" aria-pressed="false">桌面浮窗</button>
             <button id="lyrics-mode-btn" class="btn btn-ghost lyrics-mode-btn" type="button" aria-pressed="false">纯净模式</button>
           </div>
         </div>
@@ -551,7 +554,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
               <div class="favorites-search-controls">
                 <input id="favorites-search-input" class="input" type="search" aria-label="搜索我的收藏" placeholder="搜索收藏中的歌名、歌手或专辑…" style="width:100%;" />
                 <select id="favorites-sort" class="input" aria-label="收藏排序" style="margin-top:8px;width:100%;">
-                  <option value="original">收藏顺序</option>
+                  <option value="original">最近收藏在前</option>
                   <option value="title-asc">歌名升序（A–Z）</option>
                   <option value="title-desc">歌名降序（Z–A）</option>
                   <option value="artist-asc">歌手升序（A–Z）</option>
@@ -1113,7 +1116,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       $('playlist-search-input').setAttribute('aria-label',lang==='zh'?'搜索当前歌单':'Search this playlist');
       if(!state.searchHasRun)dom.searchStatus.textContent=t('searchStatusIdle');
       $('favorites-sort').setAttribute('aria-label',lang==='zh' ? '收藏排序' : 'Sort favorites');
-      const sortLabels=lang==='zh' ? ['收藏顺序','歌名升序（A–Z）','歌名降序（Z–A）','歌手升序（A–Z）','歌手降序（Z–A）'] : ['Saved order','Title (A–Z)','Title (Z–A)','Artist (A–Z)','Artist (Z–A)'];
+      const sortLabels=lang==='zh' ? ['最近收藏在前','歌名升序（A–Z）','歌名降序（Z–A）','歌手升序（A–Z）','歌手降序（Z–A）'] : ['Newest favorites first','Title (A–Z)','Title (Z–A)','Artist (A–Z)','Artist (Z–A)'];
       Array.from($('favorites-sort').options).forEach((option,index)=>option.textContent=sortLabels[index]);
       dom.playlistNameInput.placeholder = lang==='zh'
         ? '例如：通勤歌单 / 宝可梦歌单'
@@ -1303,7 +1306,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
     }
 
     function mergeImportedTracks(targetList, rawTracks){
-      let added=0;
+      let added=0;const newFavorites=[];
       if(!Array.isArray(rawTracks)) return added;
 
       rawTracks.forEach(raw=>{
@@ -1328,10 +1331,15 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
         if(!targetList.some(item=>item.uid===track.uid)){
           targetList.push(track);
+          if(targetList===state.favorites)newFavorites.push(track);
           added++;
         }
       });
 
+      if(newFavorites.length){
+        const ids=new Set(newFavorites.map(track=>track.uid));
+        targetList.splice(0,targetList.length,...newFavorites,...targetList.filter(track=>!ids.has(track.uid)));
+      }
       return added;
     }
 
@@ -3205,6 +3213,52 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       }
     }
 
+    let desktopFloatWindow=null,desktopFloatOpening=false;
+    async function openDesktopFloat(){
+      const button=$('desktop-float-btn');
+      if(desktopFloatWindow&&!desktopFloatWindow.closed){desktopFloatWindow.focus();return;}
+      if(desktopFloatOpening)return;
+      if(!globalThis.documentPictureInPicture?.requestWindow){showToast('当前浏览器不支持置顶浮窗，请使用支持画中画窗口的桌面浏览器');return;}
+      desktopFloatOpening=true;button.disabled=true;
+      try{
+        const win=await globalThis.documentPictureInPicture.requestWindow({width:360,height:300});
+        desktopFloatWindow=win;
+        const doc=win.document;doc.title='留声 · 桌面浮窗';
+        const style=doc.createElement('style');style.textContent=`
+          *{box-sizing:border-box}body{margin:0;padding:20px;background:#f2f0ec;color:#424743;font:14px/1.5 system-ui,sans-serif}
+          .heading{display:flex;align-items:center;justify-content:space-between;color:#66776d;font-size:12px}.heading button{font-size:12px}
+          h1{font-size:21px;line-height:1.4;margin:14px 0 4px;overflow-wrap:anywhere}p{margin:0;color:#71776f}
+          #float-lyric{height:48px;overflow:auto;line-height:1.6;margin:14px 0;color:#5b705e}
+          .controls{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:14px}
+          button{border:0;border-radius:12px;background:#e0e5dc;color:#485b50;cursor:pointer;padding:8px 12px;font:inherit}
+          #float-play{background:#bbcbbd;min-width:72px}#float-favorite[aria-pressed=true]{background:#e7dddd;color:#966d76}
+          .progress{display:flex;align-items:center;gap:8px;font-size:11px;color:#71776f}.progress input{width:100%;min-width:0;accent-color:#8b9f8e}
+          button:focus-visible,input:focus-visible{outline:2px solid #8b9f8e;outline-offset:2px}
+        `;doc.head.appendChild(style);
+        doc.body.innerHTML='<div class="heading"><span>留声 · 桌面浮窗</span><button id="float-close" type="button">关闭</button></div><h1 id="float-title"></h1><p id="float-artist"></p><div id="float-lyric"></div><div class="progress"><span id="float-time">00:00</span><input id="float-seek" aria-label="播放进度" type="range" min="0" max="1000" value="0"><span id="float-duration">00:00</span></div><div class="controls"><button id="float-prev" type="button" aria-label="上一首">上一首</button><button id="float-play" type="button">播放</button><button id="float-next" type="button" aria-label="下一首">下一首</button><button id="float-favorite" type="button" aria-pressed="false">收藏</button></div>';
+        const el=id=>doc.getElementById(id);
+        const update=()=>{
+          const track=state.currentTrack,time=dom.audio.currentTime||0,duration=dom.audio.duration||0;
+          el('float-title').textContent=track?.title||'今天，想听点什么？';el('float-artist').textContent=track?.artist||'等待播放';
+          el('float-play').textContent=state.isPlaying?'暂停':'播放';el('float-play').setAttribute('aria-label',state.isPlaying?'暂停':'播放');
+          const favorite=isFavorite(track);el('float-favorite').textContent=favorite?'已收藏':'收藏';el('float-favorite').setAttribute('aria-pressed',String(favorite));el('float-favorite').disabled=!track;
+          const line=state.lyricLines.filter(line=>Number.isFinite(line.time)&&line.time<=time).at(-1);
+          el('float-lyric').textContent=line?.text||'留住喜欢的声音';
+          el('float-time').textContent=formatTime(time);el('float-duration').textContent=formatTime(duration);
+          el('float-seek').disabled=!(duration>0&&Number.isFinite(duration));el('float-seek').value=duration>0?String(Math.round(time/duration*1000)):'0';
+        };
+        el('float-close').addEventListener('click',()=>win.close());
+        el('float-play').addEventListener('click',()=>{togglePlayPause();update();});
+        el('float-prev').addEventListener('click',()=>playNext('prev'));el('float-next').addEventListener('click',()=>playNext('next'));
+        el('float-favorite').addEventListener('click',()=>{toggleFavoriteCurrent();update();});
+        el('float-seek').addEventListener('input',event=>{if(Number.isFinite(dom.audio.duration)&&dom.audio.duration>0)dom.audio.currentTime=dom.audio.duration*Number(event.target.value)/1000;update();});
+        update();button.setAttribute('aria-pressed','true');
+        const timer=win.setInterval(update,500);
+        win.addEventListener('pagehide',()=>{win.clearInterval(timer);if(desktopFloatWindow===win){desktopFloatWindow=null;button.setAttribute('aria-pressed','false');}},{once:true});
+      }catch(error){desktopFloatWindow?.close();desktopFloatWindow=null;button.setAttribute('aria-pressed','false');showToast('无法打开桌面浮窗，请重试：'+error.message);}
+      finally{desktopFloatOpening=false;button.disabled=false;}
+    }
+
     function toggleLibraryActions(type){
       if(!['favorites','playlist'].includes(type))return;
       const open=$(type+'-more-actions').classList.toggle('mobile-open');
@@ -3726,7 +3780,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       const tr=state.currentTrack; if(!tr)return;
       const i=state.favorites.findIndex(x=>x.uid===tr.uid);
       if(i>=0){state.favorites.splice(i,1);showToast(t('toastRemovedFavorite'));}
-      else{state.favorites.push(tr);showToast(t('toastAddedFavorite'));}
+      else{state.favorites.unshift(tr);showToast(t('toastAddedFavorite'));}
       saveLibraryToStorage();
       updateMainFavButton();
       renderPlaylistList();
@@ -4007,7 +4061,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
           ev.stopPropagation();
           const i=state.favorites.findIndex(x=>x.uid===track.uid);
           if(i>=0){state.favorites.splice(i,1);showToast(t('toastRemovedFavorite'));}
-          else{state.favorites.push(track);showToast(t('toastAddedFavorite'));}
+          else{state.favorites.unshift(track);showToast(t('toastAddedFavorite'));}
           saveLibraryToStorage();
           renderPlaylistList();
           updateMainFavButton();
@@ -4302,6 +4356,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       $('task-complete-btn').addEventListener('click',()=>$('import-progress-dialog').close());
       $('add-playlist-close').addEventListener('click',()=>$('add-playlist-dialog').close());
       document.addEventListener('visibilitychange',updateImportVisibility);
+      $('desktop-float-btn').addEventListener('click',openDesktopFloat);
       $('play-queue-btn').addEventListener('click',()=>{renderPlayQueue();showImportDialog('play-queue-dialog');});
       $('play-queue-close').addEventListener('click',()=>$('play-queue-dialog').close());
       dom.lyricsModeBtn.addEventListener('click',()=>setLyricsMode(!state.lyricsMode));
