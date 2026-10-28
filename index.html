@@ -821,7 +821,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         librarySubtitle:"收藏喜欢的声音，整理自己的歌单",
         searchButton:"搜索",
         searchStatusIdle:"尚未搜索，试试输入“周杰伦”？",
-        searchStatusSearching:"正在搜索中…",
+        searchStatusSearching:"正在搜索…",
         searchStatusDone:"搜索完成。",
         searchStatusEmpty:"未找到匹配歌曲。",
         musicNetworkError:"音源连接失败，请检查系统代理或网络后重试。",
@@ -3868,7 +3868,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       const list=getInterleavedSearchList();
       if(!list.length){
         const empty=document.createElement('div');empty.className='empty-library';
-        empty.textContent=state.searchInProgress?(state.language==='zh'?'正在搜索并检查可播放性…':'Searching and checking audio…'):
+        empty.textContent=state.searchInProgress?(state.language==='zh'?'正在搜索…':'Searching…'):
           state.searchHasRun?(state.language==='zh'?'没有可播放的搜索结果，试试其他关键词。':'No playable results. Try other keywords.'):
           (state.language==='zh'?'输入歌名或歌手，发现想听的声音。':'Search for a song or artist.');
         wrap.appendChild(empty);
