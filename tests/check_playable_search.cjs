@@ -20,7 +20,7 @@ const c=vm.createContext({console,URL,URLSearchParams,AbortSignal,AbortControlle
 vm.runInContext(source.replace(/\}\)\(\);\s*$/,`
   renderMiniSearchList=()=>{};renderPlaylistList=()=>{};rebuildLibraryTrackMap=()=>{};showToast=()=>{};
   dom.searchStatus=document.getElementById('status');dom.searchCount=document.getElementById('count');dom.playerStatus=document.getElementById('player');
-  globalThis.app={state,dom,probeSearchAudio,checkSearchTrack,filterPlayableSearchTracks,searchAllSources,clearSearchResults,ensureTrackDetails,
+  globalThis.app={state,dom,probeSearchAudio,checkSearchTrack,filterPlayableSearchTracks,searchAllSources,searchAllNetease,clearSearchResults,ensureTrackDetails,
     details:fn=>ensureTrackDetails=fn,checker:fn=>checkSearchTrack=fn,provider:fn=>searchNetease=fn};
 })();`),c);
 const a=c.app,signal=()=>new AbortController().signal;
@@ -50,7 +50,7 @@ const a=c.app,signal=()=>new AbortController().signal;
 
   a.state.currentTrack={uid:'currently-playing'};a.state.enabledSources={netease:true};a.state.searchKeyword='query';
   const valid={uid:'good',source:'netease'},bad={uid:'bad',source:'netease'};let checks=0;
-  a.provider(async(kw,page,limit,pool)=>{assert.equal(page,1);assert.equal(limit,5);pool.searchResults.push(valid,bad);});
+  a.provider(async(kw,page,limit,pool)=>{assert.equal(page,1);assert.equal(limit,50);pool.searchResults.push(valid,bad);});
   a.checker(async track=>{checks++;if(track.uid==='bad')throw Error('not audio');});
   await a.searchAllSources(true);
   assert.equal(a.state.searchResults.length,1);assert.equal(a.state.searchResults[0].uid,'good');assert(!a.state.trackMap.has('bad'));assert.equal(a.state.searchHiddenCount,1);
@@ -64,9 +64,12 @@ const a=c.app,signal=()=>new AbortController().signal;
   // Clearing aborts the active request and rejects results that arrive later.
   a.state.searchKeyword='old';const clearing=a.searchAllSources();a.clearSearchResults();oldRelease();await clearing;
   assert.equal(a.state.searchResults.length,0);assert.equal(a.dom.searchCount.textContent,'');assert(a.dom.searchCount.hidden);assert(!a.state.searchInProgress);assert.equal(a.state.currentTrack.uid,'currently-playing');
-  // Guard against a provider ignoring its requested result limit.
-  a.provider(async(kw,page,limit,pool)=>{assert.equal(limit,5);pool.searchResults.push(...Array.from({length:12},(_,i)=>({uid:'limit-'+i,source:'netease'})));});
-  a.state.searchKeyword='limit';await a.searchAllSources();assert.equal(a.state.searchResults.length,5);assert(!a.dom.searchCount.hidden);
+  // Keep all provider results, including more than the previous five-track cap.
+  a.provider(async(kw,page,limit,pool)=>{assert.equal(limit,50);pool.searchResults.push(...Array.from({length:12},(_,i)=>({uid:'limit-'+i,source:'netease'})));});
+  a.state.searchKeyword='limit';await a.searchAllSources();assert.equal(a.state.searchResults.length,12);assert(!a.dom.searchCount.hidden);
+  const requests=[];a.provider(async(kw,page,limit,pool)=>{requests.push(limit);for(let i=0;i<Math.min(limit,142);i++){const uid='all-'+i;if(!pool.trackMap.has(uid)){const track={uid,source:'netease'};pool.trackMap.set(uid,track);pool.searchResults.push(track);}}});
+  const full={searchResults:[],trackMap:new Map(),signal:signal()};await a.searchAllNetease('all',full);assert.deepEqual(requests,[50,100,200]);assert.equal(full.searchResults.length,142);
+  a.provider(async(kw,page,limit,pool)=>pool.searchResults.push({uid:'repeat',source:'netease'}));const repeated={searchResults:[],trackMap:new Map(),signal:signal()};await a.searchAllNetease('repeat',repeated);assert.equal(repeated.searchResults.length,1,'A capped provider does not cause endless requests');
   assert(!html.includes('id="limit-select"'));assert(!html.includes('id="load-more-btn"'));assert(!source.includes("dom.searchMiniList.addEventListener('scroll'"));assert(!source.includes("dom.playlistMain.addEventListener('scroll'"));
-  console.log('通过：静音音频加载检查、错误/非音频/无效时长排除、取消后释放资源、兼容音质重试、4路并发、仅显示可播放结果、每源固定5首、新搜索不累加、清空取消旧请求与隐藏空计数、搜索竞态隔离、不覆盖当前播放状态。');
+  console.log('通过：静音音频加载检查、错误/非音频/无效时长排除、取消后释放资源、兼容音质重试、4路并发、仅显示可播放结果、不限制展示条数、网易云继续读取到结束、新搜索不累加、清空取消旧请求与隐藏空计数、搜索竞态隔离、不覆盖当前播放状态。');
 })().catch(error=>{console.error(error);process.exitCode=1;});

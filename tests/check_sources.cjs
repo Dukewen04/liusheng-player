@@ -10,6 +10,9 @@ function boot(fetch){const c=vm.createContext({fetch,console,URL,URLSearchParams
  app.state.searchResults.push({uid:'qq-C',source:'qq',displayIndex:1});assert(app.getInterleavedSearchList().some(t=>t.source==='kugou'));
  const paged=boot(async raw=>{const page=Number(new URL(raw).searchParams.get('page'));return response({code:200,data:{歌曲列表:Array.from({length:20},(_,i)=>({song_hash:page+'-'+i,name:'Song '+i,artist:'Singer'}))}});});
  assert.equal(await paged.searchKugou('Search',30),30);assert.equal(paged.state.searchResults.at(-1).displayIndex,30);
+ const allPages=[],unlimited=boot(async raw=>{const page=Number(new URL(raw).searchParams.get('page'));allPages.push(page);return response({code:200,data:{歌曲列表:Array.from({length:page<3?20:5},(_,i)=>({song_hash:page+'-'+i,name:'Song '+i,artist:'Singer'}))}});});
+ assert.equal(await unlimited.searchKugou('All',null),45);assert.deepEqual(allPages,[1,2,3]);assert.equal(unlimited.state.searchResults.at(-1).kugouPage,3);
+ let repeats=0;const looping=boot(async()=>{repeats++;return response({code:200,data:{歌曲列表:Array.from({length:20},(_,i)=>({song_hash:'same-'+i,name:'Song '+i,artist:'Singer'}))}});});assert.equal(await looping.searchKugou('Repeat',null),20);assert.equal(repeats,2,'Stop when a provider repeats a full page');
  const bad=boot(async raw=>new URL(raw).searchParams.has('n')?response({code:200,data:{歌曲Hash:'WRONG',歌曲名:'Song',歌手:'Singer',url:'https://cdn.example/a.mp3'}}):response({code:200,data:{歌曲列表:[{song_hash:'A'}]}}));
  await assert.rejects(bad.fetchKugouDetails({...track,audioUrl:null}),/musicMismatch/);
  const absent=boot(async()=>response({code:200,data:{歌曲列表:[]}}));await assert.rejects(absent.fetchKugouDetails(track),/musicNoMatch/);
