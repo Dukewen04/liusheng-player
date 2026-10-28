@@ -2548,7 +2548,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
     // 酷我搜索：OIAPI
     async function searchKuwo(kw, limit, resultState=state){
-      // The provider currently errors when page/limit are supplied; cap results locally.
+      // This provider errors on page/limit parameters; use its full response unless a caller requests fewer results.
       const url=`https://oiapi.net/api/Kuwo?msg=${encodeURIComponent(kw)}`;
       let added=0;
       try{
@@ -2604,10 +2604,12 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
     async function searchKugou(kw,limit,resultState=state){
       let added=0;
       try{
-        for(let page=1;page<=Math.max(1,Math.ceil(limit/20));page++){
+        for(let page=1;limit==null||page<=Math.max(1,Math.ceil(limit/20));page++){
+        if(resultState.signal?.aborted)throw resultState.signal.reason;
+        const before=added;
         const json=await readMusicJSON(kugouApi({name:kw,page}),resultState.signal);
         if(json?.code!==200 || !Array.isArray(json.data?.['歌曲列表']))throw musicError('musicServiceError');
-        json.data['歌曲列表'].slice(0,Math.min(20,limit-(page-1)*20)).forEach((song,index)=>{
+        json.data['歌曲列表'].slice(0,limit==null?undefined:Math.min(20,limit-(page-1)*20)).forEach((song,index)=>{
           if(!song.song_hash)return;
           const uid='kugou-'+song.song_hash;if(resultState.trackMap.has(uid))return;
           const track={uid,source:'kugou',songid:song.song_hash,keyword:kw,kugouPage:page,
@@ -2615,7 +2617,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
             displayIndex:(page-1)*20+index+1,audioUrl:null,lrc:null,detailsLoaded:false};
           resultState.trackMap.set(uid,track);resultState.searchResults.push(track);added++;
         });
-        if(json.data['歌曲列表'].length<20)break;
+        if(json.data['歌曲列表'].length<20||added===before)break;
         }
       }catch(error){recordSearchError(resultState,'kugou',error);}
       return added;
@@ -2733,7 +2735,21 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       }
       await Promise.all(Array.from({length:Math.min(4,tracks.length)},worker));
     }
-    const SEARCH_LIMIT=5;
+    async function searchAllNetease(kw,pool){
+      let limit=50,previousLimit=0;
+      const seen=new Set();
+      while(!pool.signal.aborted){
+        await searchNetease(kw,1,limit,pool);
+        if(pool.signal.aborted)return;
+        let added=0;
+        for(const track of pool.searchResults){
+          if(track.source==='netease'&&!seen.has(track.uid)){seen.add(track.uid);added++;}
+        }
+        // This endpoint returns a prefix rather than an offset; stop when it has no further results.
+        if(added<limit-previousLimit)return;
+        previousLimit=limit;limit*=2;
+      }
+    }
     async function searchAllSources(){
       if(!state.searchKeyword){showToast(t('toastNeedKeyword'));return;}
       const enabled=Object.keys(state.enabledSources).filter(key=>state.enabledSources[key]);
@@ -2747,19 +2763,19 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       if(state.currentTrack)state.trackMap.set(state.currentTrack.uid,state.currentTrack);
       dom.searchCount.hidden=false;dom.searchCount.textContent='0';renderPlaylistList();
       const tasks=enabled.map(source=>{
-        if(source==='netease')return searchNetease(kw,1,SEARCH_LIMIT,pool);
-        if(source==='qq')return searchQQ(kw,SEARCH_LIMIT,pool);
-        if(source==='kuwo')return searchKuwo(kw,SEARCH_LIMIT,pool);
-        if(source==='joox')return searchJoox(kw,SEARCH_LIMIT,pool);
-        if(source==='kugou')return searchKugou(kw,SEARCH_LIMIT,pool);
+        if(source==='netease')return searchAllNetease(kw,pool);
+        if(source==='qq')return searchQQ(kw,null,pool);
+        if(source==='kuwo')return searchKuwo(kw,null,pool);
+        if(source==='joox')return searchJoox(kw,null,pool);
+        if(source==='kugou')return searchKugou(kw,null,pool);
       });
       await Promise.allSettled(tasks);
       if(request!==searchRequest)return;
       state.sourceErrors=pool.sourceErrors;
-      const seen=new Set(),counts={};
+      const seen=new Set();
       const candidates=pool.searchResults.filter(track=>{
-        if(seen.has(track.uid)||(counts[track.source]||0)>=SEARCH_LIMIT)return false;
-        seen.add(track.uid);counts[track.source]=(counts[track.source]||0)+1;return true;
+        if(seen.has(track.uid))return false;
+        seen.add(track.uid);return true;
       });
       const progress=(checked,total)=>state.language==='zh'
         ? `正在检查可播放性 ${checked} / ${total} · 可播放 ${state.searchResults.length} 首 · 已过滤 ${state.searchHiddenCount} 首`
