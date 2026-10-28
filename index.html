@@ -1014,7 +1014,6 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       lyricsMode:false,
       searchInProgress:false,
       searchHasRun:false,
-      searchHiddenCount:0,
       lyricsAlt:false,
       muted:false
     };
@@ -2689,52 +2688,6 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
     // ===================== 聚合搜索 =====================
 
     let searchRequest=0,searchController;
-    function probeSearchAudio(track,signal){
-      return new Promise((resolve,reject)=>{
-        if(signal?.aborted){reject(signal.reason);return;}
-        const audio=new Audio();audio.preload='auto';audio.muted=true;
-        let finished=false;
-        const finish=error=>{
-          if(finished)return;finished=true;clearTimeout(timer);
-          signal?.removeEventListener('abort',abort);
-          audio.oncanplay=null;audio.onerror=null;
-          audio.pause();audio.removeAttribute('src');audio.load();
-          error?reject(error):resolve();
-        };
-        const abort=()=>finish(signal.reason);
-        const timer=setTimeout(()=>finish(musicError('musicAudioError')),8000);
-        signal?.addEventListener('abort',abort,{once:true});
-        audio.oncanplay=()=>finish(Number.isFinite(audio.duration)&&audio.duration>0?null:musicError('musicAudioError'));
-        audio.onerror=()=>{const error=musicError('musicAudioError');error.mediaCode=audio.error?.code;finish(error);};
-        audio.src=track.audioUrl;audio.load();
-      });
-    }
-    async function checkSearchTrack(track,signal){
-      const deadline=AbortSignal.timeout(20000);
-      const checkSignal=signal?AbortSignal.any([signal,deadline]):deadline;
-      await ensureTrackDetails(track,{silent:true,signal:checkSignal});
-      try{await probeSearchAudio(track,checkSignal);}
-      catch(error){
-        if(checkSignal.aborted)throw checkSignal.reason;
-        if([3,4].includes(error.mediaCode)&&['qq','kuwo'].includes(track.source)&&!track.preferCompatible){
-          track.preferCompatible=true;track.detailsLoaded=false;track.audioUrl=null;
-          await ensureTrackDetails(track,{silent:true,signal:checkSignal});
-          await probeSearchAudio(track,checkSignal);
-        }else throw error;
-      }
-    }
-    async function filterPlayableSearchTracks(tracks,signal,onChecked){
-      let next=0,checked=0;
-      async function worker(){
-        while(next<tracks.length&&!signal.aborted){
-          const track=tracks[next++];let playable=false;
-          try{await checkSearchTrack(track,signal);playable=true;}catch{}
-          if(signal.aborted)return;
-          checked++;onChecked(track,playable,checked,tracks.length);
-        }
-      }
-      await Promise.all(Array.from({length:Math.min(4,tracks.length)},worker));
-    }
     async function searchAllNetease(kw,pool){
       let limit=50,previousLimit=0;
       const seen=new Set();
@@ -2758,7 +2711,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       const signal=searchController.signal,kw=state.searchKeyword;
       const pool={searchResults:[],trackMap:new Map(),sourceErrors:{},signal};
       state.searchInProgress=true;dom.searchStatus.textContent=t('searchStatusSearching');
-      state.searchHasRun=true;state.searchResults=[];state.searchHiddenCount=0;
+      state.searchHasRun=true;state.searchResults=[];
       state.trackMap.clear();rebuildLibraryTrackMap();
       if(state.currentTrack)state.trackMap.set(state.currentTrack.uid,state.currentTrack);
       dom.searchCount.hidden=false;dom.searchCount.textContent='0';renderPlaylistList();
@@ -2777,28 +2730,17 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         if(seen.has(track.uid))return false;
         seen.add(track.uid);return true;
       });
-      const progress=(checked,total)=>state.language==='zh'
-        ? `正在检查可播放性 ${checked} / ${total} · 可播放 ${state.searchResults.length} 首 · 已过滤 ${state.searchHiddenCount} 首`
-        : `Checking audio ${checked} / ${total} · ${state.searchResults.length} playable · ${state.searchHiddenCount} hidden`;
-      dom.searchStatus.textContent=progress(0,candidates.length);
-      await filterPlayableSearchTracks(candidates,signal,(track,playable,checked,total)=>{
-        if(request!==searchRequest)return;
-        if(playable){
-          state.searchResults.push(track);state.trackMap.set(track.uid,track);
-          dom.searchCount.textContent=String(state.searchResults.length);renderPlaylistList();
-        }else state.searchHiddenCount++;
-        dom.searchStatus.textContent=progress(checked,total);
-      });
-      if(request!==searchRequest)return;
+      state.searchResults=candidates;
+      for(const track of candidates)state.trackMap.set(track.uid,track);
+      dom.searchCount.textContent=String(candidates.length);
       state.searchInProgress=false;
       const labels={netease:'sourceNetease',qq:'sourceQQ',kuwo:'sourceKuwo',joox:'sourceJoox',kugou:'sourceKugou'};
       const failures=Object.keys(state.sourceErrors).map(source=>`${t(labels[source])}：${state.sourceErrors[source]}`).join(' ');
       const summary=state.language==='zh'
-        ? `检查完成 · 可播放 ${state.searchResults.length} 首 · 已过滤 ${state.searchHiddenCount} 首当前无法加载的歌曲。`
-        : `Checked · ${state.searchResults.length} playable · ${state.searchHiddenCount} currently unavailable tracks hidden.`;
-      dom.searchStatus.textContent=summary+(failures?' '+failures:'');
+        ? `搜索完成 · 共 ${state.searchResults.length} 首`
+        : `Search complete · ${state.searchResults.length} tracks`;
+      dom.searchStatus.textContent=(!state.searchResults.length&&failures?(state.language==='zh'?'搜索失败':'Search failed'):summary)+(failures?' '+failures:'');
       renderPlaylistList();
-      if(!state.currentTrack&&state.searchResults.length)playFromList('results',0);
     }
 
     // ===================== 各平台详情 =====================
@@ -3833,7 +3775,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
     }
     function clearSearchResults(){
       ++searchRequest;searchController?.abort();
-      state.searchResults=[];state.searchInProgress=false;state.searchHasRun=false;state.searchHiddenCount=0;state.sourceErrors={};
+      state.searchResults=[];state.searchInProgress=false;state.searchHasRun=false;state.sourceErrors={};
       state.trackMap.clear();rebuildLibraryTrackMap();
       if(state.currentTrack)state.trackMap.set(state.currentTrack.uid,state.currentTrack);
       if(state.playContext.type==='results')state.playContext.index=-1;
