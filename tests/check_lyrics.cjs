@@ -89,6 +89,20 @@ function boot(fetch,storage=new Map()){
   assert(slowCancelled,'Cancel the remaining provider after finding lyrics');assert.equal(slowTrack.lyricSource,'QQ音乐');assert.equal(slowTrack.audioUrl,'keep-audio');
 
   let release;
+  const crossKuwo=boot(async raw=>{
+    const url=new URL(raw);
+    if(url.hostname==='oiapi.net')return response({data:[{rid:'123',song:'雨',singer:'沈以诚'},{rid:'999',song:'雨',singer:'别人'}]});
+    if(url.hostname==='m.kuwo.cn')return response({data:{songinfo:{songName:'雨',artist:'沈以诚'},lrclist:[{time:'1',lineLyric:'cross source'}]}});
+    return response([]);
+  });
+  const borrowed={uid:'netease-cross',source:'netease',title:'雨',artist:'沈以诚',audioUrl:'keep-audio'};
+  assert(await crossKuwo.app.ensureTrackLyrics(borrowed));assert.equal(borrowed.lyricSource,'酷我音乐');assert.equal(borrowed.audioUrl,'keep-audio');assert.equal(borrowed.source,'netease');
+  const crossJoox=boot(async raw=>{
+    const url=new URL(raw);
+    if(url.pathname.includes('joox_music'))return response(url.searchParams.has('n')?{code:200,data:{songmid:'matching',歌曲名称:'雨',歌手:'沈以诚',歌词内容:'[00:01]borrowed'}}:{code:200,data:{songs:[{songmid:'matching',歌曲名称:'雨',歌手:'沈以诚'}]}});
+    return response([]);
+  });
+  const jooxBorrow={uid:'qq-cross',source:'qq',title:'雨',artist:'沈以诚',audioUrl:'original'};assert(await crossJoox.app.ensureTrackLyrics(jooxBorrow));assert.equal(jooxBorrow.lyricSource,'JOOX');assert.equal(jooxBorrow.audioUrl,'original');
   const stale=boot(()=>new Promise(resolve=>release=()=>resolve(response({lrc:'[00:01]old lyric'}))));
   const old={uid:'old',source:'netease',title:'old',artist:'artist',lrcUrl:'https://example.com/old'};
   stale.app.state.currentTrack=old;stale.app.setRequest(1);
