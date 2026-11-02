@@ -354,6 +354,8 @@ body.lyrics-mode .app{background:var(--bg-dark)}.lyrics-mode .player-panel{backg
 .lyrics-container:has(.lyrics-empty-actions){mask-image:none;-webkit-mask-image:none}.lyrics-mode .lyrics-inner:has(.lyrics-empty-actions){padding:clamp(20px,12dvh,100px) 12px}.lyrics-empty-actions{display:flex;justify-content:center;padding:4px 8px 20px}.lyrics-empty-actions .btn{min-height:40px}.lyrics-mode .lyrics-empty-actions .btn{font-size:14px}
 
 .search-row{position:relative}.search-history[hidden]{display:none}.search-history{position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:20;max-height:230px;overflow:auto;padding:6px;background:var(--panel-glass);border:1px solid var(--border-subtle);border-radius:12px;box-shadow:0 8px 24px #42474315}.search-history button{display:block;width:100%;border:0;background:transparent;color:var(--text-main);text-align:left;font-size:14px;padding:9px 10px;border-radius:7px;white-space:normal;overflow-wrap:anywhere}.search-history button:hover,.search-history button:focus-visible{background:var(--panel-glass-soft)}.search-history .search-history-clear{font-size:12px;color:var(--text-sub);border-bottom:1px solid var(--border-subtle)}
+
+.search-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px}.search-row #search-input{width:100%;max-width:100%;min-width:0;outline:none;outline-offset:0;box-shadow:none}.search-row:focus-within{border-color:var(--accent);outline:2px solid var(--border-subtle);outline-offset:1px}.search-row #search-btn{position:relative;white-space:nowrap}
 </style>
 </head>
 <body>
@@ -2675,6 +2677,21 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
     // ===================== 聚合搜索 =====================
 
+    function setupSearchSources(){
+      try{
+        const saved=JSON.parse(localStorage.getItem('liusheng-search-sources-v1')||'null');
+        for(const source of Object.keys(state.enabledSources))if(typeof saved?.[source]==='boolean')state.enabledSources[source]=saved[source];
+      }catch{}
+      document.querySelectorAll('.source-chip input').forEach(cb=>{
+        const source=cb.dataset.source;if(!Object.hasOwn(state.enabledSources,source))return;
+        cb.checked=state.enabledSources[source];
+        cb.addEventListener('change',()=>{
+          state.enabledSources[source]=cb.checked;
+          try{localStorage.setItem('liusheng-search-sources-v1',JSON.stringify(state.enabledSources));}catch{}
+        });
+      });
+    }
+
     function readSearchHistory(){
       try{const value=JSON.parse(localStorage.getItem('liusheng-search-history-v1')||'[]');return Array.isArray(value)?[...new Set(value.filter(item=>typeof item==='string'&&item.trim()).map(item=>item.trim()))].slice(0,20):[];}catch{return [];}
     }
@@ -4465,9 +4482,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         }
       });
 
-      document.querySelectorAll('.source-chip input').forEach(cb=>{
-        cb.addEventListener('change',()=>{state.enabledSources[cb.dataset.source]=cb.checked;});
-      });
+      setupSearchSources();
 
       dom.playBtn.addEventListener('click',togglePlayPause);
       dom.prevBtn.addEventListener('click',()=>playNext('prev'));
