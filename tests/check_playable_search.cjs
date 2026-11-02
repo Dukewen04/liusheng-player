@@ -7,10 +7,10 @@ class ProbeAudio{constructor(){throw Error('Search must not create an audio prob
 const c=vm.createContext({console,URL,URLSearchParams,AbortSignal,AbortController,Audio:ProbeAudio,setImmediate,setTimeout,clearTimeout,
   location:{hostname:'127.0.0.1',port:'8766'},document:{getElementById:node,addEventListener(){}},localStorage:{getItem(){return null;}}});
 vm.runInContext(source.replace(/\}\)\(\);\s*$/,`
-  renderMiniSearchList=()=>{};renderPlaylistList=()=>{};rebuildLibraryTrackMap=()=>{};showToast=()=>{};
-  dom.searchStatus=document.getElementById('status');dom.searchCount=document.getElementById('count');dom.playerStatus=document.getElementById('player');
+  renderTrackRows=()=>{};renderMiniSearchList=()=>{};renderPlaylistList=()=>{};rebuildLibraryTrackMap=()=>{};showToast=()=>{};
+  dom.searchMiniList=document.getElementById('rows');dom.searchStatus=document.getElementById('status');dom.searchCount=document.getElementById('count');dom.playerStatus=document.getElementById('player');
   globalThis.app={state,dom,searchAllSources,searchAllNetease,clearSearchResults,ensureTrackDetails,
-    details:fn=>ensureTrackDetails=fn,provider:fn=>searchNetease=fn};
+    details:fn=>ensureTrackDetails=fn,providerQQ:fn=>searchQQ=fn,provider:fn=>searchNetease=fn};
 })();`),c);
 const a=c.app,signal=()=>new AbortController().signal;
 (async()=>{
@@ -33,6 +33,11 @@ const a=c.app,signal=()=>new AbortController().signal;
   // Keep all provider results, including more than the previous five-track cap.
   a.provider(async(kw,page,limit,pool)=>{assert.equal(limit,50);pool.searchResults.push(...Array.from({length:12},(_,i)=>({uid:'limit-'+i,source:'netease'})));});
   a.state.searchKeyword='limit';await a.searchAllSources();assert.equal(a.state.searchResults.length,12);assert(!a.dom.searchCount.hidden);
+  let releasePage,releaseQQ;a.state.enabledSources={netease:true,qq:true};
+  a.provider(async(kw,page,limit,pool)=>{if(limit>50)await new Promise(resolve=>releasePage=resolve);for(let i=0;i<Math.min(limit,52);i++){const uid='stream-'+i;if(!pool.trackMap.has(uid)){const track={uid,source:'netease'};pool.trackMap.set(uid,track);pool.searchResults.push(track);}}});
+  a.providerQQ(async(kw,limit,pool)=>{await new Promise(resolve=>releaseQQ=resolve);pool.searchResults.push({uid:'qq-stream',source:'qq'});});
+  a.state.searchKeyword='stream';const streaming=a.searchAllSources();await new Promise(setImmediate);assert.equal(a.state.searchResults.length,50,'First NetEase batch shows before its later page or slow source completes');assert(a.state.searchInProgress);
+  releaseQQ();await new Promise(setImmediate);assert.equal(a.state.searchResults[50].uid,'qq-stream');releasePage();await streaming;assert.equal(a.state.searchResults[51].uid,'stream-50');assert.equal(a.state.searchResults.length,53);assert.equal(checks,0);a.state.enabledSources={netease:true};
   const requests=[];a.provider(async(kw,page,limit,pool)=>{requests.push(limit);for(let i=0;i<Math.min(limit,142);i++){const uid='all-'+i;if(!pool.trackMap.has(uid)){const track={uid,source:'netease'};pool.trackMap.set(uid,track);pool.searchResults.push(track);}}});
   const full={searchResults:[],trackMap:new Map(),signal:signal()};await a.searchAllNetease('all',full);assert.deepEqual(requests,[50,100,200]);assert.equal(full.searchResults.length,142);
   a.provider(async(kw,page,limit,pool)=>pool.searchResults.push({uid:'repeat',source:'netease'}));const repeated={searchResults:[],trackMap:new Map(),signal:signal()};await a.searchAllNetease('repeat',repeated);assert.equal(repeated.searchResults.length,1,'A capped provider does not cause endless requests');
