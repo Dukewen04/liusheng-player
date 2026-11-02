@@ -2536,14 +2536,17 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
     // 酷我搜索：OIAPI
     async function searchKuwo(kw, limit, resultState=state){
-      // This provider errors on page/limit parameters; use its full response unless a caller requests fewer results.
-      const url=`https://oiapi.net/api/Kuwo?msg=${encodeURIComponent(kw)}`;
+      const pageSize=50;
       let added=0;
       try{
+        for(let page=1;!resultState.signal?.aborted;page++){
+        const before=added;
+        const params=new URLSearchParams({msg:kw,...(limit==null?{page,limit:pageSize}:{})});
+        const url='https://oiapi.net/api/Kuwo?'+params;
         const json=await readMusicJSON(url,resultState.signal);
         const data=Array.isArray(json?.data) ? json.data : null;
         if(!data)throw musicError('musicServiceError');
-        if(!data.length) return 0;
+        if(!data.length)break;
 
         data.slice(0,limit||data.length).forEach((it, idx)=>{
           const rid=(it.rid ?? '').toString();
@@ -2555,7 +2558,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
           const track={
             uid,
             source:'kuwo',
-            displayIndex:idx+1,
+            displayIndex:(page-1)*pageSize+idx+1,
             keyword:kw,
             songid:rid,
 
@@ -2576,6 +2579,9 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
           resultState.searchResults.push(track);
           added++;
         });
+        resultState.onResults?.();
+        if(limit!=null||data.length<pageSize||added===before)break;
+        }
       }catch(e){
         recordSearchError(resultState,'kuwo',e);
         console.error('kuwo search (OIAPI)',e);
