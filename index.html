@@ -3034,8 +3034,18 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
     function sameLyricRecording(track,candidate){
       if(sameRecording(track,candidate))return true;
+      const singers=value=>String(value||'').normalize('NFKC').split(/[/&、，,;；+]|\s+(?:feat\.?|ft\.?|with|and)\s+/i).map(name=>simplifyImportText(name).toLowerCase().replace(/\s+/g,'')).filter(Boolean);
+      if(sameRecording({title:track.title,artist:''},{title:candidate.title,artist:''})&&singers(track.artist).some(name=>singers(candidate.artist).includes(name)))return true;
       const featured=String(track.title||'').normalize('NFKC').match(/\b(?:with|feat\.?|ft\.?)\s+([^)]*)/i)?.[1];
       return Boolean(featured && sameRecording({...track,artist:track.artist+'/'+featured},candidate));
+    }
+
+    function lyricCoreTitle(title){
+      return String(title||'').normalize('NFKC')
+        .replace(/\s*[-—–]\s*(?=《|「|『|(?:电视剧|电影|动画|影视|OST\b)).*$/i,'')
+        .replace(/[（(\[【][^()（）\]】]*(?:版|合唱|主题曲|片头曲|片尾曲|插曲|live|remix|现场|伴奏|翻唱)[^()（）\]】]*[）)\]】]/gi,'')
+        .replace(/\s*《[^》]+》\s*(?:电视剧|电影|动画|影视)?\s*(?:主题曲|片头曲|片尾曲|插曲).*$/,'')
+        .replace(/\s*[-—–]\s*$/,'').trim();
     }
 
     async function ensureTrackLyrics(track,signal){
@@ -3064,30 +3074,33 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
           if(info && sameLyricRecording(track,{title:info.songName,artist:info.artist}) && use(data.lrclist,''))return true;
         }
       }
-      // Match singer and version before borrowing lyrics; never change the playing audio.
-      const queries=[...new Set([track.title,`${track.title} ${track.artist}`])];
+      const core=lyricCoreTitle(track.title),canBorrowCore=Boolean(core&&core!==String(track.title||'').normalize('NFKC').trim()&&String(track.artist||'').trim());
+      const matches=candidate=>sameLyricRecording(track,candidate)||(canBorrowCore&&sameLyricRecording({...track,title:core},{...candidate,title:lyricCoreTitle(candidate.title)}));
+      const queries=[...new Set([track.title,...(canBorrowCore?[`${core} ${track.artist}`,core]:[]),`${track.title} ${track.artist}`])];
       const tried=new Set(track.lrcUrl ? [track.lrcUrl] : []);
       const fallbackController=new AbortController();
       signal=signal ? AbortSignal.any([signal,fallbackController.signal]) : fallbackController.signal;
       const findNetease=async()=>{
         for(const query of queries){
           const data=await read('https://api.qijieya.cn/meting/?'+new URLSearchParams({server:'netease',type:'search',id:query,limit:20}));
-          const matches=Array.isArray(data) ? data.filter(song=>sameLyricRecording(track,{title:song.name,artist:song.artist})).slice(0,2) : [];
-          for(const song of matches){
+          const candidates=Array.isArray(data) ? data.filter(song=>matches({title:song.name,artist:song.artist})).sort((a,b)=>Number(sameLyricRecording(track,{title:b.name,artist:b.artist}))-Number(sameLyricRecording(track,{title:a.name,artist:a.artist}))).slice(0,2) : [];
+          for(const song of candidates){
             if(!song.lrc || tried.has(song.lrc) || !/^https:\/\/api\.qijieya\.cn\/meting\//.test(song.lrc))continue;
             tried.add(song.lrc);
             const value=await read(song.lrc);
-            if(parseLRC(value).length)return {value,source:'网易云'};
+            if(parseLRC(value).length)return {value,source:'网易云',coreMatched:!sameLyricRecording(track,{title:song.name,artist:song.artist})};
           }
         }
         throw new Error('No matching NetEase lyrics');
       };
       const findQQ=async()=>{
-        const data=await read(musicApiUrl('/api/qq',{msg:track.title}));
+        for(const query of queries){
+        const data=await read(musicApiUrl('/api/qq',{msg:query}));
         const songs=Array.isArray(data) ? data : (Array.isArray(data?.data) ? data.data : []);
-        for(const song of songs.filter(song=>song.song_mid && sameLyricRecording(track,{title:song.song_title,artist:song.singer_name})).slice(0,2)){
-          const detail=await read(musicApiUrl('/api/qq',{msg:track.title,mid:song.song_mid}));
-          if(detail && sameLyricRecording(track,{title:detail.song_title,artist:detail.singer_name}) && parseLRC(detail).length)return {value:detail,source:'QQ音乐'};
+        for(const song of songs.filter(song=>song.song_mid && matches({title:song.song_title,artist:song.singer_name})).slice(0,2)){
+          const detail=await read(musicApiUrl('/api/qq',{msg:query,mid:song.song_mid}));
+          if(detail && matches({title:detail.song_title,artist:detail.singer_name}) && parseLRC(detail).length)return {value:detail,source:'QQ音乐',coreMatched:!sameLyricRecording(track,{title:detail.song_title,artist:detail.singer_name})};
+        }
         }
         throw new Error('No matching QQ lyrics');
       };
@@ -3095,10 +3108,10 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         for(const query of queries){
           const data=await read('https://oiapi.net/api/Kuwo?'+new URLSearchParams({msg:query}));
           const songs=Array.isArray(data?.data)?data.data:[];
-          for(const song of songs.filter(song=>sameLyricRecording(track,{title:song.song,artist:song.singer})).slice(0,2)){
+          for(const song of songs.filter(song=>matches({title:song.song,artist:song.singer})).slice(0,2)){
             const rid=String(song.rid||'').replace(/^MUSIC_/,'');if(!/^\d+$/.test(rid))continue;
             const detail=(await read('https://m.kuwo.cn/newh5/singles/songinfoandlrc?musicId='+rid))?.data;
-            if(detail?.songinfo&&sameLyricRecording(track,{title:detail.songinfo.songName,artist:detail.songinfo.artist})&&parseLRC(detail.lrclist).length)return {value:detail.lrclist,source:'酷我音乐'};
+            if(detail?.songinfo&&matches({title:detail.songinfo.songName,artist:detail.songinfo.artist})&&parseLRC(detail.lrclist).length)return {value:detail.lrclist,source:'酷我音乐',coreMatched:!sameLyricRecording(track,{title:detail.songinfo.songName,artist:detail.songinfo.artist})};
           }
         }
         throw new Error('No matching Kuwo lyrics');
@@ -3107,17 +3120,17 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         for(const query of queries){
           const url='https://apicx.asia/api/joox_music?'+new URLSearchParams({msg:query,token:APICX_TOKEN,br:JOOX_BR});
           const data=await read(url),songs=data?.code===200&&Array.isArray(data.data?.songs)?data.data.songs:[];
-          const matches=songs.map((song,index)=>({song,index})).filter(({song})=>song.songmid&&sameLyricRecording(track,{title:song['歌曲名称'],artist:song['歌手']})).slice(0,2);
-          for(const {song,index} of matches){
+          const candidates=songs.map((song,index)=>({song,index})).filter(({song})=>song.songmid&&matches({title:song['歌曲名称'],artist:song['歌手']})).slice(0,2);
+          for(const {song,index} of candidates){
             const response=await read(url+'&n='+(index+1)),detail=response?.code===200?response.data:null;
-            if(detail&&String(detail.songmid)===String(song.songmid)&&sameLyricRecording(track,{title:detail['歌曲名称'],artist:detail['歌手']})&&parseLRC(detail['歌词内容']).length)return {value:detail['歌词内容'],source:'JOOX'};
+            if(detail&&String(detail.songmid)===String(song.songmid)&&matches({title:detail['歌曲名称'],artist:detail['歌手']})&&parseLRC(detail['歌词内容']).length)return {value:detail['歌词内容'],source:'JOOX',coreMatched:!sameLyricRecording(track,{title:detail['歌曲名称'],artist:detail['歌手']})};
           }
         }
         throw new Error('No matching JOOX lyrics');
       };
       try{
         const result=await Promise.any([findNetease(),findQQ(),findKuwo(),findJoox()]);
-        return use(result.value,result.source);
+        return use(result.value,result.source+(result.coreMatched?'（核心歌名匹配，时间轴可能不同）':''));
       }catch{return false;}
       finally{fallbackController.abort();}
     }
