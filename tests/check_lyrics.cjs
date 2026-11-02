@@ -9,7 +9,7 @@ function boot(fetch,storage=new Map()){
     renderLyrics=()=>renders.push({uid:state.currentTrack?.uid,lines:state.lyricLines.length});
     updateLyricsHighlight=()=>{};
     renderMiniSearchList=()=>{}; renderPlaylistList=()=>{}; updateMainFavButton=()=>{};
-    globalThis.app={parseLRC,lyricText,sameLyricRecording,ensureTrackLyrics,refreshTrackLyrics,state,dom,playTrack,realUpdateLyricsHighlight,realRenderLyrics,setLyricsMode,
+    globalThis.app={parseLRC,lyricText,sameLyricRecording,lyricCoreTitle,ensureTrackLyrics,refreshTrackLyrics,state,dom,playTrack,realUpdateLyricsHighlight,realRenderLyrics,setLyricsMode,
       setRequest:value=>playbackRequest=value,stubDetails:()=>ensureTrackDetails=async()=>{}};
   })();`);
   const node=()=>({style:{},classList:{add(){},remove(){},toggle(){}},appendChild(){},addEventListener(){}});
@@ -103,6 +103,18 @@ function boot(fetch,storage=new Map()){
     return response([]);
   });
   const jooxBorrow={uid:'qq-cross',source:'qq',title:'雨',artist:'沈以诚',audioUrl:'original'};assert(await crossJoox.app.ensureTrackLyrics(jooxBorrow));assert.equal(jooxBorrow.lyricSource,'JOOX');assert.equal(jooxBorrow.audioUrl,'original');
+  for(const title of ['亲爱的你啊- 《无尽的尽头》电视剧主题曲','亲爱的你啊（儿童合唱版）-《无尽的尽头》电视剧主题曲']){
+    const coreLookup=boot(async raw=>{
+      const u=new URL(raw),query=u.searchParams.get('msg');
+      if(u.pathname==='/music_open_api.php'&&u.searchParams.has('mid'))return response({song_title:'亲爱的你啊',singer_name:'测试歌手',lyric:'[00:01]test lyric'});
+      if(u.pathname==='/music_open_api.php'&&query==='亲爱的你啊 测试歌手/童声合唱团')return response([{song_mid:'core',song_title:'亲爱的你啊',singer_name:'测试歌手'}]);
+      return response([]);
+    });
+    assert.equal(coreLookup.app.lyricCoreTitle(title),'亲爱的你啊');
+    const song={uid:title,source:'qq',title,artist:'测试歌手/童声合唱团',audioUrl:'original'};
+    assert(await coreLookup.app.ensureTrackLyrics(song));assert(song.lyricSource.includes('核心歌名匹配'));assert.equal(song.title,title);assert.equal(song.audioUrl,'original');
+  }
+  assert.equal(app.lyricCoreTitle('朋友 (Part II)'),'朋友 (Part II)','Unrecognized meaningful suffixes remain');
   const stale=boot(()=>new Promise(resolve=>release=()=>resolve(response({lrc:'[00:01]old lyric'}))));
   const old={uid:'old',source:'netease',title:'old',artist:'artist',lrcUrl:'https://example.com/old'};
   stale.app.state.currentTrack=old;stale.app.setRequest(1);
