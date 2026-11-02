@@ -352,6 +352,8 @@ body.lyrics-mode .app{background:var(--bg-dark)}.lyrics-mode .player-panel{backg
 @media(max-width:650px),(pointer:coarse){#desktop-float-btn{display:none}}
 
 .lyrics-container:has(.lyrics-empty-actions){mask-image:none;-webkit-mask-image:none}.lyrics-mode .lyrics-inner:has(.lyrics-empty-actions){padding:clamp(20px,12dvh,100px) 12px}.lyrics-empty-actions{display:flex;justify-content:center;padding:4px 8px 20px}.lyrics-empty-actions .btn{min-height:40px}.lyrics-mode .lyrics-empty-actions .btn{font-size:14px}
+
+.search-row{position:relative}.search-history[hidden]{display:none}.search-history{position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:20;max-height:230px;overflow:auto;padding:6px;background:var(--panel-glass);border:1px solid var(--border-subtle);border-radius:12px;box-shadow:0 8px 24px #42474315}.search-history button{display:block;width:100%;border:0;background:transparent;color:var(--text-main);text-align:left;font-size:14px;padding:9px 10px;border-radius:7px;white-space:normal;overflow-wrap:anywhere}.search-history button:hover,.search-history button:focus-visible{background:var(--panel-glass-soft)}.search-history .search-history-clear{font-size:12px;color:var(--text-sub);border-bottom:1px solid var(--border-subtle)}
 </style>
 </head>
 <body>
@@ -414,9 +416,10 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
           <div class="library-toolbar search-toolbar">
           <div class="search-row ripple-target">
             <span class="search-prefix"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" data-icon="search"><use href="#icon-search"></use></svg></span>
-            <input id="search-input" class="input" type="text"
+            <input id="search-input" class="input" type="text" autocomplete="off" aria-controls="search-history"
                    placeholder="输入歌名 / 歌手，回车搜索…" />
             <button id="search-btn" class="btn ripple-target" data-i18n="searchButton">搜索</button>
+            <div id="search-history" class="search-history" aria-label="搜索历史" hidden></div>
           </div>
 
           <div class="source-row">
@@ -1079,23 +1082,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       return String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
     }
 
-    function getInterleavedSearchList(){
-      const grouped={netease:[],qq:[],kuwo:[],joox:[],kugou:[]};
-      state.searchResults.forEach(t=>{if(grouped[t.source])grouped[t.source].push(t);});
-      Object.keys(grouped).forEach(k=>grouped[k].sort((a,b)=>(a.displayIndex||0)-(b.displayIndex||0)));
-      const order=['netease','qq','kuwo','joox','kugou'];
-      const idx={netease:0,qq:0,kuwo:0,joox:0,kugou:0};
-      const out=[];
-      let added=true;
-      while(added){
-        added=false;
-        for(const s of order){
-          const arr=grouped[s]; const i=idx[s];
-          if(arr && i<arr.length){out.push(arr[i]);idx[s]++;added=true;}
-        }
-      }
-      return out;
-    }
+    function getInterleavedSearchList(){return [...state.searchResults];}
 
     function setLanguage(lang){
       if(lang!=='zh' && lang!=='en') lang='zh';
@@ -2616,6 +2603,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
             displayIndex:(page-1)*20+index+1,audioUrl:null,lrc:null,detailsLoaded:false};
           resultState.trackMap.set(uid,track);resultState.searchResults.push(track);added++;
         });
+        resultState.onResults?.();
         if(json.data['歌曲列表'].length<20||added===before)break;
         }
       }catch(error){recordSearchError(resultState,'kugou',error);}
@@ -2687,6 +2675,31 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
     // ===================== 聚合搜索 =====================
 
+    function readSearchHistory(){
+      try{const value=JSON.parse(localStorage.getItem('liusheng-search-history-v1')||'[]');return Array.isArray(value)?[...new Set(value.filter(item=>typeof item==='string'&&item.trim()).map(item=>item.trim()))].slice(0,20):[];}catch{return [];}
+    }
+    function saveSearchHistory(keyword){
+      keyword=String(keyword||'').trim();if(!keyword)return;
+      try{localStorage.setItem('liusheng-search-history-v1',JSON.stringify([keyword,...readSearchHistory().filter(item=>item.toLowerCase()!==keyword.toLowerCase())].slice(0,20)));}catch{}
+      $('search-history').hidden=true;
+    }
+    function renderSearchHistory(){
+      const box=$('search-history'),query=dom.searchInput.value.trim().toLowerCase();box.innerHTML='';
+      const entries=readSearchHistory().filter(item=>item.toLowerCase().includes(query));box.hidden=!entries.length;
+      if(!entries.length)return;
+      const clear=document.createElement('button');clear.type='button';clear.className='search-history-clear';clear.textContent='清空搜索历史';
+      clear.addEventListener('click',()=>{try{localStorage.removeItem('liusheng-search-history-v1');}catch{}box.hidden=true;});box.appendChild(clear);
+      for(const keyword of entries){
+        const button=document.createElement('button');button.type='button';button.textContent=keyword;
+        button.addEventListener('click',()=>{dom.searchInput.value=keyword;state.searchKeyword=keyword;void searchAllSources();});box.appendChild(button);
+      }
+    }
+    function setupSearchHistory(){
+      dom.searchInput.addEventListener('focus',renderSearchHistory);dom.searchInput.addEventListener('input',renderSearchHistory);
+      dom.searchInput.addEventListener('keydown',event=>{if(event.key==='Escape')$('search-history').hidden=true;});
+      document.addEventListener('pointerdown',event=>{if(event.target!==dom.searchInput&&!$('search-history').contains(event.target))$('search-history').hidden=true;});
+      dom.searchInput.addEventListener('blur',()=>setTimeout(()=>{if(!$('search-history').contains(document.activeElement))$('search-history').hidden=true;},0));
+    }
     let searchRequest=0,searchController;
     async function searchAllNetease(kw,pool){
       let limit=50,previousLimit=0;
@@ -2694,6 +2707,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       while(!pool.signal.aborted){
         await searchNetease(kw,1,limit,pool);
         if(pool.signal.aborted)return;
+        pool.onResults?.();
         let added=0;
         for(const track of pool.searchResults){
           if(track.source==='netease'&&!seen.has(track.uid)){seen.add(track.uid);added++;}
@@ -2715,24 +2729,38 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       state.trackMap.clear();rebuildLibraryTrackMap();
       if(state.currentTrack)state.trackMap.set(state.currentTrack.uid,state.currentTrack);
       dom.searchCount.hidden=false;dom.searchCount.textContent='0';renderPlaylistList();
-      const tasks=enabled.map(source=>{
-        if(source==='netease')return searchAllNetease(kw,pool);
-        if(source==='qq')return searchQQ(kw,null,pool);
-        if(source==='kuwo')return searchKuwo(kw,null,pool);
-        if(source==='joox')return searchJoox(kw,null,pool);
-        if(source==='kugou')return searchKugou(kw,null,pool);
+      saveSearchHistory(kw);
+      const seen=new Set();let published=0;
+      const publish=()=>{
+        if(request!==searchRequest||signal.aborted)return;
+        const incoming=[];
+        while(published<pool.searchResults.length){
+          const track=pool.searchResults[published++];
+          if(seen.has(track.uid))continue;seen.add(track.uid);incoming.push(track);
+        }
+        if(!incoming.length)return;
+        const offset=state.searchResults.length;
+        state.searchResults.push(...incoming);
+        for(const track of incoming)state.trackMap.set(track.uid,track);
+        dom.searchCount.textContent=String(state.searchResults.length);
+        dom.searchStatus.textContent=(state.language==='zh'?'正在搜索… 已找到 ':'Searching… Found ')+state.searchResults.length;
+        if(!offset)dom.searchMiniList.innerHTML='';
+        renderTrackRows(dom.searchMiniList,incoming,'results',null,offset);
+        $('clear-results-btn').disabled=false;
+      };
+      pool.onResults=publish;
+      const tasks=enabled.map(async source=>{
+        try{
+          if(source==='netease')await searchAllNetease(kw,pool);
+          else if(source==='qq')await searchQQ(kw,null,pool);
+          else if(source==='kuwo')await searchKuwo(kw,null,pool);
+          else if(source==='joox')await searchJoox(kw,null,pool);
+          else if(source==='kugou')await searchKugou(kw,null,pool);
+        }finally{publish();}
       });
       await Promise.allSettled(tasks);
       if(request!==searchRequest)return;
       state.sourceErrors=pool.sourceErrors;
-      const seen=new Set();
-      const candidates=pool.searchResults.filter(track=>{
-        if(seen.has(track.uid))return false;
-        seen.add(track.uid);return true;
-      });
-      state.searchResults=candidates;
-      for(const track of candidates)state.trackMap.set(track.uid,track);
-      dom.searchCount.textContent=String(candidates.length);
       state.searchInProgress=false;
       const labels={netease:'sourceNetease',qq:'sourceQQ',kuwo:'sourceKuwo',joox:'sourceJoox',kugou:'sourceKugou'};
       const failures=Object.keys(state.sourceErrors).map(source=>`${t(labels[source])}：${state.sourceErrors[source]}`).join(' ');
@@ -2740,7 +2768,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         ? `搜索完成 · 共 ${state.searchResults.length} 首`
         : `Search complete · ${state.searchResults.length} tracks`;
       dom.searchStatus.textContent=(!state.searchResults.length&&failures?(state.language==='zh'?'搜索失败':'Search failed'):summary)+(failures?' '+failures:'');
-      renderPlaylistList();
+      if(!state.searchResults.length)renderMiniSearchList();
     }
 
     // ===================== 各平台详情 =====================
@@ -3906,7 +3934,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       if(!list.length){
         const empty=document.createElement('div');empty.className='empty-library';
         empty.textContent=state.searchInProgress?(state.language==='zh'?'正在搜索…':'Searching…'):
-          state.searchHasRun?(state.language==='zh'?'没有可播放的搜索结果，试试其他关键词。':'No playable results. Try other keywords.'):
+          state.searchHasRun?(state.language==='zh'?'没有找到搜索结果，试试其他关键词。':'No results. Try other keywords.'):
           (state.language==='zh'?'输入歌名或歌手，发现想听的声音。':'Search for a song or artist.');
         wrap.appendChild(empty);
       }
@@ -4008,14 +4036,14 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       }
       showImportDialog('add-playlist-dialog');
     }
-    function renderTrackRows(wrap,list,activeTab,queueContext=null){
+    function renderTrackRows(wrap,list,activeTab,queueContext=null,offset=0){
       list.forEach((track,idx)=>{
         const item=document.createElement('div');
         item.className='track-item ripple-target';
         if(state.currentTrack && state.currentTrack.uid===track.uid) item.classList.add('playing');
 
         const index=document.createElement('div');
-        index.className='track-index'; index.textContent=idx+1;
+        index.className='track-index'; index.textContent=idx+offset+1;
 
         const meta=document.createElement('div');
         const title=document.createElement('div');
@@ -4542,6 +4570,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       loadLibraryFromStorage();
       setupEvents();
       setupHomeInstall();
+      setupSearchHistory();
       setupPanelToggles();
       setupMobileNavigation();
       setLanguage(state.language);
