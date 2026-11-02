@@ -44,10 +44,10 @@ choose('broken.json');readers[0].result='{bad';readers[0].onload();assert(node('
 choose('old.json');choose('new.json');readers[2].result=JSON.stringify(data);readers[2].onload();readers[1].result='{}';readers[1].onload();
 assert(!node('confirm-import-file').disabled);assert(node('import-file-status').textContent.includes('new.json'));assert.equal(c.imports.length,0,'Reading a file must not modify the library');
 const fileImport=a.confirmImportFile();assert(node('import-link-submit').disabled);assert(!node('import-link-dialog').open);assert(node('import-progress-dialog').open);assert.equal(node('import-progress-dialog').className,'import-compact');await fileImport;assert.equal(c.importModes.length,0);assert(!node('import-link-submit').disabled);assert.equal(c.imports.length,1);assert(node('confirm-import-file').disabled);await a.confirmImportFile();assert.equal(c.imports.length,1);
-assert(Object.values(a.state.enabledSources).every(Boolean));
+assert.deepEqual(Object.keys(a.state.enabledSources).filter(key=>a.state.enabledSources[key]),['kuwo']);
 assert(!html.includes('id="library-import-btn"'));const footer=html.match(/<footer>([\s\S]*?)<\/footer>/)[1];assert.equal(footer.replace(/<[^>]+>/g,'').trim(),'音乐版权归各平台及作者');
-for(const s of ['netease','qq','kuwo','joox','kugou'])assert(new RegExp(`data-source="${s}"[^>]*checked`).test(html));
-console.log('通过：平台链接识别及错误指引、JSON格式/大小/空文件校验、文件预览不改歌单、确认去重入口、防读取竞态、音源默认全选与页面入口清理。');
+for(const s of ['netease','qq','kuwo','joox','kugou'])assert.equal(new RegExp(`data-source="${s}"[^>]*checked`).test(html),s==='kuwo');
+console.log('通过：平台链接识别及错误指引、JSON格式/大小/空文件校验、文件预览不改歌单、确认去重入口、防读取竞态、音源默认仅酷我与页面入口清理。');
 
   c.location.hostname='127.0.0.1';c.location.port='8766';
   a.dom.playlistSelect=node('select');
