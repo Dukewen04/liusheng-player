@@ -3091,8 +3091,32 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         }
         throw new Error('No matching QQ lyrics');
       };
+      const findKuwo=async()=>{
+        for(const query of queries){
+          const data=await read('https://oiapi.net/api/Kuwo?'+new URLSearchParams({msg:query}));
+          const songs=Array.isArray(data?.data)?data.data:[];
+          for(const song of songs.filter(song=>sameLyricRecording(track,{title:song.song,artist:song.singer})).slice(0,2)){
+            const rid=String(song.rid||'').replace(/^MUSIC_/,'');if(!/^\d+$/.test(rid))continue;
+            const detail=(await read('https://m.kuwo.cn/newh5/singles/songinfoandlrc?musicId='+rid))?.data;
+            if(detail?.songinfo&&sameLyricRecording(track,{title:detail.songinfo.songName,artist:detail.songinfo.artist})&&parseLRC(detail.lrclist).length)return {value:detail.lrclist,source:'酷我音乐'};
+          }
+        }
+        throw new Error('No matching Kuwo lyrics');
+      };
+      const findJoox=async()=>{
+        for(const query of queries){
+          const url='https://apicx.asia/api/joox_music?'+new URLSearchParams({msg:query,token:APICX_TOKEN,br:JOOX_BR});
+          const data=await read(url),songs=data?.code===200&&Array.isArray(data.data?.songs)?data.data.songs:[];
+          const matches=songs.map((song,index)=>({song,index})).filter(({song})=>song.songmid&&sameLyricRecording(track,{title:song['歌曲名称'],artist:song['歌手']})).slice(0,2);
+          for(const {song,index} of matches){
+            const response=await read(url+'&n='+(index+1)),detail=response?.code===200?response.data:null;
+            if(detail&&String(detail.songmid)===String(song.songmid)&&sameLyricRecording(track,{title:detail['歌曲名称'],artist:detail['歌手']})&&parseLRC(detail['歌词内容']).length)return {value:detail['歌词内容'],source:'JOOX'};
+          }
+        }
+        throw new Error('No matching JOOX lyrics');
+      };
       try{
-        const result=await Promise.any(track.source==='qq' ? [findNetease()] : [findNetease(),findQQ()]);
+        const result=await Promise.any([findNetease(),findQQ(),findKuwo(),findJoox()]);
         return use(result.value,result.source);
       }catch{return false;}
       finally{fallbackController.abort();}
@@ -3156,7 +3180,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         if(track){
           const actions=document.createElement('div');actions.className='lyrics-empty-actions';
           const button=document.createElement('button');button.type='button';button.className='btn btn-secondary';
-          button.textContent=state.language==='zh'?(track.lyricsLoading?'正在查找歌词…':'一键添加歌词'):(track.lyricsLoading?'Finding lyrics…':'Add lyrics');
+          button.textContent=state.language==='zh'?(track.lyricsLoading?'正在跨源查找歌词…':'一键添加歌词'):(track.lyricsLoading?'Finding lyrics…':'Add lyrics');
           button.disabled=Boolean(track.lyricsLoading);button.addEventListener('click',addCurrentLyrics);
           actions.appendChild(button);wrap.appendChild(actions);
         }
