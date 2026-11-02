@@ -356,6 +356,9 @@ body.lyrics-mode .app{background:var(--bg-dark)}.lyrics-mode .player-panel{backg
 .search-row{position:relative}.search-history[hidden]{display:none}.search-history{position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:20;max-height:230px;overflow:auto;padding:6px;background:var(--panel-glass);border:1px solid var(--border-subtle);border-radius:12px;box-shadow:0 8px 24px #42474315}.search-history button{display:block;width:100%;border:0;background:transparent;color:var(--text-main);text-align:left;font-size:14px;padding:9px 10px;border-radius:7px;white-space:normal;overflow-wrap:anywhere}.search-history button:hover,.search-history button:focus-visible{background:var(--panel-glass-soft)}.search-history .search-history-clear{font-size:12px;color:var(--text-sub);border-bottom:1px solid var(--border-subtle)}
 
 .search-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px}.search-row #search-input{width:100%;max-width:100%;min-width:0;outline:none;outline-offset:0;box-shadow:none}.search-row:focus-within{border-color:var(--accent);outline:2px solid var(--border-subtle);outline-offset:1px}.search-row #search-btn{position:relative;white-space:nowrap}
+
+#progress-bar{width:100%;transform-origin:left;transform:scaleX(0)}.progress-bar-wrapper{touch-action:none}#progress-seek{position:absolute;left:0;top:50%;transform:translateY(-50%);width:100%;height:44px;margin:0;opacity:0;cursor:pointer;touch-action:none;z-index:2}.progress-bar-wrapper:focus-within{outline:2px solid var(--accent);outline-offset:5px}
+@media(max-width:650px){body:not(.lyrics-mode) .search-panel-content{flex:1 1 0;min-height:0;gap:8px}body:not(.lyrics-mode) #search-mini-list{flex:1 1 0;min-height:0;max-height:none}body:not(.lyrics-mode) .search-toolbar{padding:10px;gap:7px;flex:0 0 auto}body:not(.lyrics-mode) .source-row{flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px}body:not(.lyrics-mode) .source-chip{flex-shrink:0}body:not(.lyrics-mode) .search-panel>.panel-header .chip{display:none}body:not(.lyrics-mode)[data-mobile-view="search"] footer{display:none}body:not(.lyrics-mode) .search-toolbar .library-actions{margin-top:0}}
 </style>
 </head>
 <body>
@@ -427,12 +430,12 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
           <div class="source-row">
             <label class="source-chip ripple-target">
               <span class="source-dot netease"></span>
-              <input type="checkbox" data-source="netease" checked />
+              <input type="checkbox" data-source="netease" />
               <span>网易云</span>
             </label>
             <label class="source-chip ripple-target">
               <span class="source-dot qq"></span>
-              <input type="checkbox" data-source="qq" checked />
+              <input type="checkbox" data-source="qq" />
               <span>QQ</span>
             </label>
             <label class="source-chip ripple-target">
@@ -442,10 +445,10 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
             </label>
             <label class="source-chip ripple-target">
               <span class="source-dot joox"></span>
-              <input type="checkbox" data-source="joox" checked />
+              <input type="checkbox" data-source="joox" />
               <span>JOOX</span>
             </label>
-            <label class="source-chip"><span class="source-dot kugou"></span><input type="checkbox" data-source="kugou" checked /><span>酷狗</span></label>
+            <label class="source-chip"><span class="source-dot kugou"></span><input type="checkbox" data-source="kugou" /><span>酷狗</span></label>
           </div>
 
           <div class="search-stats">
@@ -508,6 +511,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
                 <div id="progress-bar-wrapper" class="progress-bar-wrapper ripple-target">
                   <div id="progress-bar" class="progress-bar"></div>
                   <div id="progress-handle" class="progress-handle"></div>
+                  <input id="progress-seek" type="range" min="0" max="1000" step="1" value="0" aria-label="播放进度" disabled>
                 </div>
                 <span id="total-time" class="progress-time">00:00</span>
               </div>
@@ -1000,7 +1004,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
     const state = {
       language:'zh',
-      enabledSources:{netease:true, qq:true, kuwo:true, joox:true, kugou:true},
+      enabledSources:{netease:false, qq:false, kuwo:true, joox:false, kugou:false},
 
       searchKeyword:'',
       searchResults:[],
@@ -4374,10 +4378,34 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       globalThis.addEventListener?.('beforeinstallprompt',event=>{event.preventDefault();installPrompt=event;$('install-home-btn').hidden=isHomeInstalled();});
       globalThis.addEventListener?.('appinstalled',()=>{installPrompt=null;$('install-home-btn').hidden=true;$('install-home-dialog').close();showToast('已添加到桌面');});
     }
+    let progressSeeking=false;
+    function updateProgressSeek(){
+      const slider=$('progress-seek'),duration=dom.audio.duration;
+      slider.disabled=!(Number.isFinite(duration)&&duration>0);
+      if(!progressSeeking){slider.value=slider.disabled?'0':String(Math.round((dom.audio.currentTime||0)/duration*1000));slider.ariaValueText=formatTime(dom.audio.currentTime||0);}
+    }
+    function setupProgressSeek(){
+      const slider=$('progress-seek');
+      slider.addEventListener('input',()=>{
+        const duration=dom.audio.duration;if(!Number.isFinite(duration)||duration<=0)return;
+        progressSeeking=true;const ratio=Math.max(0,Math.min(1,Number(slider.value)/1000));
+        dom.currentTime.textContent=formatTime(duration*ratio);slider.ariaValueText=dom.currentTime.textContent;
+        dom.progressBar.style.transform='scaleX('+ratio+')';dom.progressHandle.style.left=(ratio*dom.progressWrapper.clientWidth)+'px';
+      });
+      slider.addEventListener('change',()=>{
+        const duration=dom.audio.duration;progressSeeking=false;
+        if(Number.isFinite(duration)&&duration>0){dom.audio.currentTime=duration*Math.max(0,Math.min(1,Number(slider.value)/1000));savePlaybackState();updateLyricsHighlight(dom.audio.currentTime);}
+        updateProgressSeek();
+      });
+      slider.addEventListener('pointercancel',()=>{progressSeeking=false;updateProgressSeek();});
+    }
     function bindPlaybackAudio(audio){
       const on=(event,handler)=>audio.addEventListener(event,()=>{if(audio===dom.audio)handler();});
 
+      on('loadedmetadata',updateProgressSeek);
+      on('emptied',()=>{progressSeeking=false;updateProgressSeek();});
       on('timeupdate',()=>{
+        updateProgressSeek();if(progressSeeking)return;
         const cur=dom.audio.currentTime||0, dur=dom.audio.duration||0;
         dom.currentTime.textContent=formatTime(cur);
         dom.totalTime.textContent=formatTime(dur||0);
@@ -4500,12 +4528,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       bindPlaybackAudio(dom.audio);
       window.addEventListener('pagehide',savePlaybackState);
 
-      dom.progressWrapper.addEventListener('click',e=>{
-        const rect=dom.progressWrapper.getBoundingClientRect();
-        const r=(e.clientX-rect.left)/rect.width;
-        const dur=dom.audio.duration||0;
-        dom.audio.currentTime=Math.max(0,Math.min(dur,dur*r));
-      });
+      setupProgressSeek();
 
       document.querySelectorAll('.playlist-tab').forEach(tab=>{
         tab.addEventListener('click',()=>{
