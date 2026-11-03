@@ -1069,8 +1069,12 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       }
       const tab=['favorites','playlists'].includes(saved.tab) ? saved.tab : (type==='playlist'?'playlists':'favorites');
       document.querySelectorAll('.playlist-tab').forEach(item=>item.classList.toggle('active',item.dataset.tab===tab));
+      if(track)state.currentTrack=track;
       renderPlaylistList();
-      if(track) playTrack(track,state.playContext,Number.isFinite(saved.position) && saved.position>=0 ? saved.position : 0);
+      if(track){
+        queueCurrentTrackScroll();
+        void playTrack(track,state.playContext,Number.isFinite(saved.position) && saved.position>=0 ? saved.position : 0);
+      }
     }
 
     const dom = {};
