@@ -359,6 +359,8 @@ body.lyrics-mode .app{background:var(--bg-dark)}.lyrics-mode .player-panel{backg
 
 #progress-bar{width:100%;transform-origin:left;transform:scaleX(0)}.progress-bar-wrapper{touch-action:none}#progress-seek{position:absolute;left:0;top:50%;transform:translateY(-50%);width:100%;height:44px;margin:0;opacity:0;cursor:pointer;touch-action:none;z-index:2}.progress-bar-wrapper:focus-within{outline:2px solid var(--accent);outline-offset:5px}
 @media(max-width:650px){body:not(.lyrics-mode) .search-panel-content{flex:1 1 0;min-height:0;gap:8px}body:not(.lyrics-mode) #search-mini-list{flex:1 1 0;min-height:0;max-height:none}body:not(.lyrics-mode) .search-toolbar{padding:10px;gap:7px;flex:0 0 auto}body:not(.lyrics-mode) .source-row{flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px}body:not(.lyrics-mode) .source-chip{flex-shrink:0}body:not(.lyrics-mode) .search-panel>.panel-header .chip{display:none}body:not(.lyrics-mode)[data-mobile-view="search"] footer{display:none}body:not(.lyrics-mode) .search-toolbar .library-actions{margin-top:0}}
+
+@media(max-width:650px){body:not(.lyrics-mode) .search-panel>.panel-header,body:not(.lyrics-mode) .search-panel .search-stats,body:not(.lyrics-mode) #results-actions,body:not(.lyrics-mode) .search-initial-empty{display:none}body:not(.lyrics-mode) .search-panel-content{padding-top:10px;gap:6px}body:not(.lyrics-mode) .search-toolbar{padding:8px;gap:6px}body:not(.lyrics-mode) #search-mini-list .track-item{min-height:60px;padding-top:9px;padding-bottom:9px}}
 </style>
 </head>
 <body>
@@ -3337,11 +3339,26 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       const open=$(type+'-more-actions').classList.toggle('mobile-open');
       $(type+'-actions-toggle').setAttribute('aria-expanded',String(open));
     }
+    function scrollToCurrentTrack(){
+      if(!state.currentTrack)return;
+      for(const [list,scroller] of [[dom.playlistList,dom.playlistMain],[dom.searchMiniList,dom.searchMiniList],[$('play-queue-list'),$('play-queue-list')]]){
+        const row=list?.querySelector?.('.track-item.playing');
+        if(!row?.getBoundingClientRect||!scroller?.getBoundingClientRect||!scroller.scrollTo)continue;
+        const box=scroller.getBoundingClientRect(),item=row.getBoundingClientRect();
+        if(box.height<=0||item.height<=0)continue;
+        if(item.top<box.top||item.bottom>box.bottom)scroller.scrollTo({top:Math.max(0,scroller.scrollTop+item.top-box.top-(box.height-item.height)/2),behavior:'smooth'});
+      }
+    }
+    function queueCurrentTrackScroll(){
+      if(globalThis.requestAnimationFrame)globalThis.requestAnimationFrame(scrollToCurrentTrack);else scrollToCurrentTrack();
+    }
+
     function setMobileView(view){
       if(!['search','player','music'].includes(view))return;
       document.body.dataset.mobileView=view;
       for(const name of ['search','player','music'])$('mobile-nav-'+name).setAttribute('aria-pressed',String(name===view));
       try{localStorage.setItem('liusheng-mobile-view',view);}catch{}
+      if(view==='music'||view==='search')queueCurrentTrackScroll();
     }
     function updateMobilePlayback(){
       const track=state.currentTrack;
@@ -3599,7 +3616,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
         handlePlaybackFailure(e,request);
       }
 
-      renderPlaylistList();
+      renderPlaylistList();queueCurrentTrackScroll();
     }
 
     function playbackQualityOptions(track){
@@ -3960,6 +3977,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       const list=getInterleavedSearchList();
       if(!list.length){
         const empty=document.createElement('div');empty.className='empty-library';
+        if(!state.searchHasRun&&!state.searchInProgress)empty.classList.add('search-initial-empty');
         empty.textContent=state.searchInProgress?(state.language==='zh'?'正在搜索…':'Searching…'):
           state.searchHasRun?(state.language==='zh'?'没有找到搜索结果，试试其他关键词。':'No results. Try other keywords.'):
           (state.language==='zh'?'输入歌名或歌手，发现想听的声音。':'Search for a song or artist.');
@@ -4454,7 +4472,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       $('add-playlist-close').addEventListener('click',()=>$('add-playlist-dialog').close());
       document.addEventListener('visibilitychange',updateImportVisibility);
       $('desktop-float-btn').addEventListener('click',openDesktopFloat);
-      $('play-queue-btn').addEventListener('click',()=>{renderPlayQueue();showImportDialog('play-queue-dialog');});
+      $('play-queue-btn').addEventListener('click',()=>{renderPlayQueue();showImportDialog('play-queue-dialog');queueCurrentTrackScroll();});
       $('play-queue-close').addEventListener('click',()=>$('play-queue-dialog').close());
       dom.lyricsModeBtn.addEventListener('click',()=>setLyricsMode(!state.lyricsMode));
       $('audio-settings-btn').addEventListener('click',()=>{
@@ -4540,7 +4558,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
             state.playContext.type='playlist';
             if(state.playlists.length&&!state.playContext.playlistId)state.playContext.playlistId=state.playlists[0].id;
           }
-          renderPlaylistList();
+          renderPlaylistList();queueCurrentTrackScroll();
           savePlaybackState();
           const list=getActiveList();
           if(!state.currentTrack && list.length) playFromList(state.playContext.type,0,state.playContext.playlistId);
@@ -4560,7 +4578,7 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
       dom.playlistSelect.addEventListener('change',()=>{
         resetPlaylistSearch();
         state.playContext.playlistId=dom.playlistSelect.value;
-        renderPlaylistList();
+        renderPlaylistList();queueCurrentTrackScroll();
         savePlaybackState();
       });
       dom.addCurrentBtn.addEventListener('click',addCurrentToPlaylist);
