@@ -4,7 +4,8 @@ const assert = require('assert/strict');
 const html = fs.readFileSync(require('path').join(__dirname,'../index.html'), 'utf8');
 let script = [...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].at(-1)[1];
 script = script.replace(/\}\)\(\);\s*$/, `
-renderPlaylistOptions=()=>{}; renderPlaylistList=()=>{}; updateMainFavButton=()=>{};
+renderPlaylistOptions=()=>{}; renderPlaylistList=()=>globalThis.renderedCurrent=state.currentTrack?.uid; updateMainFavButton=()=>{};
+queueCurrentTrackScroll=()=>globalThis.scrolledCurrent=state.currentTrack?.uid;
 playTrack=(track,context,time)=>globalThis.resumed={track,context,time};
 globalThis.app={state,dom,savePlaybackState,restorePlaybackState,setLoadedUid:uid=>loadedTrackUid=uid};
 })();`);
@@ -33,7 +34,7 @@ context.app.state.playMode='shuffle';context.app.state.currentTrack=null;context
 context.app.restorePlaybackState();
 assert.equal(context.app.state.playMode,'single');assert.equal(context.app.dom.audio.volume,0.8);
 assert.equal(context.app.dom.playlistSelect.value,'pl-test');assert.equal(context.resumed.time,37.5);assert.equal(context.resumed.track.uid,'qq-test');
-assert.equal(context.resumed.context.index,0);
+assert.equal(context.resumed.context.index,0);assert.equal(context.app.state.currentTrack.uid,'qq-test');assert.equal(context.renderedCurrent,'qq-test','Restored rows must highlight the track before attempting playback');assert.equal(context.scrolledCurrent,'qq-test','Restore scroll must not wait for audio loading or autoplay permission');
 const lastResumed=context.resumed;
 context.app.state.playMode='shuffle';
 storage.set('liusheng-playback-v1','broken json');
